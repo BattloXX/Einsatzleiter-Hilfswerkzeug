@@ -15,13 +15,14 @@ depends_on = None
 
 def upgrade() -> None:
     # ── fire_dept: neue Organisations-Felder ─────────────────────────────────
-    op.add_column("fire_dept", sa.Column("is_home_org", sa.Boolean(), nullable=False, server_default="0"))
-    op.add_column("fire_dept", sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"))
-    op.add_column("fire_dept", sa.Column("logo_path", sa.String(500), nullable=True))
-    op.add_column("fire_dept", sa.Column("contact_email", sa.String(200), nullable=True))
-    op.add_column("fire_dept", sa.Column("contact_phone", sa.String(50), nullable=True))
-    op.add_column("fire_dept", sa.Column("street", sa.String(200), nullable=True))
-    op.add_column("fire_dept", sa.Column("city", sa.String(100), nullable=True))
+    # IF NOT EXISTS guards against a partial previous migration run
+    op.execute("ALTER TABLE fire_dept ADD COLUMN IF NOT EXISTS is_home_org BOOL NOT NULL DEFAULT 0")
+    op.execute("ALTER TABLE fire_dept ADD COLUMN IF NOT EXISTS is_active BOOL NOT NULL DEFAULT 1")
+    op.execute("ALTER TABLE fire_dept ADD COLUMN IF NOT EXISTS logo_path VARCHAR(500)")
+    op.execute("ALTER TABLE fire_dept ADD COLUMN IF NOT EXISTS contact_email VARCHAR(200)")
+    op.execute("ALTER TABLE fire_dept ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)")
+    op.execute("ALTER TABLE fire_dept ADD COLUMN IF NOT EXISTS street VARCHAR(200)")
+    op.execute("ALTER TABLE fire_dept ADD COLUMN IF NOT EXISTS city VARCHAR(100)")
     # Wolfurt als Home-Org markieren
     op.execute("UPDATE fire_dept SET is_home_org = 1 WHERE slug = 'wolfurt'")
 
