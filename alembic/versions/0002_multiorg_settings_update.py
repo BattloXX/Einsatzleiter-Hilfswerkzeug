@@ -22,9 +22,6 @@ def upgrade() -> None:
     op.add_column("fire_dept", sa.Column("contact_phone", sa.String(50), nullable=True))
     op.add_column("fire_dept", sa.Column("street", sa.String(200), nullable=True))
     op.add_column("fire_dept", sa.Column("city", sa.String(100), nullable=True))
-    op.add_column("fire_dept", sa.Column("created_at", sa.DateTime(), nullable=True,
-                                          server_default=sa.text("NOW()")))
-
     # Wolfurt als Home-Org markieren
     op.execute("UPDATE fire_dept SET is_home_org = 1 WHERE slug = 'wolfurt'")
 
@@ -115,6 +112,6 @@ def downgrade() -> None:
     op.drop_constraint("fk_user_org_id", "user", type_="foreignkey")
     op.drop_column("user", "org_id")
     for col in ["is_home_org", "is_active", "logo_path", "contact_email",
-                "contact_phone", "street", "city", "created_at"]:
+                "contact_phone", "street", "city"]:
         op.drop_column("fire_dept", col)
     op.execute("DELETE FROM role WHERE code IN ('system_admin', 'org_admin')")
