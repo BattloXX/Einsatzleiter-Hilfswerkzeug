@@ -1,0 +1,67 @@
+# Mobile Nutzung und PWA
+
+← [Zurück zur Startseite](Home)
+
+## Progressive Web App (PWA)
+
+Die Webapp kann wie eine native App auf dem Gerät installiert werden. Installierte Apps:
+- Starten ohne Browser-Chrome (Vollbild)
+- Funktionieren auch bei schlechter Verbindung (Offline-Cache)
+- Erhalten Push-Benachrichtigungen
+- Erscheinen auf dem Homescreen
+
+## Installation auf iOS (Safari)
+
+1. App in **Safari** öffnen (`https://einsatzleiter.feuerwehr-wolfurt.at`)
+2. Teilen-Symbol (Rechteck mit Pfeil nach oben) → **Zum Homescreen**
+3. Name bestätigen → **Hinzufügen**
+
+## Installation auf Android (Chrome)
+
+1. App in **Chrome** öffnen
+2. Drei-Punkte-Menü → **App installieren** oder **Zum Startbildschirm hinzufügen**
+3. Bestätigen
+
+Alternativ erscheint Chrome automatisch ein "Installieren"-Banner.
+
+## Installation auf Windows/Mac (Chrome/Edge)
+
+1. App im Browser öffnen
+2. In der Adressleiste: Install-Symbol (Bildschirm mit Pfeil) klicken
+3. Oder: Drei-Punkte-Menü → **App installieren**
+
+## Offline-Verhalten
+
+Die PWA cached folgende Inhalte für Offline-Nutzung:
+- Login-Seite (Kein Zugriff ohne vorherigen Login möglich)
+- CSS, JavaScript, Icons (App lädt schneller)
+- Zuletzt geöffneter Einsatz (read-only)
+
+**Was offline NICHT funktioniert:**
+- Änderungen speichern (werden in Queue gepuffert)
+- Neue Einsätze sehen
+- Echtzeit-Sync
+
+## Offline-Queue (ausstehende Aktionen)
+
+Wenn du offline eine Aktion durchführst (z.B. Auftrag erledigen):
+1. Aktion wird lokal gespeichert (Queue)
+2. Beim nächsten Verbindungsaufbau wird die Aktion automatisch synchronisiert
+3. Falls ein Konflikt entsteht: Toast-Benachrichtigung → manuelle Entscheidung
+
+## Touch-Optimierungen
+
+Die App ist für Touch-Bedienung optimiert:
+- Alle Buttons mindestens 44×44 Pixel
+- Drag&Drop auf Touch-Geräten unterstützt (SortableJS)
+- Responsive: auf Tablet horizontal, auf Smartphone vertikal gestapelt
+
+## Auf Tablets (empfohlen für Einsatzleitung)
+
+Empfohlene Gerätegröße: **10 Zoll oder größer** für das vollständige Kanban-Board.
+
+Auf Smartphones wird das Board vertikal gestapelt mit kollabierbaren Spalten-Headern.
+
+## Bildschirmhelligkeit
+
+Bei Außeneinsätzen (Sonneneinstrahlung): Helligkeit auf Maximum. Die Farbgestaltung mit hoher Sättigung und dunklem Hintergrund ist für 200 Lux Sonneneinstrahlung auf einem Tablet lesbar.
