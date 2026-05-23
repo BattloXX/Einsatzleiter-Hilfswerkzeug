@@ -2,18 +2,17 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core.audit import write_audit
 from app.core.security import hash_api_key, sign_session, unsign_qr_token, verify_password
+from app.core.templating import templates
 from app.db import get_db
 from app.models.incident import Incident, IncidentToken
 from app.models.user import User
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _set_session_cookie(response: Response, token: str) -> None:

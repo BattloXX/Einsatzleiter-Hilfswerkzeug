@@ -10,7 +10,7 @@
     <div class="card__title">{{ msg.title }}</div>
     {% if msg.detail %}<div class="card__sub">{{ msg.detail }}</div>{% endif %}
     {% if msg.due_at %}
-    <div class="card__due">⏰ Fällig: {{ msg.due_at.strftime('%H:%M') }}</div>
+    <div class="card__due">⏰ Fällig: {{ msg.due_at|local_time }}</div>
     {% endif %}
   </div>
   {% if can_edit %}

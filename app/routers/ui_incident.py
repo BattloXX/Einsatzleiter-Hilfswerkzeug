@@ -5,11 +5,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.core.permissions import require_role, has_role
+from app.core.templating import templates
 from app.models.incident import Incident, IncidentColumn, IncidentVehicle, Task, Message, RescuedPerson, IncidentToken
 from app.models.master import AlarmType, TaskSuggestion, LageHint, VehicleMaster
 from app.services.incident_service import (
@@ -25,7 +25,6 @@ import io
 import base64
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _incident_or_404(incident_id: int, db: Session):

@@ -23,9 +23,9 @@
     {% for k in keys %}
     <tr>
       <td>{{ k.label }}</td>
-      <td>{{ k.created_at.strftime('%d.%m.%Y') }}</td>
-      <td>{{ k.last_used_at.strftime('%d.%m.%Y %H:%M') if k.last_used_at else '–' }}</td>
-      <td>{{ k.expires_at.strftime('%d.%m.%Y') if k.expires_at else '∞' }}</td>
+      <td>{{ (k.created_at|local).strftime('%d.%m.%Y') }}</td>
+      <td>{{ k.last_used_at|local_datetime if k.last_used_at else '–' }}</td>
+      <td>{{ (k.expires_at|local).strftime('%d.%m.%Y') if k.expires_at else '∞' }}</td>
       <td><span class="badge {% if k.is_active %}badge--active{% else %}badge--closed{% endif %}">{{ 'Aktiv' if k.is_active else 'Gesperrt' }}</span></td>
       <td>
         {% if k.is_active %}

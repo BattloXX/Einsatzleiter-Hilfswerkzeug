@@ -8,7 +8,7 @@
 <div class="history-list">
   {% for change in changes %}
   <div class="history-entry">
-    <div class="history-entry__time">{{ change.ts.strftime('%d.%m. %H:%M:%S') }}</div>
+    <div class="history-entry__time">{{ (change.ts|local).strftime('%d.%m. %H:%M:%S') }}</div>
     <div class="history-entry__action">
       <span class="badge badge--action">{{ change.action }}</span>
       <span class="history-entry__entity">{{ change.entity_type }} #{{ change.entity_id }}</span>

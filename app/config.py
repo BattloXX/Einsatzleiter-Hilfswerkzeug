@@ -32,6 +32,10 @@ class Settings(BaseSettings):
 
     PDF_LOGO_PATH: str = "app/static/img/logo.png"
 
+    # IANA-Zeitzone fuer Anzeige von Datums-/Zeitwerten, wenn die Org keine eigene
+    # Zeitzone konfiguriert hat. DB-Werte bleiben immer UTC.
+    DEFAULT_TIMEZONE: str = "Europe/Vienna"
+
     # SMTP / Mail
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587

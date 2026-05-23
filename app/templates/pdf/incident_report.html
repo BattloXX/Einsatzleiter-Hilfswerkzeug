@@ -36,11 +36,11 @@
   </div>
   <div style="text-align:right">
     <div><strong>Einsatz #{{ incident.nummer or incident.id }}</strong></div>
-    <div>{{ incident.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr</div>
+    <div>{{ incident.started_at|local_datetime }} Uhr</div>
     {% if incident.closed_at %}
-    <div>Ende: {{ incident.closed_at.strftime('%H:%M') }} Uhr</div>
+    <div>Ende: {{ incident.closed_at|local_time }} Uhr</div>
     {% endif %}
-    <div class="meta">Erstellt: {{ now.strftime('%d.%m.%Y %H:%M') }}</div>
+    <div class="meta">Erstellt: {{ now|local_datetime }}</div>
   </div>
 </div>
 
@@ -65,7 +65,7 @@
     <td class="{% if t.is_done %}done{% endif %}">{{ t.title }}</td>
     <td>{{ t.vehicle.vehicle_master.code if t.vehicle else '–' }}</td>
     <td>{% if t.is_done %}Erledigt{% elif t.is_cancelled %}Abgebrochen{% else %}Offen{% endif %}</td>
-    <td>{{ t.done_at.strftime('%H:%M') if t.done_at else '–' }}</td>
+    <td>{{ t.done_at|local_time if t.done_at else '–' }}</td>
   </tr>
   {% endfor %}
 </table>
@@ -91,9 +91,9 @@
 <table>
   <tr>
     <td><strong>Status:</strong> {{ troop.status }}</td>
-    <td><strong>Einsatzbeginn:</strong> {{ troop.entry_at.strftime('%H:%M') if troop.entry_at else '–' }}</td>
-    <td><strong>Rückzug:</strong> {{ troop.withdraw_at.strftime('%H:%M') if troop.withdraw_at else '–' }}</td>
-    <td><strong>Zurück:</strong> {{ troop.back_at.strftime('%H:%M') if troop.back_at else '–' }}</td>
+    <td><strong>Einsatzbeginn:</strong> {{ troop.entry_at|local_time if troop.entry_at else '–' }}</td>
+    <td><strong>Rückzug:</strong> {{ troop.withdraw_at|local_time if troop.withdraw_at else '–' }}</td>
+    <td><strong>Zurück:</strong> {{ troop.back_at|local_time if troop.back_at else '–' }}</td>
   </tr>
 </table>
 <table>
@@ -115,7 +115,7 @@
 <table>
   <tr><th>Zeit</th><th>Eintrag</th></tr>
   {% for e in incident.log_entries %}
-  <tr><td>{{ e.ts.strftime('%H:%M:%S') }}</td><td>{{ e.text }}</td></tr>
+  <tr><td>{{ (e.ts|local).strftime('%H:%M:%S') }}</td><td>{{ e.text }}</td></tr>
   {% endfor %}
 </table>
 

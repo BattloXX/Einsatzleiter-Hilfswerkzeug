@@ -10,7 +10,7 @@
     <div class="card__title">{{ task.title }}</div>
     {% if task.detail %}<div class="card__sub">{{ task.detail }}</div>{% endif %}
     <div class="card__meta">
-      <span class="card__time">{{ task.created_at.strftime('%H:%M') }}</span>
+      <span class="card__time">{{ task.created_at|local_time }}</span>
     </div>
   </div>
   {% if can_edit and not task.is_done %}

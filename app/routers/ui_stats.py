@@ -1,15 +1,14 @@
 """Statistik-Dashboard."""
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.templating import templates
 from app.db import get_db
 from app.models.incident import Incident
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/statistik", response_class=HTMLResponse)

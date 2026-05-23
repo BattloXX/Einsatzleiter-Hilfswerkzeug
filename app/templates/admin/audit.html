@@ -9,7 +9,7 @@
   <tbody>
     {% for e in entries %}
     <tr>
-      <td class="nowrap">{{ e.created_at.strftime('%d.%m. %H:%M:%S') }}</td>
+      <td class="nowrap">{{ (e.created_at|local).strftime('%d.%m. %H:%M:%S') }}</td>
       <td><span class="badge badge--action">{{ e.action }}</span></td>
       <td>{{ e.user_id or '–' }}</td>
       <td>{{ e.incident_id or '–' }}</td>

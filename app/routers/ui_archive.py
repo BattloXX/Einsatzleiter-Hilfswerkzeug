@@ -8,17 +8,16 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import or_
 
 from app.core.permissions import can_access_incident
+from app.core.templating import templates
 from app.db import get_db
 from app.models.incident import Incident, IncidentOrg
 from app.services.pdf_service import render_incident_pdf
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger("einsatzleiter.archive")
 
 

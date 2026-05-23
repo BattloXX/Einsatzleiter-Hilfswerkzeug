@@ -82,6 +82,23 @@
         </div>
       </div>
 
+      <h3 style="margin-top:1.5rem;margin-bottom:.75rem;font-size:1rem;font-weight:600">Anzeige</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Zeitzone</label>
+          <select name="timezone" class="form-control" style="max-width:280px">
+            {% set current_tz = org.timezone or default_timezone %}
+            {% for tz in timezones %}
+            <option value="{{ tz }}" {% if tz == current_tz %}selected{% endif %}>{{ tz }}</option>
+            {% endfor %}
+          </select>
+          <small class="form-hint">
+            Bestimmt die Anzeige aller Uhrzeiten (Board, Archiv, PDF). Datenbank speichert immer UTC.
+            Aktuell aktiv: <strong>{{ current_tz }}</strong>{% if not org.timezone %} (System-Default){% endif %}.
+          </small>
+        </div>
+      </div>
+
       <h3 style="margin-top:1.5rem;margin-bottom:.75rem;font-size:1rem;font-weight:600">Atemschutz-Parameter</h3>
       <div class="form-grid">
         <div class="form-group">

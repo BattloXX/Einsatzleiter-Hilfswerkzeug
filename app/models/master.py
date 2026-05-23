@@ -26,6 +26,8 @@ class FireDept(Base):
     contact_phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     street: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # IANA timezone (e.g. "Europe/Vienna"). NULL faellt auf settings.DEFAULT_TIMEZONE zurueck.
+    timezone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     vehicles: Mapped[List["VehicleMaster"]] = relationship(back_populates="dept")

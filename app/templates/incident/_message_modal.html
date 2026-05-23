@@ -2,8 +2,8 @@
   <div>
     <h3 class="modal__title">Meldung bearbeiten</h3>
     <p class="modal__subtitle">
-      angelegt: {{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}
-      {% if msg.due_at %}· fällig: {{ msg.due_at.strftime('%H:%M') }}{% endif %}
+      angelegt: {{ msg.created_at|local_datetime }}
+      {% if msg.due_at %}· fällig: {{ msg.due_at|local_time }}{% endif %}
       {% if msg.is_done %}· <strong>✓ erledigt</strong>{% endif %}
     </p>
   </div>

@@ -21,7 +21,7 @@
       </div>
       <div class="incident-card__meta">
         <span class="badge badge--active">Aktiv</span>
-        <span class="incident-card__time">seit {{ inc.started_at.strftime('%H:%M') }} Uhr</span>
+        <span class="incident-card__time">seit {{ inc.started_at|local_time }} Uhr</span>
       </div>
     </a>
     {% endfor %}

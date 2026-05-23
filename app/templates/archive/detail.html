@@ -17,8 +17,8 @@
     <h3>Stammdaten</h3>
     <dl class="detail-list">
       <dt>Stichwort</dt><dd>{{ incident.alarm_type_code }}</dd>
-      <dt>Start</dt><dd>{{ incident.started_at.strftime('%d.%m.%Y %H:%M') }} Uhr</dd>
-      {% if incident.closed_at %}<dt>Ende</dt><dd>{{ incident.closed_at.strftime('%d.%m.%Y %H:%M') }} Uhr</dd>{% endif %}
+      <dt>Start</dt><dd>{{ incident.started_at|local_datetime }} Uhr</dd>
+      {% if incident.closed_at %}<dt>Ende</dt><dd>{{ incident.closed_at|local_datetime }} Uhr</dd>{% endif %}
       <dt>Adresse</dt><dd>{{ incident.address_street or '–' }} {{ incident.address_no or '' }}, {{ incident.address_city or '' }}</dd>
       <dt>Meldung</dt><dd>{{ incident.report_text or '–' }}</dd>
       <dt>Einsatzgrund</dt><dd>{{ incident.reason or '–' }}</dd>
@@ -65,9 +65,9 @@
           <td>{{ t.name }}</td>
           <td>{{ t.task_text or '–' }}</td>
           <td>{{ t.status }}</td>
-          <td>{{ t.entry_at.strftime('%H:%M') if t.entry_at else '–' }}</td>
-          <td>{{ t.withdraw_at.strftime('%H:%M') if t.withdraw_at else '–' }}</td>
-          <td>{{ t.back_at.strftime('%H:%M') if t.back_at else '–' }}</td>
+          <td>{{ t.entry_at|local_time if t.entry_at else '–' }}</td>
+          <td>{{ t.withdraw_at|local_time if t.withdraw_at else '–' }}</td>
+          <td>{{ t.back_at|local_time if t.back_at else '–' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -80,7 +80,7 @@
     <div class="log-list">
       {% for entry in incident.log_entries %}
       <div class="log-entry log-entry--{{ entry.level }}">
-        <span class="log-entry__time">{{ entry.ts.strftime('%H:%M:%S') }}</span>
+        <span class="log-entry__time">{{ (entry.ts|local).strftime('%H:%M:%S') }}</span>
         <span class="log-entry__text">{{ entry.text }}</span>
       </div>
       {% else %}

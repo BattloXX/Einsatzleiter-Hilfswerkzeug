@@ -4,11 +4,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.core.permissions import require_role
+from app.core.templating import templates
 from app.models.breathing import BreathingTroop, TroopMember, PressureLog
 from app.models.incident import Incident
 from app.models.master import Member
@@ -18,7 +18,6 @@ from app.services.breathing_service import (
 from app.services.broadcast import manager
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/einsatz/{incident_id}/atemschutz", response_class=HTMLResponse)

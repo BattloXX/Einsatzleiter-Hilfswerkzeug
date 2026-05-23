@@ -34,7 +34,7 @@
     <!-- Timer -->
     {% if troop.entry_at %}
     <div class="troop-card__timer"
-         x-data="troopTimer('{{ troop.entry_at.isoformat() }}', '{{ (troop.back_at.isoformat() if troop.back_at else '') }}')"
+         x-data="troopTimer('{{ troop.entry_at|local_iso }}', '{{ (troop.back_at|local_iso if troop.back_at else '') }}')"
          x-text="display">00:00</div>
     {% endif %}
 

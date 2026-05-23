@@ -79,7 +79,7 @@
       {% for ch in recent_changes %}
       <li class="change-list__item">
         {{ ch.action|replace('.', ' → ')|replace('_', ' ') }}:
-        {{ ch.ts.strftime('%d.%m.%Y %H:%M') }}
+        {{ ch.ts|local_datetime }}
       </li>
       {% endfor %}
     </ul>

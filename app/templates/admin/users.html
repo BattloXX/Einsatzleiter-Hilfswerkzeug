@@ -51,7 +51,7 @@
       <td>{{ u.email or '—' }}</td>
       <td>{{ u.phone or '—' }}</td>
       <td>{{ u.roles|map(attribute='label')|join(', ') or '–' }}</td>
-      <td>{{ u.last_login_at.strftime('%d.%m.%Y %H:%M') if u.last_login_at else '–' }}</td>
+      <td>{{ u.last_login_at|local_datetime if u.last_login_at else '–' }}</td>
       <td>
         {% if u.active %}<span class="badge-pill badge-pill--green">Aktiv</span>
         {% else %}<span class="badge-pill badge-pill--gray">Deaktiviert</span>{% endif %}

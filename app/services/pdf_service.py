@@ -1,22 +1,41 @@
 """PDF generation via WeasyPrint."""
 import io
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Optional
 
-from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML, CSS
 
+from app.core.templating import templates
+from app.db import SessionLocal
 from app.models.incident import Incident
+from app.models.master import FireDept
+
+
+def _resolve_primary_org(incident: Incident) -> Optional[FireDept]:
+    """Lädt die Primary-Org für die Zeitzonen-Konvertierung in den Filtern."""
+    if not incident.primary_org_id:
+        return None
+    db = SessionLocal()
+    try:
+        return db.get(FireDept, incident.primary_org_id)
+    finally:
+        db.close()
 
 
 def render_incident_pdf(incident: Incident, base_url: str = "") -> bytes:
-    env = Environment(loader=FileSystemLoader("app/templates"), autoescape=True)
-    template = env.get_template("pdf/incident_report.html")
+    template = templates.env.get_template("pdf/incident_report.html")
+    # Die kontextabhängigen local_*-Filter lesen `user.org`; wir geben hier ein
+    # Pseudo-User-Objekt mit der Primary-Org, damit die PDF-Zeiten in der
+    # richtigen Zeitzone landen.
+    primary_org = _resolve_primary_org(incident)
+    pseudo_user = SimpleNamespace(org=primary_org)
 
     html_str = template.render(
         incident=incident,
         now=datetime.now(timezone.utc),
         base_url=base_url,
+        user=pseudo_user,
     )
     buf = io.BytesIO()
     HTML(string=html_str, base_url=base_url or ".").write_pdf(buf)

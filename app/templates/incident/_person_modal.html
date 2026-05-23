@@ -1,7 +1,7 @@
 <div class="modal__header">
   <div>
     <h3 class="modal__title">Gerettete Person</h3>
-    <p class="modal__subtitle">erfasst: {{ person.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+    <p class="modal__subtitle">erfasst: {{ person.created_at|local_datetime }}</p>
   </div>
   <button type="button" onclick="document.getElementById('cardDetailModal').close()" class="modal__close" title="Schließen">×</button>
 </div>

@@ -87,7 +87,7 @@
       </div>
       <div class="header__sub" style="text-align:right;">
         {% if incident.started_at %}
-        gestartet:<br><strong>{{ incident.started_at.strftime('%d.%m.%Y %H:%M') }}</strong>
+        gestartet:<br><strong>{{ incident.started_at|local_datetime }}</strong>
         {% endif %}
       </div>
     </div>

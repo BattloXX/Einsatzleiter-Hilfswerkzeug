@@ -6,16 +6,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
+from app.config import settings as app_settings
 from app.core.permissions import has_role, require_role, require_system_admin
+from app.core.templating import templates
+from app.core.timezones import common_timezones
 from app.db import get_db
 from app.models.master import FireDept, OrgSettings, SystemSettings
 from app.models.user import User
 from app.services.update_service import apply_update, get_current_version
 
 router = APIRouter(prefix="/admin")
-templates = Jinja2Templates(directory="app/templates")
 
 UPLOAD_DIR = Path("app/static/img/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -68,6 +69,8 @@ def settings_page(request: Request, db=Depends(get_db), user: User = Depends(req
         "is_sysadmin": is_sysadmin,
         "all_orgs": all_orgs,
         "sys_settings": sys_settings,
+        "timezones": common_timezones(),
+        "default_timezone": app_settings.DEFAULT_TIMEZONE,
     })
 
 
@@ -85,6 +88,7 @@ async def save_org_settings(
     footer_text: str = Form(""),
     withdraw_press_factor: str = Form(""),
     withdraw_press_reserve: str = Form(""),
+    timezone: str = Form(""),
     logo: UploadFile = File(None),
 ):
     if not user.org_id:
@@ -111,6 +115,11 @@ async def save_org_settings(
             org.withdraw_press_reserve = int(withdraw_press_reserve)
         except ValueError:
             pass
+    if org and timezone:
+        # Akzeptiere nur bekannte IANA-Namen, sonst ignorieren (Default greift)
+        from zoneinfo import available_timezones
+        if timezone in available_timezones():
+            org.timezone = timezone
 
     # Logo-Upload
     logo_path = None

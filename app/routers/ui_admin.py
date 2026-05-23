@@ -4,13 +4,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.core.permissions import require_role
 from app.core.security import hash_password, generate_api_key, hash_api_key
 from app.core.audit import write_audit
+from app.core.templating import templates
 from app.models.user import User, Role, UserRole, ApiKey, AuditLog
 from app.models.master import (
     Member, Qualification, MemberQualification, FireDept, VehicleMaster,
@@ -18,7 +18,6 @@ from app.models.master import (
 )
 
 router = APIRouter(prefix="/admin")
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _admin_check(request: Request):
