@@ -22,7 +22,7 @@
 {% endif %}
 
 <!-- Incident Header -->
-<div class="incident-header" x-data="incidentBoard({{ incident.id }}, '{{ incident.alarm_type_code }}', '{{ incident.started_at|local_iso }}')">
+<div class="incident-header" x-data="headerState('{{ incident.started_at|local_iso }}')">
   <div class="incident-header__alarm">
     <span class="alarm-badge alarm-badge--{{ incident.alarm_type_code[:1]|lower }}">{{ incident.alarm_type_code }}</span>
     {% if incident.address_street %}
@@ -56,6 +56,7 @@
 
   <!-- Sidebar Toggle Button -->
   <button class="sidebar-toggle" @click="toggleSidebar()"
+          :style="'left:' + (sidebarOpen ? 'var(--sidebar-w,300px)' : '0')"
           :title="sidebarOpen ? 'Sidebar ausblenden' : 'Sidebar einblenden'">
     <span x-text="sidebarOpen ? '◀' : '▶'"></span>
   </button>

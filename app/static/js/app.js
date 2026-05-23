@@ -78,27 +78,32 @@ document.addEventListener('alpine:init', () => {
 });
 
 
-/* ─── Incident Board WebSocket ──────────────────────────────────── */
-function incidentBoard(incidentId, alarm, startedAt) {
+/* ─── Incident Header (timer + last-update only, no WS) ─────────── */
+function headerState(startedAt) {
   return {
-    _ws: null,
     timerDisplay: '00:00',
-    lastUpdate: Date.now(),
+    _lastUpdate: Date.now(),
     lastUpdateDisplay: '–',
     lastUpdateAgeSec: 0,
-    lastUpdateState: 'fresh',  // 'fresh' | 'warn' (>60s) | 'stale' (>300s)
-    sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
+    lastUpdateState: 'fresh',
 
     init() {
       this._startTimer(new Date(startedAt));
       this._startLastUpdate();
-      this._connectWS(incidentId);
-      this._setupKeyboard(incidentId);
+      document.addEventListener('board-last-update', (e) => { this._lastUpdate = e.detail; });
     },
 
-    toggleSidebar() {
-      this.sidebarOpen = !this.sidebarOpen;
-      localStorage.setItem('sidebarOpen', String(this.sidebarOpen));
+    _startTimer(start) {
+      const update = () => {
+        const sec = Math.floor((Date.now() - start) / 1000);
+        const m = String(Math.floor(sec / 60)).padStart(2, '0');
+        const s = String(sec % 60).padStart(2, '0');
+        this.timerDisplay = m + ':' + s;
+        if (sec === 300 || sec === 301) showTimerAlert('Lagemeldung an RFL absetzen!', 'warn');
+        if (sec === 600 || sec === 601) showTimerAlert('Spezialkräfte / Atemschutzsammelplatz prüfen!', 'alert');
+      };
+      update();
+      setInterval(update, 1000);
     },
 
     _startLastUpdate() {
@@ -109,8 +114,8 @@ function incidentBoard(incidentId, alarm, startedAt) {
         return `${h}:${m}:${s}`;
       };
       const tick = () => {
-        this.lastUpdateDisplay = fmt(new Date(this.lastUpdate));
-        this.lastUpdateAgeSec = Math.floor((Date.now() - this.lastUpdate) / 1000);
+        this.lastUpdateDisplay = fmt(new Date(this._lastUpdate));
+        this.lastUpdateAgeSec = Math.floor((Date.now() - this._lastUpdate) / 1000);
         this.lastUpdateState =
           this.lastUpdateAgeSec >= 300 ? 'stale' :
           this.lastUpdateAgeSec >= 60  ? 'warn'  : 'fresh';
@@ -118,24 +123,28 @@ function incidentBoard(incidentId, alarm, startedAt) {
       tick();
       setInterval(tick, 1000);
     },
+  };
+}
 
-    _bumpLastUpdate() {
-      this.lastUpdate = Date.now();
+
+/* ─── Incident Board WebSocket ──────────────────────────────────── */
+function incidentBoard(incidentId, alarm, startedAt) {
+  return {
+    _ws: null,
+    sidebarOpen: localStorage.getItem('sidebarOpen') === 'true',
+
+    init() {
+      this._connectWS(incidentId);
+      this._setupKeyboard(incidentId);
     },
 
-    _startTimer(start) {
-      const update = () => {
-        const sec = Math.floor((Date.now() - start) / 1000);
-        const m = String(Math.floor(sec / 60)).padStart(2, '0');
-        const s = String(sec % 60).padStart(2, '0');
-        this.timerDisplay = m + ':' + s;
+    toggleSidebar() {
+      this.sidebarOpen = !this.sidebarOpen;
+      localStorage.setItem('sidebarOpen', String(this.sidebarOpen));
+    },
 
-        // 5-min warning
-        if (sec === 300 || sec === 301) showTimerAlert('Lagemeldung an RFL absetzen!', 'warn');
-        if (sec === 600 || sec === 601) showTimerAlert('Spezialkräfte / Atemschutzsammelplatz prüfen!', 'alert');
-      };
-      update();
-      setInterval(update, 1000);
+    _bumpLastUpdate() {
+      document.dispatchEvent(new CustomEvent('board-last-update', { detail: Date.now() }));
     },
 
     _connectWS(id) {
