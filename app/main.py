@@ -19,6 +19,7 @@ from app.routers import (
     ui_breathing,
     ui_archive,
     ui_admin,
+    ui_media,
     ui_stats,
     ui_push,
     ui_settings,
@@ -156,6 +157,7 @@ app.include_router(ui_password_reset.router)
 app.include_router(api_v1.router)
 app.include_router(ws.router)
 app.include_router(ui_incident.router)
+app.include_router(ui_media.router)
 app.include_router(ui_breathing.router)
 app.include_router(ui_archive.router)
 app.include_router(ui_admin.router)

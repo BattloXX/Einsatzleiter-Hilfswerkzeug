@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
@@ -710,6 +710,68 @@ async def cancel_task_endpoint(
     db.commit()
     await manager.broadcast(incident_id, {"type": "task_updated", "reload_board": True})
     return Response(status_code=204)
+
+
+# ── Media-Upload / -Löschen ───────────────────────────────────────────────────
+
+@router.post("/einsatz/{incident_id}/aufgabe/{task_id}/medien", response_class=HTMLResponse)
+async def upload_task_media(
+    incident_id: int, task_id: int, request: Request,
+    files: list[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
+):
+    task = db.get(Task, task_id)
+    if not task or task.incident_id != incident_id:
+        return Response(status_code=404)
+    from app.services.media_service import store_upload
+    from fastapi import HTTPException as _HE
+    errors: list[str] = []
+    for f in files:
+        if not f.filename:
+            continue
+        try:
+            await store_upload(f, task, request.state.user, db)
+        except _HE as exc:
+            errors.append(str(exc.detail))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{f.filename}: {exc}")
+    db.commit()
+    db.refresh(task, ["media"])
+    incident = _incident_or_404(incident_id, db)
+    await manager.broadcast(incident_id, {"type": "task_updated", "task_id": task_id, "reload_board": False})
+    can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    return templates.TemplateResponse(request, "incident/_task_media.html", {
+        "user": request.state.user, "task": task, "incident": incident,
+        "can_edit": can_edit, "errors": errors,
+    })
+
+
+@router.post("/einsatz/{incident_id}/aufgabe/{task_id}/medien/{media_id}/loeschen", response_class=HTMLResponse)
+async def delete_task_media(
+    incident_id: int, task_id: int, media_id: int, request: Request,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
+):
+    from app.models.incident import TaskMedia
+    from app.services.media_service import delete_media
+    media = db.get(TaskMedia, media_id)
+    if not media or media.task_id != task_id:
+        return Response(status_code=404)
+    user = request.state.user
+    if media.uploaded_by_user_id != user.id and not has_role(user, "admin", "org_admin"):
+        return Response(status_code=403)
+    delete_media(media, db)
+    db.commit()
+    task = db.get(Task, task_id)
+    db.refresh(task, ["media"])
+    incident = _incident_or_404(incident_id, db)
+    await manager.broadcast(incident_id, {"type": "task_updated", "task_id": task_id, "reload_board": False})
+    can_edit = has_role(user, "incident_leader", "admin", "recorder")
+    return templates.TemplateResponse(request, "incident/_task_media.html", {
+        "user": user, "task": task, "incident": incident,
+        "can_edit": can_edit, "errors": [],
+    })
 
 
 # ── Drag & Drop: generischer Karte-verschieben-Endpoint ──────────────────────

@@ -55,6 +55,19 @@ class Settings(BaseSettings):
     # wenn gesetzt, muss er auch im Upload-Form vom Admin angegeben werden)
     UPDATE_ZIP_REQUIRE_HASH: bool = True
 
+    # Media-Upload (Auftrag-Anhaenge)
+    # Storage liegt bewusst AUSSERHALB von app/static, damit Dateien nur ueber
+    # die geschuetzte Route /medien/datei/{id} ausgeliefert werden (Org-Check).
+    MEDIA_STORAGE_DIR: str = "app_storage/incident_media"
+    MAX_UPLOAD_BYTES_IMAGE: int = 10 * 1024 * 1024   # 10 MB
+    MAX_UPLOAD_BYTES_PDF:   int = 20 * 1024 * 1024   # 20 MB
+    MAX_UPLOAD_BYTES_VIDEO: int = 50 * 1024 * 1024   # 50 MB
+    MEDIA_IMAGE_MAX_WIDTH:  int = 1920
+    MEDIA_IMAGE_MAX_HEIGHT: int = 1080
+    MEDIA_THUMB_SIZE: int = 240
+    MEDIA_VIDEO_MAX_HEIGHT: int = 720
+    FFMPEG_BIN: str = "ffmpeg"   # ggf. absoluter Pfad ueber ENV
+
     @property
     def effective_public_base_url(self) -> str:
         return self.PUBLIC_BASE_URL or self.APP_BASE_URL

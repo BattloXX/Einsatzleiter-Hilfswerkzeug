@@ -13,34 +13,34 @@ Entwickelt für die Freiwillige Feuerwehr Wolfurt (Vorarlberg), verfügbar für 
 
 ## Überblick
 
-Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp mit:
+Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, die Einsatzleitern und Schriftführern eine strukturierte, Echtzeit-fähige Arbeitsumgebung bietet.
 
-- **Echtzeit-Kanban-Board** für mehrere Geräte gleichzeitig (WebSockets)
-- **REST-API** für automatische Einsatzanlage aus dem Alarmierungssystem
-- **Atemschutzüberwachung** mit Rückzugsdruckberechnung (gesetzlich verpflichtend)
-- **Multi-Organisationsunterstützung** — mehrere Wehren arbeiten gemeinsam an einem Einsatz
-- **Mannschaftsregister** mit Qualifikationen und AGT-Ablaufdaten
-- **Archiv & PDF-Export** mit vollständigem Audit-Log und Zeitreise-Funktion
-- **PWA** mit Offline-Support und Web-Push-Benachrichtigungen
-- **In-App ZIP-Update** — neue Versionen per Upload einspielen, ohne SSH
+**Zielgruppe:** Einsatzleiter, Schriftführer und Atemschutz-Überwacher österreichischer Feuerwehren.
 
----
-
-## Autoren
-
-| Name | Rolle |
-|------|-------|
-| **Johannes Battlogg** ([@BattloXX](https://github.com/BattloXX)) | Lead-Entwicklung, Konzept & Design |
-| **Roman Reiter** | Fachberatung Einsatzleitung & Atemschutz |
+**Kern-Prinzipien:**
+- Mehrere Geräte (Tablet, PC, Mobilgerät) arbeiten gleichzeitig am selben Einsatz
+- Vollständiges Audit-Log — jede Änderung wird protokolliert (Zeitreise-Funktion)
+- Multi-Tenancy — mehrere Organisationen auf einer Instanz, klar getrennt
+- Offline-fähige PWA — eingeschränkte Nutzung auch ohne Netzverbindung
 
 ---
 
-## Versionshistorie
+## Features
 
-| Version | Datum | Highlights |
-|---------|-------|------------|
-| **2.0.0** | 2026-05-22 | Multi-Org, System-Admin-Rolle, Settings-Page (Logo/Name), ZIP-Update, Python 3.14, Port 8092 |
-| **1.0.0** | 2026-05-22 | Initiale Webapp (FastAPI + HTMX, WebSocket, Atemschutz, PWA, QR-Code, Sprachdiktat) |
+| Feature | Beschreibung |
+|---------|-------------|
+| **Echtzeit-Kanban-Board** | WebSocket-basiertes Board für Einsatzkräfte, Aufgaben, Fahrzeuge und Meldungen |
+| **Atemschutzüberwachung** | Rückzugsdruckberechnung, Zeitmessung, gesetzlich verpflichtend |
+| **Media-Galerie** | Bilder, PDFs und Videos direkt an Aufträge anhängen; sichere Auslieferung über Auth-Route |
+| **Multi-Org-Support** | Mehrere Feuerwehren, gemeinsame Einsätze, eigene Stammdaten je Org |
+| **REST-API** | Automatische Einsatzanlage aus dem Alarmierungssystem (idempotent) |
+| **PDF-Export** | Einsatzbericht mit Zeitstempeln, Audit-Log, Geretteten als WeasyPrint-PDF |
+| **Archiv & Zeitreise** | Vollständiges Änderungsprotokoll; jeden Zustand in der Vergangenheit anzeigen |
+| **Web-Push-Benachrichtigungen** | PWA Push bei neuem Einsatz (VAPID) |
+| **QR-Code-Login** | Schnell-Login für Tablet-Stationen ohne Passwort-Eingabe |
+| **In-App ZIP-Update** | Neue Version per Upload einspielen, kein SSH erforderlich |
+| **Statistik-Dashboard** | Einsatzauswertung nach Typ, Zeit, Fahrzeug |
+| **Stammdaten-Verwaltung** | Fahrzeuge, Mitglieder, Qualifikationen (AGT-Ablaufdaten), Alarmtypen |
 
 ---
 
@@ -48,38 +48,56 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp mit
 
 | Schicht | Technologie |
 |---------|-------------|
-| Backend | FastAPI (Python 3.14) |
-| ORM / Migrationen | SQLAlchemy 2.x + Alembic |
-| Datenbank | MariaDB 10.11+ |
-| Templates | Jinja2 (Server-rendered) |
-| Frontend-Interaktivität | HTMX + Alpine.js |
-| Realtime | FastAPI WebSockets (Pub/Sub pro Einsatz) |
-| Drag & Drop | SortableJS |
-| Auth | Session-Cookies + bcrypt + itsdangerous |
-| PDF | WeasyPrint |
-| Push | pywebpush (VAPID) |
-| QR-Code | qrcode[pil] |
-| PWA | Service Worker |
+| Backend | **FastAPI** (Python 3.14) + Uvicorn/Gunicorn |
+| ORM / Migrationen | **SQLAlchemy 2.x** + **Alembic** |
+| Datenbank | **MariaDB 10.11+** (utf8mb4, InnoDB) |
+| Templates | **Jinja2** (Server-Rendering, keine Build-Zeit) |
+| Frontend-Reaktivität | **HTMX** + **Alpine.js** |
+| Drag & Drop | **SortableJS** |
+| CSS-Framework | **Tailwind CSS 3** (lokaler Build, kein CDN) |
+| Realtime | FastAPI **WebSockets** (Pub/Sub je Einsatz) |
+| Auth | Session-Cookies + **bcrypt** + **itsdangerous** |
+| PDF-Erzeugung | **WeasyPrint** |
+| Web-Push | **pywebpush** (VAPID) |
+| Bild-Verarbeitung | **Pillow** + **pillow-heif** (HEIC/iPhone) |
+| Video-Transcode | **ffmpeg** (subprocess, H.264/AAC, 720p) |
+| PDF-Metadaten | **pypdf** (Seitenanzahl) |
+| Rate-Limiting | **slowapi** |
+| QR-Code | **qrcode[pil]** |
+| PWA | Service Worker + Web App Manifest |
 | Deployment | Gunicorn + UvicornWorker, Port **8092**, NGINX, systemd |
 
 ---
 
-## Schnellstart (Lokale Entwicklung)
+## Setup (Lokale Entwicklung)
+
+### Voraussetzungen
+
+- Python 3.14
+- Node.js 20+ (für Tailwind CSS Build)
+- MariaDB 10.11+ (oder Docker)
+- Optional: `ffmpeg` für Video-Uploads
+
+### Schritte
 
 ```bash
-# 1. Klonen
+# 1. Repository klonen
 git clone https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug.git
 cd FWWO-Einsatzleiter-Hilfswerkzeug
 
-# 2. Python 3.14 venv
+# 2. Python venv anlegen und aktivieren
 python3.14 -m venv .venv
-source .venv/bin/activate      # Linux/Mac
-# .venv\Scripts\activate       # Windows
+source .venv/bin/activate          # Linux/Mac
+# .venv\Scripts\activate           # Windows
 
-# 3. Abhängigkeiten
+# 3. Python-Abhängigkeiten installieren
 pip install -e ".[dev]"
 
-# 4. MariaDB (Docker)
+# 4. Frontend-Abhängigkeiten installieren und CSS bauen
+npm install
+npm run build          # einmalig, erzeugt app/static/css/app.css
+
+# 5. MariaDB starten (Docker-Variante)
 docker run -d --name fwwo-db \
   -e MARIADB_ROOT_PASSWORD=root \
   -e MARIADB_DATABASE=einsatzleiter \
@@ -87,59 +105,108 @@ docker run -d --name fwwo-db \
   -e MARIADB_PASSWORD=devpassword \
   -p 3306:3306 mariadb:10.11
 
-# 5. Konfiguration
+# 6. Konfigurationsdatei anlegen
 cp .env.example .env
-# DATABASE_URL und SECRET_KEY anpassen
+# In .env anpassen: DATABASE_URL und SECRET_KEY (mindestens 32 Zeichen)
 
-# 6. Datenbank + Seed
+# 7. Datenbankschema migrieren + Seed-Daten einspielen
 alembic upgrade head
 python -m app.seed_data
 
-# 7. Server starten
+# 8. Entwicklungsserver starten
 uvicorn app.main:app --reload --port 8092
+# → http://localhost:8092  (Login: admin / admin)
+```
 
-# Browser: http://localhost:8092  (admin / admin)
+Während der Entwicklung CSS-Änderungen automatisch kompilieren:
+```bash
+npm run dev    # Tailwind im Watch-Modus
 ```
 
 ---
 
-## Produktion (Debian 12 + CloudPanel)
+## Setup (Produktion — Debian 12 + CloudPanel)
 
 Vollständige Anleitung: [`deploy/README-Deployment.md`](deploy/README-Deployment.md)
 
-```bash
-# Systempakete
-sudo apt-get install -y python3.14 python3.14-venv python3.14-dev \
-    libmariadb-dev libpango-1.0-0 libpangoft2-1.0-0 build-essential
+### Systempakete
 
-# App installieren
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+    python3.14 python3.14-venv python3.14-dev \
+    libmariadb-dev libpango-1.0-0 libpangoft2-1.0-0 \
+    build-essential ffmpeg
+```
+
+`ffmpeg` ist für Video-Uploads erforderlich. Ohne ffmpeg werden nur Bilder und PDFs akzeptiert.
+
+### App installieren
+
+```bash
 git clone https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug.git \
     /home/clp-einsatz/htdocs/einsatzleiter
 cd /home/clp-einsatz/htdocs/einsatzleiter
-python3.14 -m venv .venv && source .venv/bin/activate
+
+python3.14 -m venv .venv
+source .venv/bin/activate
 pip install -e .
-cp .env.example .env && nano .env
+
+cp .env.example .env
+nano .env   # DATABASE_URL, SECRET_KEY und ggf. SMTP konfigurieren
 
 alembic upgrade head
 python -m app.seed_data
+```
 
-# Systemd-Service
+Das CSS ist fertig gebaut im Repository enthalten (`app/static/css/app.css`). Node.js wird auf dem Server **nicht** benötigt.
+
+### systemd-Service
+
+```bash
 sudo cp deploy/einsatzleiter.service /etc/systemd/system/
+sudo systemctl daemon-reload
 sudo systemctl enable --now einsatzleiter
 # → App läuft auf Port 8092
 ```
 
-### NGINX (CloudPanel) — Port 8092 + WebSocket
+Inhalt `deploy/einsatzleiter.service`:
+```ini
+[Unit]
+Description=Einsatzleiter-Hilfswerkzeug
+After=network.target
+
+[Service]
+User=clp-einsatz
+WorkingDirectory=/home/clp-einsatz/htdocs/einsatzleiter
+ExecStart=/home/clp-einsatz/htdocs/einsatzleiter/.venv/bin/gunicorn \
+    app.main:app \
+    -k uvicorn.workers.UvicornWorker \
+    -w 2 --bind 0.0.0.0:8092 \
+    --timeout 120 --graceful-timeout 30
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### NGINX (CloudPanel) — Port 8092 + WebSocket + Medien-Auth
 
 ```nginx
-# Statische Dateien direkt ausliefern
+# Statische Dateien direkt ausliefern (kein Auth erforderlich)
 location /static/ {
     alias /home/clp-einsatz/htdocs/einsatzleiter/app/static/;
     expires 7d;
+    add_header Cache-Control "public, immutable";
 }
 
+# WICHTIG: Medien-Dateien NICHT direkt ausliefern —
+# sie liegen außerhalb von app/static und werden nur über
+# /medien/datei/{id} mit Auth-Check ausgeliefert.
+
 # WebSocket-Upgrade (zwingend!)
-location /ws/ {
+location /ws {
     proxy_pass http://127.0.0.1:8092;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
@@ -147,55 +214,329 @@ location /ws/ {
     proxy_read_timeout 3600s;
 }
 
+# Upload-Größe für Medien (Video bis 50 MB + Overhead)
+client_max_body_size 60M;
+
 # Alle anderen Anfragen
 location / {
     proxy_pass http://127.0.0.1:8092;
+    proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
 }
 ```
 
----
+### Graceful Reload nach Update
 
-## Rollen-System
-
-| Rolle | Code | Bereich | Beschreibung |
-|-------|------|---------|-------------|
-| **Systemadmin** | `system_admin` | Systemweit | Organisationsübergreifender Vollzugriff |
-| **Org-Admin** | `org_admin` / `admin` | Eigene Org | Vollzugriff innerhalb der eigenen Organisation |
-| **Einsatzleiter** | `incident_leader` | Eigene + kollaborierende Orgs | Einsatz und Atemschutz steuern |
-| **AS-Überwacher** | `breathing_supervisor` | Eigene + kollaborierende Orgs | Nur Atemschutzüberwachung |
-| **Schriftführer** | `recorder` | Eigene + kollaborierende Orgs | Journal und Meldungen |
-| **Beobachter** | `readonly` | Eigene + kollaborierende Orgs | Nur Lesen |
+```bash
+# Gunicorn neu laden (kein Downtime)
+sudo kill -HUP $(cat /run/einsatzleiter.pid)
+# oder
+sudo systemctl reload einsatzleiter
+```
 
 ---
 
-## Multi-Organisations-Architektur (v2.0.0)
+## Konfiguration (.env)
 
-Mehrere Feuerwehren können in einer Instanz verwaltet werden und gemeinsam an Einsätzen arbeiten.
+```dotenv
+# ── Datenbank ──────────────────────────────────────────────────────
+DATABASE_URL=mysql+pymysql://einsatzleiter:passwort@127.0.0.1:3306/einsatzleiter
+
+# ── Sicherheit ─────────────────────────────────────────────────────
+# Mindestens 32 zufällige Zeichen; nie ins Repository committen!
+SECRET_KEY=hier-einen-langen-zufaelligen-string-einsetzen
+# SECRET_KEY generieren:
+#   python -c "import secrets; print(secrets.token_urlsafe(48))"
+
+COOKIE_SECURE=true    # In Produktion zwingend (HTTPS)
+
+# ── App ────────────────────────────────────────────────────────────
+APP_HOST=0.0.0.0
+APP_PORT=8092
+APP_BASE_URL=https://einsatz.example.com
+DEBUG=false
+
+# ── Bootstrap-Admin (nur Erststart relevant) ───────────────────────
+BOOTSTRAP_ADMIN_USER=admin
+BOOTSTRAP_ADMIN_PASSWORD=   # Leer → wird beim ersten Start zufällig generiert und einmalig geloggt
+
+# ── E-Mail / Passwort-Reset ────────────────────────────────────────
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=einsatz@example.com
+SMTP_PASSWORD=smtp-passwort
+SMTP_FROM=einsatz@example.com
+SMTP_STARTTLS=true
+
+# ── Web-Push (VAPID) ───────────────────────────────────────────────
+# Schlüssel generieren: python -m app.cli generate-vapid
+VAPID_PRIVATE_KEY=
+VAPID_PUBLIC_KEY=
+VAPID_CLAIM_EMAIL=admin@example.com
+
+# ── Zeitzone ───────────────────────────────────────────────────────
+DEFAULT_TIMEZONE=Europe/Vienna  # Fallback; Orgs können eigene Zeitzone setzen
+
+# ── Media-Upload ───────────────────────────────────────────────────
+# Speicherort außerhalb von app/static → Auslieferung nur über /medien/datei/{id}
+MEDIA_STORAGE_DIR=app_storage/incident_media
+MAX_UPLOAD_BYTES_IMAGE=10485760    # 10 MB
+MAX_UPLOAD_BYTES_PDF=20971520      # 20 MB
+MAX_UPLOAD_BYTES_VIDEO=52428800    # 50 MB
+MEDIA_IMAGE_MAX_WIDTH=1920
+MEDIA_IMAGE_MAX_HEIGHT=1080
+MEDIA_THUMB_SIZE=240
+MEDIA_VIDEO_MAX_HEIGHT=720
+FFMPEG_BIN=ffmpeg    # Absoluter Pfad falls nötig: /usr/bin/ffmpeg
+
+# ── In-App-Update ──────────────────────────────────────────────────
+UPDATE_ZIP_REQUIRE_HASH=true
+```
+
+---
+
+## Datenbank-Migrationen
+
+Das Projekt verwendet **Alembic** für schema-verwaltete Migrationen.
+
+```bash
+# Alle ausstehenden Migrationen anwenden
+alembic upgrade head
+
+# Aktuelle Version anzeigen
+alembic current
+
+# Neue Migration nach Modell-Änderung erzeugen
+alembic revision --autogenerate -m "kurze_beschreibung"
+
+# Eine Migration zurückrollen
+alembic downgrade -1
+```
+
+### Migrations-Chronologie
+
+| Datei | Inhalt |
+|-------|--------|
+| `0001_initial.py` | Vollständiges Schema v1.0.0 |
+| `0002_multiorg_settings_update.py` | Multi-Org-Support, OrgSettings |
+| `0003_missing_columns.py` | Fehlende Spalten Nachlieferung |
+| `0004_alarm_dispatch.py` | AlarmDispatchVehicle (Ausrückordnung) |
+| `0005_user_contact_and_reset.py` | Benutzer-Kontaktfelder, Passwort-Reset |
+| `0006_org_timezone.py` | `FireDept.timezone` (IANA) |
+| `0007_task_media.py` | `task_media`-Tabelle (Media-Upload) |
+
+**Migrations-Pfad beim Deployment** (Reihenfolge beachten):
+- PR 1–3: keine neuen System-Deps
+- PR 4: `ffmpeg` + `pillow-heif` + Migration `0007` erforderlich
+- `alembic upgrade head` immer vor Neustart ausführen
+
+---
+
+## Frontend-Build
+
+Das Projekt verwendet **Tailwind CSS 3** mit PostCSS. Das fertig gebaute `app/static/css/app.css` ist im Repository enthalten — auf dem Produktionsserver ist **kein Node.js** nötig.
+
+```bash
+# Einmaliger Build (vor Commit / Release)
+npm run build
+
+# Watch-Modus für Entwicklung
+npm run dev
+```
+
+`package.json`-Scripts:
+```json
+{
+  "build": "tailwindcss -i app/static/css/input.css -o app/static/css/app.css --minify",
+  "dev":   "tailwindcss -i app/static/css/input.css -o app/static/css/app.css --watch"
+}
+```
+
+Tailwind scannt alle Templates und JS-Dateien (`tailwind.config.js`, `content`-Pfade). Nach neuen Tailwind-Klassen in Templates immer `npm run build` ausführen und `app.css` committen.
+
+---
+
+## CLI
+
+Verwaltungs-Kommandos über das eingebaute CLI (`app/cli.py`):
+
+```bash
+# Admin-Benutzer anlegen
+python -m app.cli create-admin --username admin --password geheimpasswort
+
+# API-Key für Alarmierungssystem erstellen
+python -m app.cli create-api-key --label "Alarmierungssystem Leitstelle"
+
+# VAPID-Schlüsselpaar für Web-Push generieren
+python -m app.cli generate-vapid
+```
+
+### Bootstrap-Admin (Erststart)
+
+Beim allerersten Start ohne Benutzer in der Datenbank wird automatisch ein Admin-Konto angelegt:
+- Benutzername: `BOOTSTRAP_ADMIN_USER` (Standard: `admin`)
+- Passwort: `BOOTSTRAP_ADMIN_PASSWORD` oder zufällig generiert
+- Das generierte Passwort wird **einmalig** in den Logs ausgegeben
+
+Nach dem ersten Login sofort Passwort ändern.
+
+---
+
+## Tests
+
+```bash
+# Alle Tests
+pytest tests/ -v
+
+# Mit Coverage-Report
+pytest tests/ --cov=app --cov-report=html
+# → htmlcov/index.html öffnen
+
+# Nur ein Modul
+pytest tests/test_media.py -v
+```
+
+CI (GitHub Actions): Lint (ruff) + Typecheck (mypy) + pytest mit MariaDB-Service-Container (Python 3.14).
+
+### Test-Struktur
 
 ```
-System-Admin (organisationsübergreifend)
-    │
-    ├── Organisation A (z.B. FF Wolfurt) — Org-Admin A
-    │   ├── Benutzer von Org A
-    │   ├── Mitglieder von Org A
-    │   └── Fahrzeuge von Org A
-    │
-    └── Organisation B (z.B. FF Lauterach) — Org-Admin B
-        ├── Benutzer von Org B
-        ├── Mitglieder von Org B
-        └── Fahrzeuge von Org B
-
-Gemeinsamer Einsatz:
-    Org A erstellt Einsatz → fügt Org B als Kollaborator hinzu
-    → Benutzer beider Orgs sehen/bearbeiten den Einsatz
-    → Fahrzeuge beider Orgs erscheinen auf dem Board
+tests/
+├── conftest.py          # Fixtures: test_db (SQLite in-memory), client (TestClient)
+├── test_api.py          # REST-API Endpunkte (Einsatz anlegen, idempotenz)
+├── test_breathing.py    # Atemschutz-Zustandsmaschine
+└── test_media.py        # Media-Upload, Resize, Delete (neu)
 ```
 
-### Org-Verwaltung
+---
 
-- **System-Admin**: `/admin/organisations` — Organisationen anlegen, aktivieren/deaktivieren
-- **Org-Admin**: `/admin/settings` — eigene Org bearbeiten (Name, Logo, Farbe, Kontakt)
+## Sicherheit
+
+### Authentifizierung & Session
+
+- Passwörter: **bcrypt** (12 Runden)
+- Session-Token: signiert mit **itsdangerous** (HMAC-SHA1), Max-Age 24h + Inaktivitäts-Timeout 8h
+- Brute-Force-Schutz: 10 Fehlversuche → Konto für 15 Minuten gesperrt
+- `COOKIE_SECURE=true` erzwingen in Produktion (HTTPS)
+
+### CSRF
+
+- Custom `CSRFMiddleware` (Phase 7): Double-Submit-Cookie-Pattern
+- Alle state-ändernden POST-Requests werden geprüft
+- `app/static/js/csrf.js` setzt den CSRF-Token automatisch in HTMX-Header
+
+### Multi-Tenant-Isolation
+
+- Jeder Benutzer gehört einer Organisation (`org_id`) an
+- Alle DB-Abfragen filtern nach `org_id` des eingeloggten Benutzers
+- Incident-Collaboration via `IncidentOrg`-Junction — nur explizit eingeladene Orgs sehen gemeinsame Einsätze
+- System-Admin sieht alles; Org-Admin sieht nur eigene Org
+
+### Medien-Sicherheit
+
+- **Dateien außerhalb von `app/static/`**: `app_storage/incident_media/` — kein direkter HTTP-Zugriff möglich
+- **Auslieferung nur über `/medien/datei/{id}`** mit vollständigem Auth- und Org-Check → 401/403 ohne Login
+- **MIME-Validierung via `filetype`**: User-supplied `Content-Type` wird ignoriert; echte Datei-Bytes werden geprüft
+- **Dateinamen**: Gespeichert nur als DB-Feld (`original_filename`), nie im Dateisystem — UUID-Dateinamen verhindern Path-Traversal
+- **Pillow-Re-Encode**: HEIC/JPG mit eingeschleustem Polyglot-Payload werden durch Re-Encoding neutralisiert
+- **Größenlimits** auf FastAPI-Ebene: 10 MB Bild · 20 MB PDF · 50 MB Video (+ NGINX `client_max_body_size`)
+
+### Rate-Limiting
+
+- **slowapi**: Standard 300 Req/min für alle Endpoints
+- Login und Passwort-Reset: eigene engere Limits per Decorator
+
+### API-Key-Sicherheit
+
+- Keys werden als **SHA-256-Hash** gespeichert (nie im Klartext)
+- Vergleich via `hmac.compare_digest` (timing-sicher)
+- Ablaufdatum + Revoke-Funktion vorhanden
+
+---
+
+## Architektur
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Browser / PWA                       │
+│  HTMX (Form-Submits + partielle DOM-Updates)            │
+│  Alpine.js (lokaler State: Modals, Toasts, Lightbox)    │
+│  SortableJS (Drag & Drop)                               │
+│  WebSocket (Echtzeit-Events)                            │
+└────────────────────────────┬────────────────────────────┘
+                             │ HTTP / WS
+┌────────────────────────────▼────────────────────────────┐
+│                   NGINX (Reverse Proxy)                  │
+│  /static/ → direkt (7d Cache)                          │
+│  /ws      → WebSocket-Upgrade                          │
+│  /        → Proxy → :8092                              │
+│  client_max_body_size 60M (Media-Upload)               │
+└────────────────────────────┬────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────┐
+│           FastAPI (app.main) auf Port 8092               │
+│  Gunicorn + UvicornWorker (2 Workers)                  │
+│                                                         │
+│  Middleware-Stack:                                      │
+│    SessionMiddleware → SecurityHeaders → CSRF           │
+│    SlowAPI (Rate-Limit)                                │
+│                                                         │
+│  Routers:                                              │
+│    ui_incident  – Board, Aufgaben, Fahrzeuge           │
+│    ui_media     – Galerie, /medien/datei/{id}          │
+│    ui_breathing – Atemschutzüberwachung                │
+│    ui_archive   – Archiv, PDF-Export                   │
+│    ui_admin     – Stammdaten, Benutzer                 │
+│    ui_settings  – Org-Settings, ZIP-Update             │
+│    ui_stats     – Statistik                            │
+│    api_v1       – REST-API (Alarmierung)               │
+│    ws           – WebSocket Pub/Sub                    │
+│    auth         – Login/Logout/Reset                   │
+│                                                         │
+│  Services:                                             │
+│    incident_service  – Einsatz-Logik                   │
+│    media_service     – Upload-Pipeline (Bild/PDF/Video)│
+│    pdf_service       – WeasyPrint PDF                  │
+│    push_service      – Web-Push VAPID                  │
+│    broadcast         – WS-Pub/Sub-Manager              │
+│    update_service    – ZIP-Update + Alembic            │
+└────────────────────────────┬────────────────────────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+┌─────────────▼──┐  ┌───────▼──────┐  ┌───▼──────────────┐
+│  MariaDB 10.11 │  │ app_storage/ │  │ app/static/      │
+│  (utf8mb4)     │  │ incident_    │  │ css, js, img     │
+│                │  │ media/       │  │ (kein Auth nötig)│
+│  Tabellen:     │  │ (Auth-Schutz)│  └──────────────────┘
+│  incident      │  └─────────────┘
+│  task          │
+│  task_media    │
+│  user          │
+│  fire_dept     │
+│  breathing_*   │
+│  ...           │
+└────────────────┘
+```
+
+### Datenfluss: Media-Upload
+
+```
+Browser                  FastAPI                 Dateisystem + DB
+  │                         │                         │
+  │─── POST /aufgabe/{id}/medien (multipart) ────────►│
+  │                         │                         │
+  │                    filetype.guess()               │
+  │                    Größen-Check                   │
+  │                    Pillow / ffmpeg                │
+  │                         │──── schreibt UUID.jpg ──►│
+  │                         │──── schreibt UUID_thumb ►│
+  │                         │──── INSERT task_media ──►│
+  │                         │                         │
+  │◄── 200 _task_media.html (HTMX-Partial) ──────────│
+  │    (DOM-Swap #taskMediaSection)                   │
+```
 
 ---
 
@@ -225,7 +566,7 @@ Content-Type: application/json
 }
 ```
 
-**Idempotenz:** Doppelter `Key` → `created: false`, vorhandene ID wird zurückgegeben.
+**Idempotenz:** Doppelter `Key` → `created: false`, vorhandene `incident_id` wird zurückgegeben.
 
 API-Key erstellen:
 ```bash
@@ -234,75 +575,68 @@ python -m app.cli create-api-key --label "Alarmierungssystem"
 
 ---
 
-## In-App ZIP-Update (v2.0.0)
+## Rollen-System
+
+| Rolle | Code | Bereich | Berechtigungen |
+|-------|------|---------|----------------|
+| **Systemadmin** | `system_admin` | Systemweit | Alles, alle Orgs |
+| **Org-Admin** | `org_admin` / `admin` | Eigene Org | Vollzugriff innerhalb der Org |
+| **Einsatzleiter** | `incident_leader` | Einsatz | Board bearbeiten, Atemschutz steuern |
+| **AS-Überwacher** | `breathing_supervisor` | Atemschutz | Nur Atemschutzüberwachung |
+| **Schriftführer** | `recorder` | Einsatz | Journal, Meldungen, Media-Upload |
+| **Beobachter** | `readonly` | Einsatz | Nur Lesen |
+
+---
+
+## Multi-Organisations-Architektur
+
+Mehrere Feuerwehren können auf einer Instanz betrieben werden und gemeinsam an Einsätzen arbeiten.
+
+```
+System-Admin (organisationsübergreifend)
+    │
+    ├── Organisation A (z. B. FF Wolfurt) — Org-Admin A
+    │   ├── Benutzer von Org A
+    │   ├── Mitglieder, Fahrzeuge, Stammdaten
+    │   └── Einstellungen (Logo, Farbe, Zeitzone)
+    │
+    └── Organisation B (z. B. FF Lauterach) — Org-Admin B
+        └── ...
+
+Gemeinsamer Einsatz:
+    Org A erstellt Einsatz → lädt Org B ein (IncidentOrg)
+    → Benutzer beider Orgs sehen & bearbeiten den Einsatz
+    → Fahrzeuge + Mitglieder beider Orgs verfügbar
+    → Media-Galerie isoliert: jede Org sieht nur eigene Medien
+```
+
+---
+
+## In-App ZIP-Update
 
 Updates können über die Weboberfläche eingespielt werden — kein SSH erforderlich.
 
-### Vorgang
+**Ablauf** (`/admin/system/update`, nur `system_admin`):
+1. Release-ZIP hochladen (muss `app/` und `pyproject.toml` enthalten)
+2. Optional: SHA-256-Prüfsumme eingeben (Empfehlung: immer verwenden)
+3. System validiert ZIP (Zip-Slip-Schutz), extrahiert in tmp, kopiert Dateien
+4. Führt `alembic upgrade head` aus
+5. Sendet SIGHUP an Gunicorn (graceful reload, kein Downtime)
 
-1. **Aufruf**: `/admin/system/update` (nur `system_admin`)
-2. **Release-ZIP hochladen** (muss `app/` und `pyproject.toml` enthalten)
-3. **Automatischer Ablauf:**
-   - Validierung des ZIPs
-   - Extraktion in temporäres Verzeichnis
-   - Kopieren aller Dateien (geschützte Pfade werden übersprungen)
-   - `alembic upgrade head`
-   - Gunicorn `SIGHUP` (graceful reload)
-
-### Geschützte Dateien (werden nie überschrieben)
+**Geschützte Pfade** (werden nie überschrieben):
 
 | Pfad | Grund |
 |------|-------|
-| `.env` | Secrets und Konfiguration |
-| `alembic/versions/` | Eigene Datenbank-Migrationen |
-| `app/static/img/uploads/` | Hochgeladene Logos und Bilder |
+| `.env` | Secrets |
+| `alembic/versions/` | Eigene Migrationen |
+| `app/static/img/uploads/` | Hochgeladene Logos |
+| `app_storage/` | Medien-Dateien |
 
-### Release-ZIP erstellen
-
+**Release-ZIP erstellen:**
 ```bash
-# Aus Git-Archiv:
 git archive --format=zip --prefix=release-2.0.0/ HEAD > release-2.0.0.zip
+sha256sum release-2.0.0.zip   # Prüfsumme notieren
 ```
-
-### Sudoers für automatischen Restart (optional)
-
-```sudoers
-clp-einsatz ALL=(ALL) NOPASSWD: /bin/systemctl restart einsatzleiter
-```
-
----
-
-## Zentrale Einstellungsseite
-
-`/admin/settings` (für Org-Admin und System-Admin)
-
-- **Logo hochladen** (PNG/JPG/SVG) — erscheint im Header und auf PDF-Berichten
-- **Organisationsname** ändern
-- **Primärfarbe** (Akzentfarbe, Fahrzeugkarten-Streifen)
-- **Kontaktdaten** (E-Mail, Telefon, Adresse)
-- **Footer-Text** für PDF-Berichte
-
----
-
-## Tests
-
-```bash
-pytest tests/ -v
-pytest tests/ --cov=app --cov-report=html
-```
-
-CI (GitHub Actions): Lint (ruff) + Typecheck (mypy) + pytest mit MariaDB-Service-Container (Python 3.14)
-
----
-
-## Dokumentation
-
-29 Seiten Dokumentation auf Deutsch in `docs/wiki/` und im GitHub-Wiki:
-
-**Installation** — Server, Datenbank, App, systemd, NGINX, Erst-Setup, Backups, Updates, Troubleshooting  
-**Anwender** — Board, Atemschutz, Personen, PWA, Push, QR-Code, Übungsmodus  
-**Administration** — Benutzer/Rollen, Stammdaten, API-Keys, Audit-Log, Statistik  
-**Entwickler** — Architektur, Datenmodell, REST-API, WebSocket-Events, Tests, Beitragen
 
 ---
 
@@ -310,23 +644,79 @@ CI (GitHub Actions): Lint (ruff) + Typecheck (mypy) + pytest mit MariaDB-Service
 
 ```
 app/
-├── main.py            FastAPI-App v2.0.0, Port 8092
-├── config.py          Einstellungen (pydantic-settings)
-├── models/            SQLAlchemy-Models (user, master, incident, breathing)
-├── routers/           HTTP-Endpunkte (auth, api_v1, ui_*, ws)
-│   └── ui_settings.py Einstellungen, Org-Verwaltung, ZIP-Update, About
+├── main.py              FastAPI-App, Middleware, Router-Registrierung
+├── config.py            Einstellungen (pydantic-settings, .env)
+├── db.py                SQLAlchemy-Engine, SessionLocal, Base
+├── cli.py               CLI: create-admin, create-api-key, generate-vapid
+├── seed_data.py         Initialdaten (Rollen, Alarmtypen, ...)
+├── core/
+│   ├── security.py      Passwort-Hashing, Session-Signing, QR-Token
+│   ├── permissions.py   require_role(), has_role()
+│   ├── templating.py    Jinja2-Environment + Zeitzonen-Filter
+│   └── audit.py         Audit-Log-Helfer
+├── middleware/
+│   ├── security_headers.py  CSP, X-Frame-Options, ...
+│   └── csrf.py              Double-Submit CSRF-Schutz
+├── models/
+│   ├── incident.py      Incident, Task, TaskMedia, Message, ...
+│   ├── user.py          User, Role, ApiKey, AuditLog, ...
+│   ├── master.py        FireDept, VehicleMaster, Member, OrgSettings, ...
+│   ├── breathing.py     BreathingTroop, TroopMember, PressureLog
+│   └── password_reset.py
+├── routers/
+│   ├── ui_incident.py   Board, Aufgaben, Fahrzeuge, Media-Upload
+│   ├── ui_media.py      Galerie (/medien), geschützte Datei-Auslieferung
+│   ├── ui_breathing.py  Atemschutzüberwachung
+│   ├── ui_archive.py    Archiv, PDF-Export
+│   ├── ui_admin.py      Stammdaten, Benutzer, API-Keys, Audit
+│   ├── ui_settings.py   Org-Einstellungen, ZIP-Update, System-Admin
+│   ├── ui_stats.py      Statistik-Dashboard
+│   ├── ui_push.py       Web-Push-Verwaltung
+│   ├── ui_password_reset.py
+│   ├── api_v1.py        REST-API (Alarmierung)
+│   ├── ws.py            WebSocket Pub/Sub
+│   └── auth.py          Login / Logout
 ├── services/
-│   └── update_service.py ZIP-Update-Mechanismus
-├── core/              security, permissions (system_admin), audit
-└── templates/admin/   settings, organisations, system_update, about
-alembic/versions/
-├── 0001_initial.py    Vollständiges Schema v1.0.0
-└── 0002_multiorg_settings_update.py Multi-Org, Settings v2.0.0
-deploy/
-├── einsatzleiter.service  Port 8092
-└── nginx-snippet.conf     Port 8092 + WebSocket
-docs/wiki/             29 Wiki-Seiten (Deutsch)
+│   ├── incident_service.py  Einsatz-Logik, Spalten, Tasks
+│   ├── media_service.py     Upload-Pipeline (Bild/PDF/Video/HEIC)
+│   ├── pdf_service.py       WeasyPrint PDF-Generierung
+│   ├── push_service.py      Web-Push (VAPID)
+│   ├── broadcast.py         WS-Pub/Sub-Manager
+│   ├── mail_service.py      SMTP (Passwort-Reset)
+│   └── update_service.py    ZIP-Update + Alembic-Migration
+├── static/
+│   ├── css/app.css          Fertiger Tailwind-Build (committet)
+│   ├── js/                  alpine.min.js, htmx.min.js, sortable.min.js,
+│   │                        app.js, sortable-glue.js, lightbox.js, ...
+│   └── img/                 Logo, Favicon, Icons
+└── templates/
+    ├── base.html            Master-Layout (Nav, Modal, Toasts, WS-Alert)
+    ├── incident/            Board-Komponenten, Task/Fahrzeug-Modals
+    ├── media/               gallery.html
+    ├── admin/, archive/, auth/, breathing/, pdf/, stats/
+alembic/versions/            Migrations (0001–0007)
+deploy/                      systemd-Service, NGINX-Snippet
+tests/                       pytest-Suite (conftest, test_api, test_media, ...)
+app_storage/incident_media/  Medien-Dateien (Auth-geschützt, nicht im Repo)
 ```
+
+---
+
+## Autoren
+
+| Name | Rolle |
+|------|-------|
+| **Johannes Battlogg** ([@BattloXX](https://github.com/BattloXX)) | Lead-Entwicklung, Konzept & Design |
+| **Roman Reiter** | Fachberatung Einsatzleitung & Atemschutz |
+
+---
+
+## Versionshistorie
+
+| Version | Datum | Highlights |
+|---------|-------|------------|
+| **2.0.0** | 2026-05-23 | Media-Upload + Galerie, Multi-Org, System-Admin-Rolle, Zeitzone je Org, ZIP-Update, Python 3.14 |
+| **1.0.0** | 2026-05-22 | Initiale Webapp (FastAPI + HTMX, WebSocket, Atemschutz, PWA, QR-Code) |
 
 ---
 

@@ -32,6 +32,7 @@
       <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
       <a href="/archiv" class="nav-link {% if '/archiv' in request.url.path %}active{% endif %}">Archiv</a>
       <a href="/statistik" class="nav-link {% if '/statistik' in request.url.path %}active{% endif %}">Statistik</a>
+      <a href="/medien" class="nav-link {% if request.url.path.startswith('/medien') %}active{% endif %}">Medien</a>
       {% set user_roles = user.roles|map(attribute='code')|list %}
       {% if 'admin' in user_roles or 'org_admin' in user_roles or 'system_admin' in user_roles %}
       <div class="nav-dropdown" x-data="{open:false}" @click.outside="open=false">
