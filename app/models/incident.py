@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -157,6 +157,46 @@ class Task(Base):
         back_populates="assigned_tasks",
         foreign_keys=[vehicle_id],
     )
+    media: Mapped[list["TaskMedia"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskMedia.created_at.desc()",
+    )
+
+
+class TaskMedia(Base):
+    """Bilder / PDFs / Videos, die einem Auftrag (Task) angehaengt sind.
+
+    Dateien liegen unter settings.MEDIA_STORAGE_DIR (ausserhalb von app/static)
+    und werden nur ueber die geschuetzte Route /medien/datei/{id} ausgeliefert.
+    """
+    __tablename__ = "task_media"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("task.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("incident.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    uploaded_by_user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True,
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)   # image | pdf | video
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    thumb_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    duration_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    pages: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True,
+    )
+
+    task: Mapped["Task"] = relationship(back_populates="media")
 
 
 class Message(Base):

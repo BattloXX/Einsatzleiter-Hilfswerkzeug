@@ -47,6 +47,10 @@ dependencies = [
     "slowapi>=0.1.9",
     # MIME-Validierung für Uploads
     "filetype>=1.2",
+    # HEIC-Support (iPhone-Bilder) als Pillow-Plugin
+    "pillow-heif>=0.18",
+    # PDF-Metadaten (Seitenzahl, optionale Thumb-Quelle)
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]

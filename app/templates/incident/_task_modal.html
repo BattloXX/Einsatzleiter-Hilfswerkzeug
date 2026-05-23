@@ -58,6 +58,12 @@
   </div>
   {% endif %}
   {% endif %}
+
+  <hr style="border:none; border-top:1px solid var(--border-color, #374151); margin:16px 0 8px;">
+  <p class="form-label" style="margin-bottom:8px;">MEDIEN</p>
+  <div id="taskMediaSection">
+    {% include "incident/_task_media.html" %}
+  </div>
 </div>
 
 {% if can_edit %}

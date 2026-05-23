@@ -1,0 +1,68 @@
+{% if errors is defined and errors %}
+<div style="color:var(--color-danger,#dc2626); margin-bottom:8px; font-size:13px;">
+  {% for e in errors %}<div>⚠ {{ e }}</div>{% endfor %}
+</div>
+{% endif %}
+
+{% if task.media %}
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); gap:6px; margin-bottom:10px;">
+  {% for m in task.media %}
+  <div style="position:relative; border:1px solid var(--border-color,#374151); border-radius:6px; overflow:hidden; background:var(--surface-2,#1f2937);">
+    {% if m.kind == 'image' %}
+    <a href="/medien/datei/{{ m.id }}" target="_blank" title="{{ m.original_filename }}">
+      <img src="/medien/thumb/{{ m.id }}" alt="{{ m.original_filename }}"
+           style="width:100%;aspect-ratio:1;object-fit:cover;display:block;">
+    </a>
+    {% elif m.kind == 'pdf' %}
+    <a href="/medien/datei/{{ m.id }}" target="_blank" title="{{ m.original_filename }}"
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:1;text-decoration:none;color:inherit;padding:4px;">
+      <span style="font-size:22px;">📄</span>
+      <span style="font-size:9px;text-align:center;word-break:break-all;line-height:1.2;">PDF{% if m.pages %}<br>{{ m.pages }} S.{% endif %}</span>
+    </a>
+    {% elif m.kind == 'video' %}
+    <a href="/medien/datei/{{ m.id }}" target="_blank" title="{{ m.original_filename }}"
+       style="position:relative;display:block;">
+      {% if m.thumb_path %}
+      <img src="/medien/thumb/{{ m.id }}" alt="{{ m.original_filename }}"
+           style="width:100%;aspect-ratio:1;object-fit:cover;display:block;">
+      <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;text-shadow:0 0 4px #000;">▶</span>
+      {% else %}
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:1;padding:4px;">
+        <span style="font-size:22px;">🎬</span>
+        <span style="font-size:9px;">Video</span>
+      </div>
+      {% endif %}
+    </a>
+    {% endif %}
+    {% if can_edit %}
+    <form method="post" action="/einsatz/{{ incident.id }}/aufgabe/{{ task.id }}/medien/{{ m.id }}/loeschen"
+          hx-post="/einsatz/{{ incident.id }}/aufgabe/{{ task.id }}/medien/{{ m.id }}/loeschen"
+          hx-target="#taskMediaSection"
+          hx-swap="innerHTML"
+          style="margin:0;"
+          onsubmit="return confirm('Datei löschen?')">
+      <button type="submit"
+              style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.75);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;"
+              title="Löschen">×</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if can_edit %}
+<form hx-post="/einsatz/{{ incident.id }}/aufgabe/{{ task.id }}/medien"
+      hx-encoding="multipart/form-data"
+      hx-target="#taskMediaSection"
+      hx-swap="innerHTML">
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <input type="file" name="files" multiple
+           accept="image/*,.pdf,video/mp4,video/quicktime,video/x-matroska,video/webm"
+           class="form-input"
+           style="flex:1;min-width:140px;font-size:12px;padding:4px 8px;">
+    <button type="submit" class="btn btn--secondary btn--sm">Hochladen</button>
+  </div>
+  <p class="form-hint" style="margin-top:4px;">Bild max. 10 MB · PDF 20 MB · Video 50 MB. HEIC, JPG, PNG, MP4 werden unterstützt.</p>
+</form>
+{% endif %}
