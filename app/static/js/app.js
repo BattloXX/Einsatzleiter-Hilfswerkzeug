@@ -35,6 +35,7 @@ document.addEventListener('alpine:init', () => {
       const connect = () => {
         const ws = new WebSocket(url);
         ws.onmessage = (e) => {
+          if (e.data === 'pong') return;
           const ev = JSON.parse(e.data);
           if (ev.type === 'incident_created') {
             const customEv = new CustomEvent('incident-created', { detail: ev, bubbles: true });
@@ -154,6 +155,7 @@ function incidentBoard(incidentId, alarm, startedAt) {
       const connect = () => {
         const ws = new WebSocket(url);
         ws.onmessage = (e) => {
+          if (e.data === 'pong') return;
           const ev = JSON.parse(e.data);
           this._bumpLastUpdate();
           if (ev.reload_board) {
@@ -271,6 +273,14 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/static/sw.js').catch(() => {});
   });
 }
+
+
+/* ─── Card-Detail Modal: open on any swap into #cardDetailBody ───── */
+document.addEventListener('htmx:afterSwap', (e) => {
+  if (e.detail && e.detail.target && e.detail.target.id === 'cardDetailBody') {
+    document.getElementById('cardDetailModal')?.showModal();
+  }
+});
 
 
 /* ─── Offline: block writes with toast, reload on reconnect ─────── */

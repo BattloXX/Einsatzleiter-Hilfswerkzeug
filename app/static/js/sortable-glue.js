@@ -43,6 +43,7 @@
         // Prevent drag when clicking on interactive elements
         filter: 'select,input,button,.task-check,a',
         onEnd(evt) {
+          evt.item.removeAttribute('draggable');
           const card = evt.item;
           const kind = card.dataset.kind;
           const uid = card.dataset.uid;

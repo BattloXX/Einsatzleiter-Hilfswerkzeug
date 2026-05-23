@@ -65,7 +65,7 @@
   <aside class="sidebar" id="sidebar" :class="sidebarOpen ? '' : 'sidebar--collapsed'">
 
     <!-- Lage-Ticker -->
-    <div class="lage-ticker" id="lageTicker" x-data="lageTicker({{ lage_hints|map(attribute='text')|list|tojson }})">
+    <div class="lage-ticker" id="lageTicker" x-data='lageTicker({{ lage_hints|map(attribute="text")|list|tojson }})'>
       <span class="lage-ticker__icon">ℹ</span>
       <span class="lage-ticker__text" x-text="currentHint"></span>
     </div>
