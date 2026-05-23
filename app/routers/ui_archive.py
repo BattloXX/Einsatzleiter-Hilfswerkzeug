@@ -4,10 +4,12 @@ Org-Scoping:
 - Listen und Detailansichten werden nach Org gefiltert; system_admin sieht alles.
 - Endpoints können nur eigene oder mitwirkende Org-Einsätze abrufen.
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import or_
 
 from app.core.permissions import can_access_incident
@@ -17,6 +19,33 @@ from app.services.pdf_service import render_incident_pdf
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+logger = logging.getLogger("einsatzleiter.archive")
+
+
+def _load_incident_with_orgs(incident_id: int, db: Session) -> Incident | None:
+    """Lädt Incident und stellt sicher, dass collaborating_orgs eager geladen ist,
+    damit can_access_incident() nicht in ein Lazy-Load-Problem läuft."""
+    return (
+        db.query(Incident)
+        .options(selectinload(Incident.collaborating_orgs))
+        .filter(Incident.id == incident_id)
+        .first()
+    )
+
+
+def _deny_access(user, incident) -> HTTPException:
+    """Erzeugt eine 403 mit diagnostischem Hinweis (welche Orgs verglichen wurden)."""
+    collab_ids = [io.org_id for io in (incident.collaborating_orgs or [])]
+    logger.info(
+        "access denied: user=%s org=%s incident=%s primary_org=%s collaborators=%s",
+        user.id, user.org_id, incident.id, incident.primary_org_id, collab_ids,
+    )
+    msg = (
+        f"Kein Zugriff auf diesen Einsatz. Dein Account gehört zu Org "
+        f"{user.org_id}, der Einsatz zur Org {incident.primary_org_id}. "
+        f"Bitte als Mit-Organisation eintragen lassen (Admin)."
+    )
+    return HTTPException(403, detail=msg)
 
 
 def _scoped_incidents_query(db: Session, user):
@@ -55,11 +84,11 @@ async def archive_detail(incident_id: int, request: Request, db: Session = Depen
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
-    incident = db.get(Incident, incident_id)
+    incident = _load_incident_with_orgs(incident_id, db)
     if not incident:
         raise HTTPException(404)
     if not can_access_incident(user, incident):
-        raise HTTPException(403, detail="Kein Zugriff auf diesen Einsatz")
+        raise _deny_access(user, incident)
     db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons",
                            "breathing_troops", "log_entries"])
     return templates.TemplateResponse(request, "archive/detail.html", {
@@ -72,11 +101,11 @@ async def download_pdf(incident_id: int, request: Request, db: Session = Depends
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
-    incident = db.get(Incident, incident_id)
+    incident = _load_incident_with_orgs(incident_id, db)
     if not incident:
         raise HTTPException(404)
     if not can_access_incident(user, incident):
-        raise HTTPException(403, detail="Kein Zugriff auf diesen Einsatz")
+        raise _deny_access(user, incident)
     db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons",
                            "breathing_troops", "log_entries"])
     pdf_bytes = render_incident_pdf(incident, base_url=str(request.base_url))

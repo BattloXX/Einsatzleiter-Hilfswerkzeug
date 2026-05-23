@@ -32,6 +32,14 @@ a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
 [x-cloak] { display: none !important; }
 
+/* ─── Scrollbars (dezent, immer schmal) ─────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: rgba(46, 51, 71, .7) transparent; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(46, 51, 71, .55); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(122, 127, 153, .65); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
 /* ─── Top Navigation ─────────────────────────────────────────────── */
 .topnav { position: sticky; top: 0; z-index: 100; height: var(--topnav-h);
           background: linear-gradient(135deg, var(--bg2) 0%, #1e2130 100%);
@@ -140,6 +148,16 @@ a:hover { text-decoration: underline; }
 .incident-header__timer { flex: 1; text-align: center; }
 .timer { font-size: 2.2rem; font-weight: 900; font-variant-numeric: tabular-nums;
          color: var(--text); letter-spacing: 2px; }
+.last-update { display: inline-flex; align-items: center; gap: 4px; margin-left: 14px;
+               padding: 3px 8px; border-radius: 999px; font-size: .72rem; font-weight: 600;
+               font-variant-numeric: tabular-nums; vertical-align: middle;
+               background: rgba(46, 51, 71, .5); color: var(--text-muted);
+               transition: background .25s ease, color .25s ease; }
+.last-update__icon { font-size: .85rem; line-height: 1; }
+.last-update--fresh { background: rgba(24, 169, 87, .15); color: var(--green); }
+.last-update--warn  { background: rgba(242, 176, 46, .18); color: var(--yellow); }
+.last-update--stale { background: rgba(216, 48, 48, .2);  color: var(--danger); animation: lu-pulse 1.6s ease-in-out infinite; }
+@keyframes lu-pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
 .incident-header__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .alarm-badge { border-radius: 8px; padding: 4px 12px; font-weight: 800; font-size: 1.1rem; }
 .alarm-badge--f { background: var(--danger); color: #fff; }

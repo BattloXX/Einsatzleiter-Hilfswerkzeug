@@ -26,6 +26,11 @@
   </div>
   <div class="incident-header__timer">
     <span class="timer" x-text="timerDisplay">00:00</span>
+    <span class="last-update" :class="'last-update--' + lastUpdateState"
+          :title="'Daten aktualisiert vor ' + lastUpdateAgeSec + ' Sek.'">
+      <span class="last-update__icon">⟳</span>
+      <span class="last-update__time" x-text="lastUpdateDisplay">–</span>
+    </span>
   </div>
   <div class="incident-header__actions">
     <a href="/einsatz/{{ incident.id }}/atemschutz" class="btn btn--sm btn--secondary"

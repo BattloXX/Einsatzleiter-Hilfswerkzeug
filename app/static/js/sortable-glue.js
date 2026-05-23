@@ -34,9 +34,10 @@
         ghostClass: 'card--ghost',
         chosenClass: 'card--chosen',
         dragClass: 'card--drag',
-        // Touch-Geräte: 150 ms Long-Press, damit Tap-Clicks nicht in Drag umschlagen
+        // 150 ms Long-Press auf ALLEN Geraeten, damit Klicks (hx-trigger=click)
+        // nicht in Drag umschlagen — ohne diesen Delay verschluckt Sortable den
+        // click-Event sobald die Maus zwischen mousedown/mouseup > 4px wandert.
         delay: 150,
-        delayOnTouchOnly: true,
         touchStartThreshold: 4,
         preventOnFilter: false,
         // Prevent drag when clicking on interactive elements
@@ -75,7 +76,6 @@
         group: { name: 'kanban', pull: false, put: true },
         animation: 150,
         delay: 150,
-        delayOnTouchOnly: true,
         touchStartThreshold: 4,
         preventOnFilter: false,
         filter: 'select,input,button,.task-check,a',

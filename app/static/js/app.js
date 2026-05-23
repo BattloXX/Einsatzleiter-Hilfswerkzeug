@@ -83,11 +83,38 @@ function incidentBoard(incidentId, alarm, startedAt) {
   return {
     _ws: null,
     timerDisplay: '00:00',
+    lastUpdate: Date.now(),
+    lastUpdateDisplay: '–',
+    lastUpdateAgeSec: 0,
+    lastUpdateState: 'fresh',  // 'fresh' | 'warn' (>60s) | 'stale' (>300s)
 
     init() {
       this._startTimer(new Date(startedAt));
+      this._startLastUpdate();
       this._connectWS(incidentId);
       this._setupKeyboard(incidentId);
+    },
+
+    _startLastUpdate() {
+      const fmt = (d) => {
+        const h = String(d.getHours()).padStart(2, '0');
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const s = String(d.getSeconds()).padStart(2, '0');
+        return `${h}:${m}:${s}`;
+      };
+      const tick = () => {
+        this.lastUpdateDisplay = fmt(new Date(this.lastUpdate));
+        this.lastUpdateAgeSec = Math.floor((Date.now() - this.lastUpdate) / 1000);
+        this.lastUpdateState =
+          this.lastUpdateAgeSec >= 300 ? 'stale' :
+          this.lastUpdateAgeSec >= 60  ? 'warn'  : 'fresh';
+      };
+      tick();
+      setInterval(tick, 1000);
+    },
+
+    _bumpLastUpdate() {
+      this.lastUpdate = Date.now();
     },
 
     _startTimer(start) {
@@ -112,6 +139,7 @@ function incidentBoard(incidentId, alarm, startedAt) {
         const ws = new WebSocket(url);
         ws.onmessage = (e) => {
           const ev = JSON.parse(e.data);
+          this._bumpLastUpdate();
           if (ev.reload_board) {
             const modal = document.getElementById('cardDetailModal');
             if (modal && modal.open) {
