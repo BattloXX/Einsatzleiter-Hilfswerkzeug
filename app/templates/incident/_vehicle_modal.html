@@ -34,10 +34,13 @@
     <div class="detail-section__title">STATUS</div>
     <form method="post" action="/einsatz/{{ incident.id }}/fahrzeug/{{ vehicle.id }}/status"
           style="display:flex; gap:8px; align-items:center;">
-      <select name="unit_status" class="form-select" style="flex:1"
+      <select name="unit_status"
+              class="form-select form-select--unit-status unit-status-{{ vehicle.unit_status | unit_status_slug }}"
+              style="flex:1"
               hx-post="/einsatz/{{ incident.id }}/fahrzeug/{{ vehicle.id }}/status"
               hx-trigger="change"
-              hx-swap="none">
+              hx-swap="none"
+              onchange="this.className='form-select form-select--unit-status unit-status-'+this.value.toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').replace(/ /g,'-')">
         {% for s in unit_status_values %}
         <option value="{{ s }}" {% if vehicle.unit_status == s %}selected{% endif %}>{{ s }}</option>
         {% endfor %}

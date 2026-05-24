@@ -12,9 +12,9 @@ UNIT_STATUS_VALUES = [
     "Einsatz übernommen",
     "Am Einsatzort",
     "Einsatzbereit",
-    "Einsatzbereit am Stützpunkt",
 ]
-TRAFFIC_LIGHT_VALUES = ["open", "in_progress", "done"]
+TRAFFIC_LIGHT_VALUES = ["open", "in_progress", "done", "cancelled"]
+PERSON_STATUS_VALUES = ["gefunden", "versorgt", "abtransportiert", "verstorben"]
 FIXED_COLUMN_TITLES = {
     "dispatched": "Disponierte Fahrzeuge",
     "active":     "Tatsächlich im Einsatz",
@@ -308,6 +308,7 @@ class RescuedPerson(Base):
     name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     vehicle_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("incident_vehicle.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="gefunden")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     incident: Mapped["Incident"] = relationship(back_populates="rescued_persons")

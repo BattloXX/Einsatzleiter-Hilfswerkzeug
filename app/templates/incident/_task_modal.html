@@ -11,6 +11,24 @@
 
 <div class="modal__body">
   {% if can_edit %}
+  <div class="detail-section">
+    <div class="detail-section__title">STATUS</div>
+    <form style="display:flex;gap:8px;align-items:center;">
+      {% set sl = task.status if task.status else 'open' %}
+      <select name="status" class="form-select form-select--status status-{{ sl }}"
+              style="flex:1"
+              hx-post="/einsatz/{{ incident.id }}/aufgabe/{{ task.id }}/ampel"
+              hx-trigger="change"
+              hx-swap="none"
+              onchange="this.className='form-select form-select--status status-'+this.value">
+        <option value="open" {% if sl=='open' %}selected{% endif %}>🔴 Offen</option>
+        <option value="in_progress" {% if sl=='in_progress' %}selected{% endif %}>🟡 In Arbeit</option>
+        <option value="done" {% if sl=='done' %}selected{% endif %}>🟢 Erledigt</option>
+        <option value="cancelled" {% if sl=='cancelled' %}selected{% endif %}>⚪ Storniert</option>
+      </select>
+    </form>
+  </div>
+
   <form hx-post="/einsatz/{{ incident.id }}/aufgabe/{{ task.id }}"
         hx-target="#cardDetailBody"
         hx-swap="innerHTML"

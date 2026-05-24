@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -265,6 +266,42 @@ async def toggle_member(
     return RedirectResponse("/admin/mitglieder", status_code=303)
 
 
+@router.post("/mitglieder/bulk-delete")
+async def bulk_delete_members(
+    request: Request,
+    member_ids: list[int] = Form(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    user = request.state.user
+    rows = db.query(Member).filter(
+        Member.id.in_(member_ids),
+        Member.org_id == user.org_id,
+    ).all()
+    deleted = 0
+    blocked: list[str] = []
+    for m in rows:
+        name = m.full_name
+        sp = db.begin_nested()
+        try:
+            db.delete(m)
+            db.flush()
+            sp.commit()
+            deleted += 1
+        except IntegrityError:
+            sp.rollback()
+            blocked.append(name)
+    db.commit()
+    write_audit(db, "admin.member.bulk_delete", user_id=user.id,
+                payload={"deleted": deleted, "blocked": blocked})
+    import urllib.parse
+    blocked_q = ("&blocked=" + urllib.parse.quote(", ".join(blocked))) if blocked else ""
+    return RedirectResponse(
+        f"/admin/mitglieder?saved=1&deleted={deleted}{blocked_q}",
+        status_code=303,
+    )
+
+
 @router.post("/mitglieder/{member_id}/quali")
 async def update_member_quali(
     member_id: int, request: Request,
@@ -379,6 +416,7 @@ async def import_members_excel(
 
     user = request.state.user
     created = 0
+    updated = 0
     skipped = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not row:
@@ -391,20 +429,27 @@ async def import_members_excel(
         phone = str(row[col_map["phone"]] if "phone" in col_map and col_map["phone"] < len(row) and row[col_map["phone"]] else "").strip() or None
         email = str(row[col_map["email"]] if "email" in col_map and col_map["email"] < len(row) and row[col_map["email"]] else "").strip().lower() or None
         role_raw = str(row[col_map["role"]] if "role" in col_map and col_map["role"] < len(row) and row[col_map["role"]] else "").strip().lower()
-        # Skip exact duplicates (same name in same org)
+        # Match existing (same name in same org) → update; else create
         existing = db.query(Member).filter(
             Member.org_id == user.org_id,
             Member.lastname == lastname,
             Member.firstname == firstname,
         ).first()
         if existing:
-            skipped += 1
-            continue
-        member = Member(lastname=lastname, firstname=firstname, phone=phone, email=email,
-                        org_id=user.org_id, active=True)
-        db.add(member)
-        db.flush()  # get member.id
-        # Auto-assign qualification from role column
+            if not existing.phone and phone:
+                existing.phone = phone
+            if not existing.email and email:
+                existing.email = email
+            existing.active = True
+            member = existing
+            updated += 1
+        else:
+            member = Member(lastname=lastname, firstname=firstname, phone=phone, email=email,
+                            org_id=user.org_id, active=True)
+            db.add(member)
+            db.flush()  # get member.id
+            created += 1
+        # Auto-assign qualification from role column (additiv, idempotent)
         if role_raw and quali_cache:
             for _label, _code in _ROLE_TO_QUALI:
                 if _label in role_raw and _code in quali_cache:
@@ -414,13 +459,15 @@ async def import_members_excel(
                     if not already:
                         db.add(MemberQualification(member_id=member.id, qualification_id=quali_cache[_code]))
                     break
-        created += 1
 
-    if created:
+    if created or updated:
         db.commit()
         write_audit(db, "admin.member.excel_import", user_id=user.id,
-                    payload={"created": created, "skipped": skipped})
-    return RedirectResponse(f"/admin/mitglieder?saved=1&imported={created}&skipped={skipped}", status_code=303)
+                    payload={"created": created, "updated": updated, "skipped": skipped})
+    return RedirectResponse(
+        f"/admin/mitglieder?saved=1&imported={created}&updated={updated}&skipped={skipped}",
+        status_code=303,
+    )
 
 
 # ── Benutzer Edit / Rollen / Passwort-Reset ───────────────────────────────────

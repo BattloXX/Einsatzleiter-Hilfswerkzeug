@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.core.permissions import require_role, has_role
 from app.core.templating import templates
-from app.models.incident import Incident, IncidentColumn, IncidentVehicle, Task, Message, RescuedPerson, IncidentToken, MessageMedia, PersonMedia, UNIT_STATUS_VALUES, TRAFFIC_LIGHT_VALUES
+from app.models.incident import Incident, IncidentColumn, IncidentVehicle, Task, Message, RescuedPerson, IncidentToken, MessageMedia, PersonMedia, UNIT_STATUS_VALUES, TRAFFIC_LIGHT_VALUES, PERSON_STATUS_VALUES
 from app.models.master import AlarmType, TaskSuggestion, LageHint, VehicleMaster, Member, BOS_VALUES, MessageSuggestion
 from app.models.user import User, UserRole, Role
 from app.services.incident_service import (
@@ -746,6 +746,7 @@ async def person_detail(
     can_edit = has_role(user, "incident_leader", "admin", "recorder")
     return templates.TemplateResponse(request, "incident/_person_modal.html", {
         "user": user, "incident": incident, "person": person, "can_edit": can_edit,
+        "person_status_values": PERSON_STATUS_VALUES,
     })
 
 
@@ -773,7 +774,26 @@ async def update_person_endpoint(
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
     return templates.TemplateResponse(request, "incident/_person_modal.html", {
         "user": request.state.user, "incident": incident, "person": person, "can_edit": can_edit,
+        "person_status_values": PERSON_STATUS_VALUES,
     })
+
+
+@router.post("/einsatz/{incident_id}/person/{person_id}/status")
+async def set_person_status_endpoint(
+    incident_id: int, person_id: int, request: Request,
+    status: str = Form(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
+):
+    if status not in PERSON_STATUS_VALUES:
+        return Response("Ungültiger Status", status_code=400)
+    person = db.get(RescuedPerson, person_id)
+    if not person or person.incident_id != incident_id:
+        return Response(status_code=404)
+    person.status = status
+    db.commit()
+    await manager.broadcast(incident_id, {"type": "person_updated", "reload_board": True})
+    return Response(status_code=204)
 
 
 @router.post("/einsatz/{incident_id}/person/{person_id}/loeschen")

@@ -75,9 +75,33 @@ def _action_label(action: str) -> str:
     return _ACTION_LABELS.get(action, action.replace(".", " → ").replace("_", " "))
 
 
+def _unit_status_slug(value: str) -> str:
+    """Wandelt 'Einsatz übernommen' → 'einsatz-uebernommen' für CSS-Klassen."""
+    if not value:
+        return "unknown"
+    s = value.lower()
+    for src, dst in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        s = s.replace(src, dst)
+    return s.replace(" ", "-")
+
+
+_PERSON_STATUS_LABELS = {
+    "gefunden":         "🔴 Gefunden",
+    "versorgt":         "🟠 Versorgt",
+    "abtransportiert":  "🟢 Abtransportiert",
+    "verstorben":       "⚫ Verstorben",
+}
+
+
+def _person_status_label(value: str) -> str:
+    return _PERSON_STATUS_LABELS.get(value, value)
+
+
 templates = Jinja2Templates(directory="app/templates")
 templates.env.filters["local"] = _local
 templates.env.filters["local_time"] = _local_time
 templates.env.filters["local_datetime"] = _local_datetime
 templates.env.filters["local_iso"] = _local_iso
 templates.env.filters["action_label"] = _action_label
+templates.env.filters["unit_status_slug"] = _unit_status_slug
+templates.env.filters["person_status_label"] = _person_status_label

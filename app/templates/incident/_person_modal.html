@@ -8,9 +8,64 @@
 
 <div class="modal__body">
   {% if can_edit %}
-  <div id="personMediaSection" style="margin-bottom:12px;">
-    {% if person.media %}
+  {% if person_status_values is defined %}
+  <div class="detail-section">
+    <div class="detail-section__title">STATUS</div>
+    <form style="display:flex;gap:8px;align-items:center;">
+      {% set ps = person.status if person.status else 'gefunden' %}
+      <select name="status"
+              class="form-select form-select--person-status person-status-{{ ps }}"
+              hx-post="/einsatz/{{ incident.id }}/person/{{ person.id }}/status"
+              hx-trigger="change"
+              hx-swap="none"
+              onchange="this.className='form-select form-select--person-status person-status-'+this.value">
+        {% for v in person_status_values %}
+        <option value="{{ v }}" {% if ps == v %}selected{% endif %}>{{ v|person_status_label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  {% endif %}
+
+  <form hx-post="/einsatz/{{ incident.id }}/person/{{ person.id }}"
+        hx-target="#cardDetailBody"
+        hx-swap="innerHTML"
+        id="personEditForm">
+    <div class="form-row" style="display:flex; gap:12px; flex-wrap:wrap;">
+      <div class="form-group" style="flex:1; min-width:140px;">
+        <label class="form-label">GESCHLECHT</label>
+        <select name="gender" class="form-select">
+          {% for opt in ['Unbekannt','Männlich','Weiblich','Divers'] %}
+          <option value="{{ opt }}" {% if person.gender == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1; min-width:140px;">
+        <label class="form-label">GRUPPE</label>
+        <select name="person_group" class="form-select">
+          {% for opt in ['Erwachsen','Kind','Säugling','Jugendlich','Senior'] %}
+          <option value="{{ opt }}" {% if person.person_group == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1; min-width:140px;">
+        <label class="form-label">ALTERSANGABE (optional)</label>
+        <input type="text" name="age_range" class="form-input" value="{{ person.age_range or '' }}" placeholder="z. B. ca. 60">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">NAME (falls bekannt)</label>
+      <input type="text" name="name" class="form-input" value="{{ person.name or '' }}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">FUND-/AUFFINDEORT</label>
+      <input type="text" name="location" class="form-input" value="{{ person.location or '' }}" placeholder="Stockwerk, Raum, Adresse …">
+    </div>
+  </form>
+
+  <div id="personMediaSection" style="margin-top:16px;">
     <p class="form-label" style="margin-bottom:6px;">FOTOS / DOKUMENTE</p>
+    {% if person.media %}
     <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); gap:6px; margin-bottom:8px;">
       {% for m in person.media %}
       <div style="position:relative; border:1px solid var(--border-color,#374151); border-radius:6px; overflow:hidden; background:var(--surface-2,#1f2937);">
@@ -48,42 +103,6 @@
       </div>
     </form>
   </div>
-
-  <form hx-post="/einsatz/{{ incident.id }}/person/{{ person.id }}"
-        hx-target="#cardDetailBody"
-        hx-swap="innerHTML"
-        id="personEditForm">
-    <div class="form-row" style="display:flex; gap:12px; flex-wrap:wrap;">
-      <div class="form-group" style="flex:1; min-width:140px;">
-        <label class="form-label">GESCHLECHT</label>
-        <select name="gender" class="form-select">
-          {% for opt in ['Unbekannt','Männlich','Weiblich','Divers'] %}
-          <option value="{{ opt }}" {% if person.gender == opt %}selected{% endif %}>{{ opt }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-group" style="flex:1; min-width:140px;">
-        <label class="form-label">GRUPPE</label>
-        <select name="person_group" class="form-select">
-          {% for opt in ['Erwachsen','Kind','Säugling','Jugendlich','Senior'] %}
-          <option value="{{ opt }}" {% if person.person_group == opt %}selected{% endif %}>{{ opt }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-group" style="flex:1; min-width:140px;">
-        <label class="form-label">ALTERSANGABE (optional)</label>
-        <input type="text" name="age_range" class="form-input" value="{{ person.age_range or '' }}" placeholder="z. B. ca. 60">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">NAME (falls bekannt)</label>
-      <input type="text" name="name" class="form-input" value="{{ person.name or '' }}">
-    </div>
-    <div class="form-group">
-      <label class="form-label">FUND-/AUFFINDEORT</label>
-      <input type="text" name="location" class="form-input" value="{{ person.location or '' }}" placeholder="Stockwerk, Raum, Adresse …">
-    </div>
-  </form>
   {% else %}
   <div class="detail-section">
     <div class="detail-kv"><span class="detail-kv__label">Geschlecht</span><span>{{ person.gender }}</span></div>

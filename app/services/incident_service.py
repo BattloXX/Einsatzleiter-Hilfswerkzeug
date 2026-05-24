@@ -393,14 +393,23 @@ def set_task_status(
 ) -> Task:
     if status not in TRAFFIC_LIGHT_VALUES:
         raise ValueError(f"Ungültiger Status: {status}")
-    before = {"status": task.status, "is_done": task.is_done}
+    before = {"status": task.status, "is_done": task.is_done, "is_cancelled": task.is_cancelled}
     task.status = status
     if status == "done":
         task.is_done = True
         task.done_at = _now()
-    elif task.is_done:
+        task.is_cancelled = False
+        task.cancelled_at = None
+    elif status == "cancelled":
+        task.is_cancelled = True
+        task.cancelled_at = _now()
         task.is_done = False
         task.done_at = None
+    else:
+        task.is_done = False
+        task.done_at = None
+        task.is_cancelled = False
+        task.cancelled_at = None
     db.flush()
     write_incident_change(
         db, task.incident_id, "task.status_set", "task", task.id,
@@ -418,14 +427,20 @@ def set_message_status(
 ) -> Message:
     if status not in TRAFFIC_LIGHT_VALUES:
         raise ValueError(f"Ungültiger Status: {status}")
-    before = {"status": message.status, "is_done": message.is_done}
+    before = {"status": message.status, "is_done": message.is_done, "is_cancelled": message.is_cancelled}
     message.status = status
     if status == "done":
         message.is_done = True
         message.done_at = _now()
-    elif message.is_done:
+        message.is_cancelled = False
+    elif status == "cancelled":
+        message.is_cancelled = True
         message.is_done = False
         message.done_at = None
+    else:
+        message.is_done = False
+        message.done_at = None
+        message.is_cancelled = False
     db.flush()
     write_incident_change(
         db, message.incident_id, "message.status_set", "message", message.id,

@@ -16,9 +16,16 @@
   {% if saved %}
   <div class="alert alert--success">
     Gespeichert.
-    {% if request.query_params.get('imported') %}
+    {% if request.query_params.get('imported') is not none %}
     {{ request.query_params.get('imported') }} neu importiert,
-    {{ request.query_params.get('skipped') }} übersprungen (bereits vorhanden).
+    {{ request.query_params.get('updated', '0') }} aktualisiert,
+    {{ request.query_params.get('skipped', '0') }} übersprungen.
+    {% endif %}
+    {% if request.query_params.get('deleted') %}
+    {{ request.query_params.get('deleted') }} gelöscht.
+    {% if request.query_params.get('blocked') %}
+    <br><strong>Blockiert (FK-Konflikt):</strong> {{ request.query_params.get('blocked') }}
+    {% endif %}
     {% endif %}
   </div>
   {% endif %}
@@ -37,13 +44,25 @@
   <div class="alert alert--danger">Fehler beim Import: {{ request.query_params.get('error') }}</div>
   {% endif %}
 
+  <div id="bulkBar" style="display:none;align-items:center;gap:10px;margin:8px 0;padding:8px 12px;background:var(--surface-2,#1f2937);border-radius:6px;">
+    <span><strong id="bulkCount">0</strong> ausgewählt</span>
+    <button type="button" class="btn btn--danger btn--sm" onclick="bulkDeleteMembers()">Auswahl löschen</button>
+    <button type="button" class="btn btn--ghost btn--sm" onclick="clearMemberSelection()">Auswahl aufheben</button>
+  </div>
+
+  <form id="bulkDeleteForm" method="post" action="/admin/mitglieder/bulk-delete" style="display:none"></form>
+
   <table class="table-admin">
     <thead>
-      <tr><th>Name</th><th>Qualifikationen</th><th>Telefon</th><th>E-Mail</th><th>Status</th><th>Aktionen</th></tr>
+      <tr>
+        <th style="width:32px"><input type="checkbox" id="selectAllMembers" onchange="toggleSelectAllMembers(this)"></th>
+        <th>Name</th><th>Qualifikationen</th><th>Telefon</th><th>E-Mail</th><th>Status</th><th>Aktionen</th>
+      </tr>
     </thead>
     <tbody>
       {% for m in members %}
       <tr>
+        <td><input type="checkbox" class="member-select" value="{{ m.id }}" onchange="updateBulkBar()"></td>
         <td><strong>{{ m.full_name }}</strong></td>
         <td>
           {% for mq in m.qualifications %}
@@ -76,7 +95,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="text-center text-muted">Keine Mitglieder.</td></tr>
+      <tr><td colspan="7" class="text-center text-muted">Keine Mitglieder.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -221,6 +240,44 @@ function openQualiEditor(id, name) {
   document.getElementById('qe_name').textContent = name;
   document.getElementById('qualiEditorForm').action = `/admin/mitglieder/${id}/quali`;
   document.getElementById('qualiEditorModal').showModal();
+}
+
+function getSelectedMemberIds() {
+  return Array.from(document.querySelectorAll('.member-select:checked')).map(cb => cb.value);
+}
+function updateBulkBar() {
+  const ids = getSelectedMemberIds();
+  const bar = document.getElementById('bulkBar');
+  document.getElementById('bulkCount').textContent = ids.length;
+  bar.style.display = ids.length ? 'flex' : 'none';
+  // Sync header checkbox state
+  const all = document.querySelectorAll('.member-select');
+  const sel = document.querySelectorAll('.member-select:checked');
+  const head = document.getElementById('selectAllMembers');
+  head.checked = all.length > 0 && sel.length === all.length;
+  head.indeterminate = sel.length > 0 && sel.length < all.length;
+}
+function toggleSelectAllMembers(cb) {
+  document.querySelectorAll('.member-select').forEach(c => c.checked = cb.checked);
+  updateBulkBar();
+}
+function clearMemberSelection() {
+  document.querySelectorAll('.member-select').forEach(c => c.checked = false);
+  document.getElementById('selectAllMembers').checked = false;
+  updateBulkBar();
+}
+function bulkDeleteMembers() {
+  const ids = getSelectedMemberIds();
+  if (!ids.length) return;
+  if (!confirm(ids.length + ' Mitglied(er) endgültig löschen?\n\nDieser Vorgang kann nicht rückgängig gemacht werden.')) return;
+  const form = document.getElementById('bulkDeleteForm');
+  form.innerHTML = '';
+  ids.forEach(id => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'member_ids'; inp.value = id;
+    form.appendChild(inp);
+  });
+  form.submit();
 }
 </script>
 {% endblock %}

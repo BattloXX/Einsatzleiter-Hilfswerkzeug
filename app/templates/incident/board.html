@@ -151,18 +151,31 @@
 
   </aside>
 
+  <!-- Mobile Lane Tabs -->
+  <nav class="board-tabs" role="tablist" aria-label="Spalten">
+    <button class="board-tab active" data-lane="vehicles" type="button">🚒 Fahrzeuge</button>
+    <button class="board-tab" data-lane="tasks" type="button">📋 Aufträge</button>
+    <button class="board-tab" data-lane="messages" type="button">📨 Meldungen</button>
+    <button class="board-tab" data-lane="persons" type="button">👥 Personen</button>
+  </nav>
+
   <!-- Kanban Board -->
   <div class="kanban" id="kanban" data-incident-id="{{ incident.id }}">
     {% set columns = incident.columns %}
+    {% set lane_map = {'dispatched':'vehicles','active':'vehicles','neighbor':'vehicles',
+                       'tasks':'tasks','messages':'messages','rescued':'persons'} %}
     {% for col in columns %}
     {% set col_vehicles = incident.vehicles|selectattr('column_id', 'eq', col.id)|selectattr('removed_at', 'none')|list %}
     {% set col_tasks = incident.tasks|selectattr('column_id', 'eq', col.id)|list %}
     {% set col_messages = incident.messages if col.code == 'messages' else [] %}
     {% set col_persons = incident.rescued_persons if col.code == 'rescued' else [] %}
     {% set col_count = col_vehicles|length + col_tasks|length + col_messages|length + col_persons|length %}
+    {% set lane = lane_map.get(col.code, 'vehicles') %}
 
     <div class="kanban-col" id="col-{{ col.id }}"
-         data-col-id="{{ col.id }}" data-col-code="{{ col.code }}">
+         data-col-id="{{ col.id }}" data-col-code="{{ col.code }}"
+         data-lane="{{ lane }}"
+         {% if lane == 'vehicles' %}data-lane-active{% endif %}>
       {% include "incident/_lane_header.html" %}
       <div class="kanban-col__body sortable-zone" id="zone-{{ col.id }}">
 
@@ -498,5 +511,17 @@ function lageTicker(hints) {
     init() { setInterval(() => { this.idx = (this.idx + 1) % this.hints.length; }, 8000); }
   };
 }
+
+// Mobile Lane Tabs — switch visible lane on tab click
+document.addEventListener('click', function (e) {
+  const tab = e.target.closest('.board-tab');
+  if (!tab) return;
+  const lane = tab.dataset.lane;
+  document.querySelectorAll('.board-tab').forEach(t => t.classList.toggle('active', t === tab));
+  document.querySelectorAll('.kanban-col[data-lane]').forEach(col => {
+    if (col.dataset.lane === lane) col.setAttribute('data-lane-active', '');
+    else col.removeAttribute('data-lane-active');
+  });
+});
 </script>
 {% endblock %}

@@ -6,9 +6,26 @@
      hx-trigger="click[!event.target.closest('select,input,button,a')]"
      hx-on::after-swap="document.getElementById('cardDetailModal').showModal()">
   <div class="card__body">
-    <div class="card__title">
-      {{ person.gender }}, {{ person.person_group }}
-      {% if person.age_range %}<span class="card__age">{{ person.age_range }}</span>{% endif %}
+    <div class="card__title" style="display:flex;align-items:center;gap:6px;">
+      {% if can_edit %}
+      {% set ps = person.status if person.status else 'gefunden' %}
+      <span onclick="event.stopPropagation()" style="flex-shrink:0;">
+        <select name="status" class="form-select form-select--xs form-select--person-status person-status-{{ ps }}"
+                style="width:auto;min-width:90px;"
+                hx-post="/einsatz/{{ incident.id }}/person/{{ person.id }}/status"
+                hx-trigger="change"
+                hx-swap="none"
+                onchange="this.className='form-select form-select--xs form-select--person-status person-status-'+this.value">
+          <option value="gefunden" {% if ps=='gefunden' %}selected{% endif %}>🔴 Gefunden</option>
+          <option value="versorgt" {% if ps=='versorgt' %}selected{% endif %}>🟠 Versorgt</option>
+          <option value="abtransportiert" {% if ps=='abtransportiert' %}selected{% endif %}>🟢 Abtransportiert</option>
+          <option value="verstorben" {% if ps=='verstorben' %}selected{% endif %}>⚫ Verstorben</option>
+        </select>
+      </span>
+      {% endif %}
+      <span>{{ person.gender }}, {{ person.person_group }}
+        {% if person.age_range %}<span class="card__age">{{ person.age_range }}</span>{% endif %}
+      </span>
     </div>
     {% if person.name %}<div class="card__sub">{{ person.name }}</div>{% endif %}
     {% if person.location %}<div class="card__sub">📍 {{ person.location }}</div>{% endif %}
