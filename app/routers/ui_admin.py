@@ -361,8 +361,8 @@ async def import_members_excel(
             col_map.setdefault("role", i)
 
     if "lastname" not in col_map or "firstname" not in col_map:
-        found = ", ".join(f"„{h}"" for h in headers[:8] if h)
-        detail = f"Gefundene Spalten: {found}. Erwartet: Zuname/Nachname und Vorname."
+        found = ", ".join('"' + h + '"' for h in headers[:8] if h)
+        detail = "Gefundene Spalten: " + found + ". Erwartet: Zuname/Nachname und Vorname."
         import urllib.parse
         return RedirectResponse(
             f"/admin/mitglieder?error=missing_columns&error_detail={urllib.parse.quote(detail)}",
