@@ -1,10 +1,9 @@
-# FWWO Einsatzleiter-Hilfswerkzeug
+# Einsatzleiter-Hilfswerkzeug
 
 **Digitales Einsatzleiter-Werkzeug für Feuerwehren** — Multi-User, Multi-Organisations-fähig, Echtzeit.
 
-Entwickelt für die Freiwillige Feuerwehr Wolfurt (Vorarlberg), verfügbar für alle österreichischen Feuerwehren.
 
-[![CI](https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug/actions/workflows/ci.yml/badge.svg)](https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug/actions)
+[![CI](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions/workflows/ci.yml/badge.svg)](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green)
 ![Version](https://img.shields.io/badge/version-2.0.0-orange)
