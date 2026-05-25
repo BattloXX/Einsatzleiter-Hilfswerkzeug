@@ -53,23 +53,23 @@ def main() -> None:
     for size in FAVICON_SIZES:
         out = IMG_DIR / f"favicon-{size}.png"
         master.resize((size, size), Image.LANCZOS).save(out, "PNG", optimize=True)
-        print(f"  → {out.relative_to(ROOT)}")
+        print(f"  ->{out.relative_to(ROOT)}")
 
     # Default-Favicon (Alias auf 128er)
     fav = IMG_DIR / "favicon.png"
     master.resize((128, 128), Image.LANCZOS).save(fav, "PNG", optimize=True)
-    print(f"  → {fav.relative_to(ROOT)}")
+    print(f"  ->{fav.relative_to(ROOT)}")
 
     # favicon.ico (Multi-Size)
     ico = IMG_DIR / "favicon.ico"
     master.save(ico, format="ICO", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
-    print(f"  → {ico.relative_to(ROOT)}")
+    print(f"  ->{ico.relative_to(ROOT)}")
 
     # PWA-Icons
     for size in PWA_SIZES:
         out = IMG_DIR / f"icon-{size}.png"
         master.resize((size, size), Image.LANCZOS).save(out, "PNG", optimize=True)
-        print(f"  → {out.relative_to(ROOT)}")
+        print(f"  ->{out.relative_to(ROOT)}")
 
     print("[regen-icons] Fertig.")
 
