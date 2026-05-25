@@ -3,11 +3,17 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('appState', () => ({
     toasts: [],
     newIncidentAlert: null,
+    mobileMenuOpen: false,
     _ws: null,
 
     init() {
       this._connectGlobal();
       this._registerPush();
+      // Schließe Mobile-Menü bei Navigation (Link-Klick auf Anker innerhalb des Panels)
+      document.addEventListener('click', (e) => {
+        const link = e.target.closest('.mobile-menu__link');
+        if (link) this.mobileMenuOpen = false;
+      });
     },
 
     addToast(msg, type = 'info') {
