@@ -512,16 +512,37 @@ function lageTicker(hints) {
   };
 }
 
-// Mobile Lane Tabs — switch visible lane on tab click
-document.addEventListener('click', function (e) {
-  const tab = e.target.closest('.board-tab');
-  if (!tab) return;
-  const lane = tab.dataset.lane;
-  document.querySelectorAll('.board-tab').forEach(t => t.classList.toggle('active', t === tab));
-  document.querySelectorAll('.kanban-col[data-lane]').forEach(col => {
-    if (col.dataset.lane === lane) col.setAttribute('data-lane-active', '');
-    else col.removeAttribute('data-lane-active');
+// Mobile Lane Tabs — switch visible lane on tab click + persist via localStorage,
+// damit nach WebSocket-Reload nicht in die erste Lane zurückgesprungen wird.
+(function () {
+  const LANE_KEY = 'board_active_lane';
+
+  function applyLane(lane) {
+    if (!lane) return false;
+    const tab = document.querySelector(`.board-tab[data-lane="${lane}"]`);
+    if (!tab) return false;
+    document.querySelectorAll('.board-tab').forEach(t => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.kanban-col[data-lane]').forEach(col => {
+      if (col.dataset.lane === lane) col.setAttribute('data-lane-active', '');
+      else col.removeAttribute('data-lane-active');
+    });
+    return true;
+  }
+
+  // Beim Laden: gespeicherte Lane wiederherstellen
+  try {
+    const saved = localStorage.getItem(LANE_KEY);
+    if (saved) applyLane(saved);
+  } catch (e) { /* localStorage disabled — ignore */ }
+
+  // Klick-Handler: aktive Lane setzen + speichern
+  document.addEventListener('click', function (e) {
+    const tab = e.target.closest('.board-tab');
+    if (!tab) return;
+    const lane = tab.dataset.lane;
+    if (!applyLane(lane)) return;
+    try { localStorage.setItem(LANE_KEY, lane); } catch (e) { /* noop */ }
   });
-});
+})();
 </script>
 {% endblock %}
