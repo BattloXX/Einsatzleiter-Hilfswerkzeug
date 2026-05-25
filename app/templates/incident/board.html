@@ -129,7 +129,7 @@
     {% endif %}
 
     <!-- Einsatzleiter vor Ort -->
-    {% if el_member_candidates is defined and (el_member_candidates or incident.incident_leader_member_id) %}
+    {% if can_edit or incident.incident_leader_member_id %}
     <div class="sidebar-box">
       <div class="sidebar-box__title">Einsatzleiter vor Ort</div>
       {% if can_edit %}
@@ -145,6 +145,9 @@
           <button type="submit" class="btn btn--secondary btn--sm">OK</button>
         </div>
       </form>
+      {% if not el_member_candidates %}
+      <div class="text-muted" style="font-size:.8rem; margin-top:4px;">Keine Mitglieder mit EL-Qualifikation</div>
+      {% endif %}
       {% else %}
       {% if incident.leader_member %}
       <div style="font-size:.9rem;"><strong>{{ incident.leader_member.full_name }}</strong></div>

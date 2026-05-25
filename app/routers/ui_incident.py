@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import qrcode
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.permissions import has_role, require_role
@@ -147,7 +148,10 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
         .join(Role, UserRole.role_id == Role.id)
         .filter(
             User.active == True,
-            User.org_id == incident.primary_org_id if incident.primary_org_id else True,
+            or_(
+                Role.code == "system_admin",
+                User.org_id == incident.primary_org_id,
+            ) if incident.primary_org_id else True,
             Role.code.in_(leader_roles),
         )
         .distinct()
