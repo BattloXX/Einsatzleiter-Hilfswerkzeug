@@ -156,6 +156,7 @@ async def create_incident_api(
         address_city=payload.Ort,
         report_text=payload.Meldung,
         reason=payload.Einsatzgrund,
+        primary_org_id=api_key.org_id,
         api_key_id=api_key.id,
         ip=request.client.host if request.client else None,
     )

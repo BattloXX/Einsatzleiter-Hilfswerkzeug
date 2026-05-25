@@ -54,7 +54,7 @@
 
   {% if edit_alarm %}
   <!-- ── Edit-View ────────────────────────────────────────────────── -->
-  <div class="admin-section-title">
+  <div id="dispatchEditSection" class="admin-section-title">
     Bearbeiten: {{ edit_alarm.label or edit_alarm.code }} ({{ edit_alarm.code }})
   </div>
   <p class="form-hint" style="margin-bottom:10px;">
@@ -116,14 +116,27 @@
   </form>
 
   <script>
+  // Inline-Scripts laufen VOR den <script src=…> am Body-Ende. Sortable ist also
+  // zur Parsezeit noch nicht geladen — Init wartet auf DOMContentLoaded und
+  // pollt ggf. einmal kurz, falls die Library noch nicht da ist.
   (function () {
-    const tbody = document.getElementById('dispatchEditTbody');
-    if (tbody && window.Sortable) {
+    function initDispatchSortable() {
+      const tbody = document.getElementById('dispatchEditTbody');
+      if (!tbody) return;
+      if (!window.Sortable) { setTimeout(initDispatchSortable, 50); return; }
       Sortable.create(tbody, {
         handle: '.drag-handle',
         animation: 150,
         ghostClass: 'card--ghost',
       });
+      // Edit-Section in den sichtbaren Bereich scrollen
+      const section = document.getElementById('dispatchEditSection');
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initDispatchSortable);
+    } else {
+      initDispatchSortable();
     }
   })();
 

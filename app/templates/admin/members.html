@@ -53,6 +53,20 @@
   <div class="alert alert--danger">Fehler beim Import: {{ request.query_params.get('error') }}</div>
   {% endif %}
 
+  <!-- Filter + Sort-Steuerung -->
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0;">
+    <input type="search" id="memberFilter"
+           placeholder="🔎 Suchen: Name, Telefon, E-Mail oder Qualifikation (z. B. AGT)"
+           class="form-input" style="flex:1; min-width:260px; max-width:520px;"
+           oninput="applyMemberFilter()">
+    <select id="memberStatusFilter" class="form-select" style="width:160px;" onchange="applyMemberFilter()">
+      <option value="all">Alle Status</option>
+      <option value="active" selected>Nur aktive</option>
+      <option value="inactive">Nur inaktive</option>
+    </select>
+    <span class="text-muted" id="memberFilterCount" style="font-size:.85rem;"></span>
+  </div>
+
   <div id="bulkBar" style="display:none;align-items:center;gap:10px;margin:8px 0;padding:8px 12px;background:var(--surface-2,#1f2937);border-radius:6px;">
     <span><strong id="bulkCount">0</strong> ausgewählt</span>
     <button type="button" class="btn btn--danger btn--sm" onclick="bulkDeleteMembers()">Auswahl löschen</button>
@@ -61,16 +75,27 @@
 
   <form id="bulkDeleteForm" method="post" action="/admin/mitglieder/bulk-delete" style="display:none"></form>
 
-  <table class="table-admin">
+  <table class="table-admin" id="membersTable">
     <thead>
       <tr>
         <th style="width:32px"><input type="checkbox" id="selectAllMembers" onchange="toggleSelectAllMembers(this)"></th>
-        <th>Name</th><th>Qualifikationen</th><th>Telefon</th><th>E-Mail</th><th>Status</th><th>Aktionen</th>
+        <th class="sortable" data-sort="name" onclick="sortMembers('name')">Name <span class="sort-ind"></span></th>
+        <th>Qualifikationen</th>
+        <th class="sortable" data-sort="phone" onclick="sortMembers('phone')">Telefon <span class="sort-ind"></span></th>
+        <th class="sortable" data-sort="email" onclick="sortMembers('email')">E-Mail <span class="sort-ind"></span></th>
+        <th class="sortable" data-sort="status" onclick="sortMembers('status')">Status <span class="sort-ind"></span></th>
+        <th>Aktionen</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="membersTbody">
       {% for m in members %}
-      <tr>
+      {# Qualifikationen als space-separierter String für client-side Filterung #}
+      {% set _quals = m.qualifications|map(attribute='qualification')|select|map(attribute='code')|join(' ') %}
+      <tr data-name="{{ (m.full_name or '')|e }}"
+          data-phone="{{ (m.phone or '')|e }}"
+          data-email="{{ (m.email or '')|e }}"
+          data-quals="{{ _quals|e }}"
+          data-status="{{ 'active' if m.active else 'inactive' }}">
         <td><input type="checkbox" class="member-select" value="{{ m.id }}" onchange="updateBulkBar()"></td>
         <td><strong>{{ m.full_name }}</strong></td>
         <td>
@@ -109,6 +134,14 @@
     </tbody>
   </table>
 </div>
+
+<style>
+  #membersTable th.sortable { cursor: pointer; user-select: none; }
+  #membersTable th.sortable:hover { color: var(--red-light, #ff5252); }
+  #membersTable th .sort-ind { display:inline-block; width:10px; color: var(--text-muted); }
+  #membersTable th.sort-asc  .sort-ind::after { content: '▲'; color: var(--on-surface); }
+  #membersTable th.sort-desc .sort-ind::after { content: '▼'; color: var(--on-surface); }
+</style>
 
 <!-- Excel Import -->
 <dialog class="modal" id="excelImportModal">
@@ -275,12 +308,76 @@ function clearMemberSelection() {
   document.getElementById('selectAllMembers').checked = false;
   updateBulkBar();
 }
+
+// ─── Sort + Filter für Mannschaftsregister ────────────────────────────────
+function applyMemberFilter() {
+  const q = (document.getElementById('memberFilter').value || '').trim().toLowerCase();
+  const status = document.getElementById('memberStatusFilter').value;
+  const rows = document.querySelectorAll('#membersTbody tr[data-name]');
+  let visible = 0;
+  rows.forEach(tr => {
+    const matchesText = !q || (
+      (tr.dataset.name  || '').toLowerCase().includes(q) ||
+      (tr.dataset.phone || '').toLowerCase().includes(q) ||
+      (tr.dataset.email || '').toLowerCase().includes(q) ||
+      (tr.dataset.quals || '').toLowerCase().includes(q)
+    );
+    const matchesStatus = status === 'all' || tr.dataset.status === status;
+    const show = matchesText && matchesStatus;
+    tr.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const c = document.getElementById('memberFilterCount');
+  if (c) c.textContent = visible + ' sichtbar';
+}
+
+let _sortState = { col: 'name', dir: 'asc' };
+function sortMembers(col) {
+  if (_sortState.col === col) {
+    _sortState.dir = _sortState.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _sortState = { col, dir: 'asc' };
+  }
+  const tbody = document.getElementById('membersTbody');
+  const rows = Array.from(tbody.querySelectorAll('tr[data-name]'));
+  const key = col === 'name' ? 'name' : col;
+  rows.sort((a, b) => {
+    const av = (a.dataset[key] || '').toLowerCase();
+    const bv = (b.dataset[key] || '').toLowerCase();
+    if (av < bv) return _sortState.dir === 'asc' ? -1 : 1;
+    if (av > bv) return _sortState.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  rows.forEach(r => tbody.appendChild(r));
+  // Sort-Indikatoren aktualisieren
+  document.querySelectorAll('#membersTable th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.sort === col) {
+      th.classList.add(_sortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
+}
+
+// Initial: nur aktive zeigen (Default), Sort nach Name
+document.addEventListener('DOMContentLoaded', () => {
+  applyMemberFilter();
+  // Initialer Sort-Indikator
+  const nameTh = document.querySelector('#membersTable th[data-sort="name"]');
+  if (nameTh) nameTh.classList.add('sort-asc');
+});
 function bulkDeleteMembers() {
   const ids = getSelectedMemberIds();
   if (!ids.length) return;
   if (!confirm(ids.length + ' Mitglied(er) endgültig löschen?\n\nDieser Vorgang kann nicht rückgängig gemacht werden.')) return;
   const form = document.getElementById('bulkDeleteForm');
   form.innerHTML = '';
+  // CSRF-Token aus Cookie wieder mit-injecten (form.innerHTML='' hat ihn rausgeworfen)
+  const csrf = (document.cookie.match(/(?:^|;\s*)fwwo_csrf=([^;]+)/) || [])[1];
+  if (csrf) {
+    const c = document.createElement('input');
+    c.type = 'hidden'; c.name = '_csrf'; c.value = decodeURIComponent(csrf);
+    form.appendChild(c);
+  }
   ids.forEach(id => {
     const inp = document.createElement('input');
     inp.type = 'hidden'; inp.name = 'member_ids'; inp.value = id;

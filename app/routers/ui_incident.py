@@ -74,6 +74,7 @@ async def new_incident(
         report_text=report_text or None,
         is_exercise=is_exercise,
         incident_leader_user_id=user.id,
+        primary_org_id=user.org_id,
         ip=request.client.host if request.client else None,
     )
     db.commit()

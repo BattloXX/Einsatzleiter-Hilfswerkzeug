@@ -16,6 +16,23 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _resolve_org_id(db: Session, requested: Optional[int]) -> Optional[int]:
+    """Liefert eine gültige fire_dept.id zurück.
+
+    Reihenfolge: 1) explizit übergeben, 2) Home-Org (is_home_org=True),
+    3) erste FireDept-Zeile, 4) None (keine Org in der DB → kein Fallback möglich).
+    """
+    from app.models.master import FireDept
+    if requested:
+        if db.get(FireDept, requested):
+            return requested
+    home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
+    if home:
+        return home.id
+    any_org = db.query(FireDept).order_by(FireDept.id).first()
+    return any_org.id if any_org else None
+
+
 def create_incident(
     db: Session,
     alarm_type_code: str,
@@ -30,12 +47,14 @@ def create_incident(
     report_text: Optional[str] = None,
     reason: Optional[str] = None,
     incident_leader_user_id: Optional[int] = None,
+    primary_org_id: Optional[int] = None,
     api_key_id: Optional[int] = None,
     ip: Optional[str] = None,
 ) -> Incident:
     alarm = db.get(AlarmType, alarm_type_code)
     if alarm is None:
         alarm_type_code = "T1"
+        alarm = db.get(AlarmType, "T1")  # ohne re-fetch wäre _populate_vehicles ein No-op
 
     incident = Incident(
         external_key=external_key,
@@ -50,6 +69,7 @@ def create_incident(
         report_text=report_text,
         reason=reason,
         incident_leader_user_id=incident_leader_user_id,
+        primary_org_id=_resolve_org_id(db, primary_org_id),
     )
     db.add(incident)
     db.flush()  # get id
@@ -63,7 +83,11 @@ def create_incident(
         incident_id=incident.id,
         api_key_id=api_key_id,
         ip=ip,
-        payload={"alarm_type_code": alarm_type_code, "is_exercise": is_exercise},
+        payload={
+            "alarm_type_code": alarm_type_code,
+            "is_exercise": is_exercise,
+            "primary_org_id": incident.primary_org_id,
+        },
     )
     return incident
 

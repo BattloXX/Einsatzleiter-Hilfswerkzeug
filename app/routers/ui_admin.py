@@ -114,10 +114,16 @@ async def create_api_key(
     db: Session = Depends(get_db), _=Depends(require_role("admin")),
 ):
     raw = generate_api_key()
-    key = ApiKey(key_hash=hash_api_key(raw), label=label, created_by_user_id=request.state.user.id)
+    user = request.state.user
+    key = ApiKey(
+        key_hash=hash_api_key(raw),
+        label=label,
+        org_id=user.org_id,
+        created_by_user_id=user.id,
+    )
     db.add(key)
-    write_audit(db, "admin.api_key.created", user_id=request.state.user.id,
-                payload={"label": label})
+    write_audit(db, "admin.api_key.created", user_id=user.id,
+                payload={"label": label, "org_id": user.org_id})
     db.commit()
     keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
     return templates.TemplateResponse(request, "admin/api_keys.html", {
