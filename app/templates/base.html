@@ -117,6 +117,10 @@
     {% endif %}
     <div class="topnav__user">
       <span class="user-badge">{{ user.display_name }}</span>
+      <button type="button" class="btn btn--ghost btn--sm pwa-install-btn" style="display:none"
+              title="App auf Gerät installieren">📲 Installieren</button>
+      <button type="button" class="btn btn--ghost btn--sm pwa-install-ios" style="display:none"
+              title="App auf iPhone/iPad installieren">📲 Installieren</button>
       <a href="/logout" class="btn btn--ghost btn--sm">Abmelden</a>
     </div>
   </nav>
@@ -170,9 +174,39 @@
       {% endif %}
     </nav>
     <footer class="mobile-menu__footer">
+      <button type="button" class="btn btn--secondary btn--full pwa-install-btn" style="display:none">
+        📲 App installieren
+      </button>
+      <button type="button" class="btn btn--secondary btn--full pwa-install-ios" style="display:none">
+        📲 App installieren
+      </button>
       <a href="/logout" class="btn btn--ghost btn--full">Abmelden</a>
     </footer>
   </aside>
+
+  <!-- iOS-Safari Install-Hinweis (kein beforeinstallprompt verfuegbar) -->
+  <dialog id="iosInstallHint" class="modal">
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3 class="modal__title">App auf iPhone/iPad installieren</h3>
+        <button type="button" class="modal__close" onclick="document.getElementById('iosInstallHint').close()">×</button>
+      </div>
+      <div class="modal__body">
+        <p>Auf iOS funktioniert die Installation nur über Safari:</p>
+        <ol style="padding-left:1.2em; line-height:1.7;">
+          <li>Unten in der Safari-Leiste auf <strong>Teilen</strong> (⬆ Pfeil-aus-Box) tippen.</li>
+          <li>Im Menü <strong>„Zum Home-Bildschirm“</strong> wählen.</li>
+          <li>Mit <strong>„Hinzufügen“</strong> bestätigen.</li>
+        </ol>
+        <p style="color:var(--text-muted); font-size:.85rem;">
+          Anschließend startet einsatzleiter.cloud wie eine native App ohne Browser-Leiste.
+        </p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" onclick="document.getElementById('iosInstallHint').close()">Verstanden</button>
+      </div>
+    </div>
+  </dialog>
   {% endif %}
 
   <!-- Global card-detail modal (loaded via HTMX) -->
@@ -214,6 +248,7 @@
   <script src="/static/js/sortable-glue.js"></script>
   <script src="/static/js/media-upload.js"></script>
   <script src="/static/js/media-viewer.js"></script>
+  <script src="/static/js/pwa-install.js"></script>
   <script src="/static/js/tooltips.js"></script>
   <script src="/static/js/csrf.js" defer></script>
   {% block scripts %}{% endblock %}
