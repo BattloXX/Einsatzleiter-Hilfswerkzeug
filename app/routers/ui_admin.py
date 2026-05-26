@@ -288,6 +288,12 @@ async def bulk_delete_members(
     db: Session = Depends(get_db),
     _=Depends(require_role("admin")),
 ):
+    import logging
+    import urllib.parse
+    from app.models.incident import Incident as _Incident, IncidentVehicle as _IV
+    from app.models.breathing import TroopMember as _TM, PressureLog as _PL
+
+    logger = logging.getLogger(__name__)
     user = request.state.user
     rows = db.query(Member).filter(
         Member.id.in_(member_ids),
@@ -297,34 +303,35 @@ async def bulk_delete_members(
     blocked: list[str] = []
     for m in rows:
         name = m.full_name
-        # Null out nullable FKs so the delete isn't blocked by them.
-        from app.models.incident import Incident as _Incident, IncidentVehicle as _IV
-        from app.models.breathing import TroopMember as _TM, PressureLog as _PL
-        db.query(_IV).filter(_IV.commander_member_id == m.id).update(
-            {"commander_member_id": None}, synchronize_session="fetch"
-        )
-        db.query(_Incident).filter(_Incident.incident_leader_member_id == m.id).update(
-            {"incident_leader_member_id": None}, synchronize_session="fetch"
-        )
-        db.query(_TM).filter(_TM.member_id == m.id).update(
-            {"member_id": None}, synchronize_session="fetch"
-        )
-        db.query(_PL).filter(_PL.member_id == m.id).update(
-            {"member_id": None}, synchronize_session="fetch"
-        )
+        mid = m.id
         sp = db.begin_nested()
         try:
+            # FK-Nullungen und Delete zusammen im Savepoint –
+            # bei Fehlschlag werden alle Änderungen für dieses Mitglied zurückgerollt.
+            db.query(_IV).filter(_IV.commander_member_id == mid).update(
+                {"commander_member_id": None}, synchronize_session=False
+            )
+            db.query(_Incident).filter(_Incident.incident_leader_member_id == mid).update(
+                {"incident_leader_member_id": None}, synchronize_session=False
+            )
+            db.query(_TM).filter(_TM.member_id == mid).update(
+                {"member_id": None}, synchronize_session=False
+            )
+            db.query(_PL).filter(_PL.member_id == mid).update(
+                {"member_id": None}, synchronize_session=False
+            )
             db.delete(m)
             db.flush()
             sp.commit()
             deleted += 1
-        except IntegrityError:
+        except Exception as exc:
+            logger.warning("bulk_delete: Mitglied %s (id=%s) nicht löschbar: %s", name, mid, exc)
             sp.rollback()
+            db.expunge_all()
             blocked.append(name)
     write_audit(db, "admin.member.bulk_delete", user_id=user.id,
                 payload={"deleted": deleted, "blocked": blocked})
     db.commit()
-    import urllib.parse
     blocked_q = ("&blocked=" + urllib.parse.quote(", ".join(blocked))) if blocked else ""
     return RedirectResponse(
         f"/admin/mitglieder?saved=1&deleted={deleted}{blocked_q}",
