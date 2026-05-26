@@ -97,11 +97,6 @@
                     color:var(--text-muted); text-transform:uppercase; border-bottom:1px solid var(--border); margin-bottom:4px;">
           Einsatzleiter wechseln
         </div>
-        {% if el_member_candidates is defined and el_member_candidates %}
-        <div style="padding:4px 14px 6px; font-size:.7rem; font-weight:700; letter-spacing:.08em;
-                    color:var(--text-muted); text-transform:uppercase; margin-bottom:2px;">
-          Vor-Ort EL (Mitglieder)
-        </div>
         <form hx-post="/einsatz/{{ incident.id }}/einsatzleiter-mitglied" hx-swap="none"
               @htmx:after-request="if(event.detail.successful){open=false; location.reload();}" style="display:block;">
           <input type="hidden" name="member_id" value="">
@@ -112,9 +107,10 @@
                          border:none; cursor:pointer; font-size:.88rem; transition:background .15s;"
                   onmouseover="this.style.background='var(--surface-high)'"
                   onmouseout="this.style.background='{% if not incident.incident_leader_member_id %}rgba(183,25,33,.15){% else %}none{% endif %}'">
-            {% if not incident.incident_leader_member_id %}✓ {% endif %}— kein Vor-Ort EL —
+            {% if not incident.incident_leader_member_id %}✓ {% endif %}— kein EL —
           </button>
         </form>
+        {% if el_member_candidates is defined and el_member_candidates %}
         {% for m in el_member_candidates %}
         <form hx-post="/einsatz/{{ incident.id }}/einsatzleiter-mitglied" hx-swap="none"
               @htmx:after-request="if(event.detail.successful){open=false; location.reload();}" style="display:block;">
@@ -130,28 +126,9 @@
           </button>
         </form>
         {% endfor %}
-        <div style="border-top:1px solid var(--border); margin:6px 0;"></div>
-        <div style="padding:4px 14px 6px; font-size:.7rem; font-weight:700; letter-spacing:.08em;
-                    color:var(--text-muted); text-transform:uppercase; margin-bottom:2px;">
-          System-Benutzer
-        </div>
-        {% endif %}
-        {% for candidate in leader_candidates %}
-        <form method="post" action="/einsatz/{{ incident.id }}/einsatzleiter" style="display:block;">
-          <input type="hidden" name="user_id" value="{{ candidate.id }}">
-          <button type="submit"
-                  style="display:block; width:100%; text-align:left; padding:7px 16px;
-                         background:{% if incident.incident_leader_user_id == candidate.id %}rgba(183,25,33,.15){% else %}none{% endif %};
-                         color:{% if incident.incident_leader_user_id == candidate.id %}var(--red-light){% else %}var(--on-surface){% endif %};
-                         border:none; cursor:pointer; font-size:.88rem; transition:background .15s;"
-                  onmouseover="this.style.background='var(--surface-high)'"
-                  onmouseout="this.style.background='{% if incident.incident_leader_user_id == candidate.id %}rgba(183,25,33,.15){% else %}none{% endif %}'">
-            {% if incident.incident_leader_user_id == candidate.id %}✓ {% endif %}{{ candidate.display_name }}
-          </button>
-        </form>
         {% else %}
-        <div style="padding:8px 16px; font-size:.85rem; color:var(--text-muted);">Keine Kandidaten verfügbar</div>
-        {% endfor %}
+        <div style="padding:8px 16px; font-size:.85rem; color:var(--text-muted);">Keine Mitglieder mit EL-Qualifikation</div>
+        {% endif %}
       </div>
     </div>
     {% endif %}
