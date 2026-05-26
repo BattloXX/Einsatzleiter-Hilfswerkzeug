@@ -5,7 +5,7 @@
   <div class="page-header">
     <div>
       <h1>Meldungsvorlagen</h1>
-      <p class="page-header__sub">Vorschläge für Meldungen pro Alarmstichwort</p>
+      <p class="page-header__sub">Vorschläge für Meldungen pro Alarmstichwort – Reihenfolge per Drag &amp; Drop ändern</p>
     </div>
     <button class="btn btn--primary" onclick="document.getElementById('newMsgSuggModal').showModal()">+ Vorlage anlegen</button>
   </div>
@@ -16,11 +16,12 @@
   <div class="admin-section-title">{{ atype.label or atype.code }} ({{ atype.code }})</div>
   <table class="table-admin" style="margin-bottom:16px">
     <thead>
-      <tr><th>Text</th><th>Aktionen</th></tr>
+      <tr><th style="width:32px;"></th><th>Text</th><th style="width:140px;">Aktionen</th></tr>
     </thead>
-    <tbody>
+    <tbody class="sugg-sortable-tbody" data-alarm-code="{{ atype.code }}" data-prefix="meldungsvorlagen">
       {% for s in suggestions %}
-      <tr>
+      <tr data-sid="{{ s.id }}">
+        <td class="drag-handle" style="cursor:grab;font-size:1.1rem;color:#888;text-align:center;">☰</td>
         <td>{{ s.text }}</td>
         <td>
           <button class="btn btn--ghost btn--xs"
@@ -95,5 +96,38 @@ function openEditMsgSugg(id, text) {
   document.getElementById('editMsgSuggForm').action = `/admin/meldungsvorlagen/${id}/edit`;
   document.getElementById('editMsgSuggModal').showModal();
 }
+
+(function () {
+  function initSuggSortable() {
+    if (!window.Sortable) { setTimeout(initSuggSortable, 50); return; }
+    document.querySelectorAll('.sugg-sortable-tbody').forEach(function (tbody) {
+      Sortable.create(tbody, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'card--ghost',
+        onEnd: function () {
+          const code = tbody.dataset.alarmCode;
+          const prefix = tbody.dataset.prefix;
+          const ids = Array.from(tbody.querySelectorAll('tr[data-sid]')).map(tr => tr.dataset.sid);
+          const body = new URLSearchParams();
+          ids.forEach(id => body.append('ids', id));
+          fetch(`/admin/${prefix}/${encodeURIComponent(code)}/reorder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'same-origin',
+          }).catch(function (err) {
+            console.warn('[sugg-sort] reorder fehlgeschlagen:', err);
+          });
+        },
+      });
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSuggSortable);
+  } else {
+    initSuggSortable();
+  }
+})();
 </script>
 {% endblock %}

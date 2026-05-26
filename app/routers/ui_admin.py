@@ -823,29 +823,19 @@ async def delete_task_suggestion(
     return RedirectResponse("/admin/auftragsvorlagen", status_code=303)
 
 
-@router.post("/auftragsvorlagen/{sid}/order/{direction}")
-async def reorder_task_suggestion(
-    sid: int, direction: str, request: Request, db: Session = Depends(get_db),
+@router.post("/auftragsvorlagen/{alarm_type_code}/reorder")
+async def reorder_task_suggestions_dnd(
+    alarm_type_code: str, request: Request, db: Session = Depends(get_db),
     _=Depends(require_role("admin", "org_admin")),
 ):
-    s = db.get(TaskSuggestion, sid)
-    if not s:
-        return RedirectResponse("/admin/auftragsvorlagen", status_code=303)
-    siblings = (
-        db.query(TaskSuggestion)
-        .filter(TaskSuggestion.alarm_type_code == s.alarm_type_code)
-        .order_by(TaskSuggestion.display_order)
-        .all()
-    )
-    idx = next((i for i, x in enumerate(siblings) if x.id == sid), None)
-    if idx is not None:
-        swap_idx = idx - 1 if direction == "up" else idx + 1
-        if 0 <= swap_idx < len(siblings):
-            siblings[idx].display_order, siblings[swap_idx].display_order = (
-                siblings[swap_idx].display_order, siblings[idx].display_order
-            )
-            db.commit()
-    return RedirectResponse("/admin/auftragsvorlagen", status_code=303)
+    form = await request.form()
+    ids = [int(v) for v in form.getlist("ids")]
+    for position, sid in enumerate(ids):
+        s = db.get(TaskSuggestion, sid)
+        if s and s.alarm_type_code == alarm_type_code:
+            s.display_order = position
+    db.commit()
+    return {"ok": True}
 
 
 # ── Meldungsvorlagen CRUD ─────────────────────────────────────────────────────
@@ -905,6 +895,21 @@ async def delete_msg_suggestion(
         db.delete(s)
         db.commit()
     return RedirectResponse("/admin/meldungsvorlagen", status_code=303)
+
+
+@router.post("/meldungsvorlagen/{alarm_type_code}/reorder")
+async def reorder_msg_suggestions_dnd(
+    alarm_type_code: str, request: Request, db: Session = Depends(get_db),
+    _=Depends(require_role("admin", "org_admin")),
+):
+    form = await request.form()
+    ids = [int(v) for v in form.getlist("ids")]
+    for position, sid in enumerate(ids):
+        s = db.get(MessageSuggestion, sid)
+        if s and s.alarm_type_code == alarm_type_code:
+            s.display_order = position
+    db.commit()
+    return {"ok": True}
 
 
 # ── Alarmtypen CRUD ───────────────────────────────────────────────────────────

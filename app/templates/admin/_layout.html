@@ -36,6 +36,11 @@
          {{ tip('Vor-konfigurierte Standardaufträge pro Alarmstichwort') }}>
         <span class="admin-nav__icon">✅</span>Auftragsvorlagen
       </a>
+      <a href="/admin/meldungsvorlagen"
+         class="admin-nav__item {% if '/admin/meldungsvorlagen' in request.url.path %}is-active{% endif %}"
+         {{ tip('Vorschläge für Meldungen pro Alarmstichwort') }}>
+        <span class="admin-nav__icon">💬</span>Meldungsvorlagen
+      </a>
       <a href="/admin/alarmtypen"
          class="admin-nav__item {% if '/admin/alarmtypen' in request.url.path %}is-active{% endif %}"
          {{ tip('Bekannte Einsatzstichwörter und ihre Eigenschaften') }}>
