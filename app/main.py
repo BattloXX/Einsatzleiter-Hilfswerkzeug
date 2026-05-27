@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings, validate_startup_secrets
 from app.core.security import unsign_session
 from app.db import SessionLocal
-from app.models.user import User
+from app.models.user import Role, User
 from app.routers import (
     api_v1,
     auth,
@@ -68,6 +68,10 @@ def _bootstrap_admin() -> None:
     db = SessionLocal()
     try:
         from app.models.user import User as U
+        from app.seed_data import _upsert_roles
+        _upsert_roles(db)  # always sync role labels (e.g. Schriftführer → Bearbeiter)
+        db.commit()
+
         existing = db.query(U).first()
         if existing:
             return
@@ -136,17 +140,31 @@ async def api_redoc(request: Request, _=Depends(_require_system_admin)):
     return get_redoc_html(openapi_url="/api/openapi.json", title="API Dokumentation (ReDoc)")
 
 
+class _QrUser:
+    """Wraps a User for QR-Code sessions, exposing only the recorder role."""
+    def __init__(self, user, recorder_role):
+        self._user = user
+        self.roles = [recorder_role] if recorder_role else []
+
+    def __getattr__(self, name):
+        return getattr(self._user, name)
+
+
 # Session middleware – inject request.state.user
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
     token = request.cookies.get("session")
     request.state.user = None
     if token:
-        user_id = unsign_session(token)
-        if user_id:
+        session_data = unsign_session(token)
+        if session_data:
+            user_id, is_qr = session_data
             db = SessionLocal()
             try:
                 user = db.query(User).filter(User.id == user_id, User.active == True).first()  # noqa: E712
+                if user and is_qr:
+                    recorder = db.query(Role).filter(Role.code == "recorder").first()
+                    user = _QrUser(user, recorder)
                 request.state.user = user
             finally:
                 db.close()

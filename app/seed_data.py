@@ -20,7 +20,7 @@ ROLES = [
     {"code": "org_admin",            "label": "Organisations-Administrator"},
     {"code": "incident_leader",      "label": "Einsatzleiter"},
     {"code": "breathing_supervisor", "label": "AS-Überwacher"},
-    {"code": "recorder",             "label": "Schriftführer"},
+    {"code": "recorder",             "label": "Bearbeiter"},
     {"code": "readonly",             "label": "Nur Lesen"},
 ]
 
@@ -200,6 +200,8 @@ def _upsert_roles(db):
         obj = db.query(Role).filter(Role.code == r["code"]).first()
         if not obj:
             db.add(Role(**r))
+        else:
+            obj.label = r["label"]
 
 
 def _upsert_qualifications(db):

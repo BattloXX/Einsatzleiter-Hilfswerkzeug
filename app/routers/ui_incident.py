@@ -433,7 +433,7 @@ async def assign_task(
     incident_id: int, task_id: int, request: Request,
     vehicle_id: int = Form(...),
     db: Session = Depends(get_db),
-    _=Depends(require_role("incident_leader", "admin")),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
 ):
     task = db.get(Task, task_id)
     vehicle = db.get(IncidentVehicle, vehicle_id)
@@ -573,7 +573,7 @@ async def move_vehicle(
     incident_id: int, vehicle_id: int, request: Request,
     column_id: int = Form(...),
     db: Session = Depends(get_db),
-    _=Depends(require_role("incident_leader", "admin")),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
 ):
     vehicle = db.get(IncidentVehicle, vehicle_id)
     column = db.get(IncidentColumn, column_id)

@@ -50,7 +50,7 @@ async def create_breathing_troop(
     task_text: str = Form(""),
     vehicle_id: int | None = Form(None),
     db: Session = Depends(get_db),
-    _=Depends(require_role("breathing_supervisor", "incident_leader", "admin")),
+    _=Depends(require_role("breathing_supervisor", "incident_leader", "admin", "recorder")),
 ):
     # Parse member data from form (member_0_id, member_0_role, member_0_press, etc.)
     form_data = await request.form()
@@ -96,7 +96,7 @@ async def create_breathing_troop(
 @router.post("/einsatz/{incident_id}/atemschutz/{troop_id}/starten")
 async def start_troop_view(
     incident_id: int, troop_id: int, request: Request, db: Session = Depends(get_db),
-    _=Depends(require_role("breathing_supervisor", "incident_leader", "admin")),
+    _=Depends(require_role("breathing_supervisor", "incident_leader", "admin", "recorder")),
 ):
     troop = db.get(BreathingTroop, troop_id)
     if not troop:
@@ -112,7 +112,7 @@ async def update_status(
     incident_id: int, troop_id: int, request: Request,
     status: str = Form(...),
     db: Session = Depends(get_db),
-    _=Depends(require_role("breathing_supervisor", "incident_leader", "admin")),
+    _=Depends(require_role("breathing_supervisor", "incident_leader", "admin", "recorder")),
 ):
     troop = db.get(BreathingTroop, troop_id)
     if not troop:
@@ -133,7 +133,7 @@ async def log_pressure_view(
     member_id: int | None = Form(None),
     pressure_bar: float = Form(...),
     db: Session = Depends(get_db),
-    _=Depends(require_role("breathing_supervisor", "incident_leader", "admin")),
+    _=Depends(require_role("breathing_supervisor", "incident_leader", "admin", "recorder")),
 ):
     troop = db.get(BreathingTroop, troop_id)
     if not troop:
