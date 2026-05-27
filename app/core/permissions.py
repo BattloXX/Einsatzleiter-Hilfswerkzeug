@@ -33,6 +33,9 @@ def require_role(*roles: str) -> Callable:
         if "system_admin" in user_roles:
             return user
         if not user_roles.intersection(set(roles) | {"admin", "org_admin"}):
+            limited_roles = {"recorder", "readonly"}
+            if user_roles and user_roles.issubset(limited_roles):
+                raise HTTPException(status_code=403, detail="Als Bearbeiter nicht erlaubt")
             raise HTTPException(status_code=403, detail="Keine Berechtigung")
         return user
     return dependency

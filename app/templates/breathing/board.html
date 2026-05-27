@@ -19,6 +19,7 @@
   background:var(--color-surface-2,#2a2a2a); border:1px solid var(--color-border,#444);
   border-radius:8px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.5);
   min-width:270px;
+  max-height:min(280px,calc(100vh - 32px)); overflow-y:auto;
 }
 .press-picker-header { font-size:.75rem; color:var(--color-text-muted); margin-bottom:6px;
                         padding-bottom:4px; border-bottom:1px solid var(--color-border,#444); }
@@ -99,7 +100,12 @@
       {% endif %}
     </div>
 
-    {% if troop.task_text %}<div class="troop-card__task">{{ troop.task_text }}</div>{% endif %}
+    {% if troop.unit_name or troop.task_text %}
+    <div class="troop-card__task">
+      {% if troop.unit_name %}<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:600;background:rgba(99,179,237,.15);color:#63b3ed;margin-right:4px">{{ troop.unit_name }}</span>{% endif %}
+      {% if troop.task_text %}{{ troop.task_text }}{% endif %}
+    </div>
+    {% endif %}
 
     <!-- ── Gauge (SVG) ── -->
     {% if troop.start_press_avg %}
@@ -168,7 +174,9 @@
         {% set ns_m.warn_class = 'member-druck-press--ok' %}
       {% endif %}
 
-      <div class="member-druck-row" x-data="{ open: false }">
+      <div class="member-druck-row"
+           x-data="memberPressRow({{ m.member_id or 'null' }}, {{ (member_press | float) if member_press is not none else 'null' }}, {{ (troop.withdraw_press_calc | float) if troop.withdraw_press_calc else 0 }}, {{ (troop.start_press_avg | float) if troop.start_press_avg else 0 }})"
+           x-init="init()">
         <div class="member-druck-name">
           <strong>{{ m.display_name }}</strong>
           <span style="font-size:.7rem;color:var(--color-text-muted)">
@@ -177,9 +185,10 @@
           {% if m.member and m.member.is_agt %}<span class="badge badge--agt member-druck-badge">AGT</span>{% endif %}
         </div>
 
-        {% if member_press is not none %}
-        <span class="member-druck-press {{ ns_m.warn_class }}">{{ member_press | int }} bar</span>
-        {% endif %}
+        <span class="member-druck-press"
+              :class="pressClass"
+              x-show="currentPress !== null"
+              x-text="currentPress !== null ? Math.floor(currentPress) + ' bar' : ''"></span>
 
         {% if (can_edit is not defined or can_edit) and troop.status in ['bereit','im_einsatz','rueckzug'] %}
         <div class="press-picker-wrap" @click.outside="open = false">
@@ -193,8 +202,9 @@
               <div class="press-grid">
                 {% for val in range(350, 0, -10) %}
                 <button type="button"
-                        class="press-btn {% if member_press is not none and val == member_press | int %}press-btn--selected{% elif troop.withdraw_press_calc and val <= troop.withdraw_press_calc %}press-btn--danger{% elif troop.start_press_avg and val <= troop.start_press_avg * 0.75 %}press-btn--warn{% else %}press-btn--high{% endif %}"
-                        @click="$refs.pressVal.value = '{{ val }}'; $refs.druckForm.requestSubmit(); open = false">
+                        class="press-btn {% if troop.withdraw_press_calc and val <= troop.withdraw_press_calc %}press-btn--danger{% elif troop.start_press_avg and val <= troop.start_press_avg * 0.75 %}press-btn--warn{% else %}press-btn--high{% endif %}"
+                        :class="currentPress !== null && Math.floor(currentPress) == {{ val }} ? 'press-btn--selected' : ''"
+                        @click="currentPress = {{ val }}; $refs.pressVal.value = '{{ val }}'; $refs.druckForm.requestSubmit(); open = false">
                   {{ val }}
                 </button>
                 {% endfor %}
@@ -286,6 +296,21 @@
           <label>Auftrag</label>
           <input type="text" name="task_text" class="form-input" placeholder="Innenangriff...">
         </div>
+        <div class="form-group">
+          <label>Einheit</label>
+          <input type="text" name="unit_name" class="form-input" placeholder="z.B. 1. Gruppe">
+        </div>
+        {% if vehicles %}
+        <div class="form-group">
+          <label>Fahrzeug</label>
+          <select name="vehicle_id" class="form-select">
+            <option value="">— kein Fahrzeug —</option>
+            {% for v in vehicles %}
+            <option value="{{ v.id }}">{{ v.vehicle_master.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
       </div>
 
       <p class="form-hint" style="margin-bottom:8px;">
@@ -308,16 +333,26 @@
               <option value="truppmann">TM</option>
             </select>
 
-            <!-- Pressure picker per member -->
+            <!-- Pressure picker per member (fixed positioning to escape modal overflow) -->
             <input :name="`member_${i}_press`" type="hidden" :value="m.press">
             <div class="press-picker-wrap" @click.outside="m.pickerOpen = false">
               <button type="button"
                       class="btn btn--ghost btn--sm press-trigger"
                       :class="{ 'press-trigger--set': m.press }"
-                      @click="m.pickerOpen = !m.pickerOpen">
+                      @click="
+                        const r = $event.currentTarget.getBoundingClientRect();
+                        const popupH = 290;
+                        const below = r.bottom + 4;
+                        m.pickerTop = (below + popupH > window.innerHeight - 8)
+                          ? Math.max(8, r.top - popupH - 4)
+                          : below;
+                        m.pickerLeft = Math.max(4, Math.min(r.left, window.innerWidth - 284));
+                        m.pickerOpen = !m.pickerOpen;
+                      ">
                 <span x-text="m.press ? m.press + ' bar' : 'Druck *'"></span>
               </button>
-              <div x-show="m.pickerOpen" class="press-picker-popup">
+              <div x-show="m.pickerOpen" class="press-picker-popup"
+                   :style="`position:fixed; top:${m.pickerTop}px; left:${m.pickerLeft}px; right:auto; z-index:9999;`">
                 <div class="press-grid">
                   <template x-for="val in pressValues" :key="val">
                     <button type="button"
@@ -341,7 +376,7 @@
         </template>
       </div>
       <button type="button"
-              @click="members.push({id:'',name:'',press:null,pickerOpen:false})"
+              @click="members.push({id:'',name:'',press:null,pickerOpen:false,pickerTop:0,pickerLeft:0})"
               class="btn btn--ghost btn--sm">+ Mitglied</button>
     </div>
     <div class="modal__footer">
@@ -354,6 +389,33 @@
 
 {% block scripts %}
 <script>
+/* ── Per-member pressure row – reactive update via breathing-pressure WS event ── */
+function memberPressRow(memberId, initialPress, withdrawPress, startPressAvg) {
+  return {
+    memberId: memberId,
+    currentPress: initialPress,
+    withdrawPress: withdrawPress,
+    startPressAvg: startPressAvg,
+    open: false,
+
+    get pressClass() {
+      if (this.currentPress === null) return '';
+      if (this.withdrawPress && this.currentPress <= this.withdrawPress) return 'member-druck-press--danger';
+      if (this.startPressAvg && this.currentPress <= this.startPressAvg * 0.75) return 'member-druck-press--warn';
+      return 'member-druck-press--ok';
+    },
+
+    init() {
+      if (this.memberId === null) return;
+      window.addEventListener('breathing-pressure', (e) => {
+        if (e.detail.memberId === this.memberId) {
+          this.currentPress = e.detail.pressure;
+        }
+      });
+    },
+  };
+}
+
 /* ── Gauge + time-ago component ── */
 function troopCard(currentPress, maxPress, withdrawPress, lastLogIso) {
   return {
@@ -371,8 +433,9 @@ function troopCard(currentPress, maxPress, withdrawPress, lastLogIso) {
     },
 
     init() {
-      if (!this.lastLog) { this.timeAgo = 'Kein Messwert'; return; }
+      const troopId = parseInt(this.$el.id.replace('troop-', ''));
       const update = () => {
+        if (!this.lastLog) { this.timeAgo = 'Kein Messwert'; return; }
         const sec = Math.floor((new Date() - this.lastLog) / 1000);
         if (sec < 60) {
           this.timeAgo = `vor ${sec} Sek.`;
@@ -382,7 +445,14 @@ function troopCard(currentPress, maxPress, withdrawPress, lastLogIso) {
         }
       };
       update();
-      setInterval(update, 1000);
+      if (this.lastLog) setInterval(update, 1000);
+      window.addEventListener('breathing-pressure', (e) => {
+        if (e.detail.troopId === troopId) {
+          this.currentPress = e.detail.lowestPressure;
+          this.lastLog = new Date();
+          update();
+        }
+      });
     }
   };
 }
@@ -411,9 +481,9 @@ function troopTimer(entryAt, backAt) {
 function newTroopForm() {
   return {
     members: [
-      {id:'', name:'', press:null, pickerOpen:false},
-      {id:'', name:'', press:null, pickerOpen:false},
-      {id:'', name:'', press:null, pickerOpen:false},
+      {id:'', name:'', press:null, pickerOpen:false, pickerTop:0, pickerLeft:0},
+      {id:'', name:'', press:null, pickerOpen:false, pickerTop:0, pickerLeft:0},
+      {id:'', name:'', press:null, pickerOpen:false, pickerTop:0, pickerLeft:0},
     ],
     pressValues: Array.from({length: 35}, (_, i) => 350 - i * 10),
 

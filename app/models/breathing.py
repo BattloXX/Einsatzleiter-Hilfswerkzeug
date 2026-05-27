@@ -22,6 +22,7 @@ class BreathingTroop(Base):
     incident_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("incident.id", ondelete="CASCADE"), nullable=False)
     vehicle_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("incident_vehicle.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False, default="Trupp")
+    unit_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="bereit")
     task_text: Mapped[str | None] = mapped_column(String(300), nullable=True)
     start_press_avg: Mapped[float | None] = mapped_column(Float, nullable=True)

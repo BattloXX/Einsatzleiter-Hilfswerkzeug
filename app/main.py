@@ -4,10 +4,10 @@ import logging
 import secrets as _secrets
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings, validate_startup_secrets
@@ -222,6 +222,27 @@ app.include_router(ui_admin.router)
 app.include_router(ui_stats.router)
 app.include_router(ui_push.router)
 app.include_router(ui_settings.router)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    # HTMX requests expect JSON detail so the JS toast handler can pick it up
+    if request.headers.get("HX-Request"):
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    if exc.status_code == 403:
+        return HTMLResponse(
+            f"""<!doctype html><html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nicht erlaubt</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:1rem">
+<h2 style="color:var(--color-warn,#f6ad55)">&#9888; Nicht erlaubt</h2>
+<p>{exc.detail}</p>
+<a href="javascript:history.back()" class="btn btn--ghost">&#8592; Zurück</a>
+</body></html>""",
+            status_code=403,
+        )
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
 
 @app.get("/favicon.ico", include_in_schema=False)

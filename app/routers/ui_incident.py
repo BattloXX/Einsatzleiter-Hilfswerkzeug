@@ -748,7 +748,8 @@ async def get_qr_code(incident_id: int, request: Request, db: Session = Depends(
     token = sign_qr_token(incident_id, user.id)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
 
-    # Store token in DB (upsert per user+incident)
+    # Store token in DB once per user+incident – never overwrite so distributed QR codes
+    # remain valid for all devices that have already printed/displayed them.
     existing = db.query(IncidentToken).filter(
         IncidentToken.incident_id == incident_id,
         IncidentToken.issued_by_user_id == user.id,

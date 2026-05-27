@@ -22,6 +22,7 @@ def create_troop(
     members_data: list[dict],
     task_text: str | None = None,
     vehicle_id: int | None = None,
+    unit_name: str | None = None,
     user_id: int | None = None,
 ) -> BreathingTroop:
     """
@@ -31,6 +32,7 @@ def create_troop(
     troop = BreathingTroop(
         incident_id=incident_id,
         name=name,
+        unit_name=unit_name,
         status="bereit",
         task_text=task_text,
         vehicle_id=vehicle_id,

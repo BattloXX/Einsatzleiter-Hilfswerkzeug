@@ -13,12 +13,14 @@ import hmac
 import secrets
 
 import bcrypt
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from itsdangerous import BadSignature, SignatureExpired, URLSafeSerializer, URLSafeTimedSerializer
 
 from app.config import settings
 
 _signer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="session")
-_qr_signer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="qr-token")
+# Deterministic (no timestamp) so the same incident+user always produces the same QR token.
+# Validity is controlled via the DB (revoked_at / incident.status), not by expiry time.
+_qr_signer = URLSafeSerializer(settings.SECRET_KEY, salt="qr-token")
 
 
 def hash_password(plain: str) -> str:
@@ -66,5 +68,5 @@ def sign_qr_token(incident_id: int, user_id: int) -> str:
 def unsign_qr_token(token: str) -> dict | None:
     try:
         return _qr_signer.loads(token)
-    except (BadSignature, SignatureExpired):
+    except BadSignature:
         return None
