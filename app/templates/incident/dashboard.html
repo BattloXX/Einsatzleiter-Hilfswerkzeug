@@ -472,6 +472,108 @@
     .ps-group--found       .ps-label, .ps-group--found       .ps-count { color: #93c5fd; }
     .ps-group--treated     .ps-label, .ps-group--treated     .ps-count { color: #fdba74; }
     .ps-group--transported .ps-label, .ps-group--transported .ps-count { color: #86efac; }
+
+    /* ── ATEMSCHUTZ-STRIP ───────────────────────────────────────────────────── */
+    .bs-strip {
+      flex-shrink: 0;
+      background: rgba(120,20,20,.45);
+      border-bottom: 1px solid rgba(248,113,113,.35);
+      display: flex;
+      align-items: center;
+      gap: .53rem;
+      padding: .4rem .8rem;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    .bs-strip::-webkit-scrollbar { height: 3px; }
+    .bs-strip::-webkit-scrollbar-thumb { background: rgba(248,113,113,.35); border-radius: 2px; }
+
+    .bs-strip__label {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: #fca5a5;
+      padding-right: .67rem;
+      border-right: 1px solid rgba(248,113,113,.3);
+    }
+
+    .bs-card {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: .67rem;
+      background: rgba(0,0,0,.28);
+      border: 1px solid rgba(248,113,113,.25);
+      border-left: 3px solid transparent;
+      border-radius: .4rem;
+      padding: .3rem .67rem;
+    }
+    .bs-card--im_einsatz { border-left-color: #f97316; }
+    .bs-card--rueckzug   { border-left-color: #ef4444; animation: bsPulse 1.4s ease-in-out infinite; }
+    @keyframes bsPulse {
+      0%,100% { border-left-color: #ef4444; background: rgba(0,0,0,.28); }
+      50%      { border-left-color: #fca5a5; background: rgba(239,68,68,.12); }
+    }
+
+    .bs-info { display: flex; flex-direction: column; gap: 1px; }
+    .bs-name {
+      font-size: .88rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+    }
+    .bs-unit {
+      font-size: .72rem;
+      color: rgba(255,255,255,.5);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 9rem;
+    }
+
+    .bs-metrics {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+    .bs-press {
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .bs-press--ok   { color: #86efac; }
+    .bs-press--warn { color: #fbbf24; }
+    .bs-press--crit { color: #f87171; }
+    .bs-press--none { color: rgba(255,255,255,.3); font-size: .78rem; font-style: italic; font-weight: 400; }
+
+    .bs-time {
+      font-family: var(--font-mono);
+      font-size: .78rem;
+      color: rgba(255,255,255,.55);
+      white-space: nowrap;
+    }
+
+    .bs-badge {
+      font-family: var(--font-mono);
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 2px 7px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+    .bs-badge--im_einsatz { background: rgba(249,115,22,.2); color: #fdba74; border: 1px solid rgba(249,115,22,.35); }
+    .bs-badge--rueckzug   { background: rgba(239,68,68,.25); color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
   </style>
 </head>
 <body>
@@ -549,6 +651,49 @@
     <span class="lage-bar__label">Lagehinweis</span>
     <span class="lage-bar__sep"></span>
     <span class="lage-bar__text" id="lageTicker">{{ lage_hints[0].text }}</span>
+  </div>
+  {% endif %}
+
+  <!-- ══ ATEMSCHUTZ-STRIP ══ -->
+  {% if breathing_troops %}
+  <div class="bs-strip">
+    <div class="bs-strip__label">
+      <span style="font-size:1rem;">🔴</span> Atemschutz
+    </div>
+    {% for troop in breathing_troops %}
+    {# Druckklasse berechnen #}
+    {% set press = troop.lowest_current_pressure %}
+    {% if press is none %}
+      {% set press_class = 'none' %}
+    {% elif press >= 200 %}
+      {% set press_class = 'ok' %}
+    {% elif press >= 150 %}
+      {% set press_class = 'warn' %}
+    {% else %}
+      {% set press_class = 'crit' %}
+    {% endif %}
+    <div class="bs-card bs-card--{{ troop.status }}">
+      <div class="bs-info">
+        <div class="bs-name">{{ troop.name }}</div>
+        {% if troop.unit_name %}
+        <div class="bs-unit">{{ troop.unit_name }}</div>
+        {% endif %}
+      </div>
+      <div class="bs-metrics">
+        {% if press is not none %}
+        <div class="bs-press bs-press--{{ press_class }}">{{ press|int }} bar</div>
+        {% else %}
+        <div class="bs-press bs-press--none">kein Druck</div>
+        {% endif %}
+        {% if troop.entry_at %}
+        <div class="bs-time" data-entry="{{ troop.entry_at.strftime('%Y-%m-%dT%H:%M:%SZ') }}">–</div>
+        {% endif %}
+      </div>
+      <div class="bs-badge bs-badge--{{ troop.status }}">
+        {% if troop.status == 'im_einsatz' %}Im Einsatz{% else %}Rückzug!{% endif %}
+      </div>
+    </div>
+    {% endfor %}
   </div>
   {% endif %}
 
@@ -905,6 +1050,26 @@
         setTimeout(() => { ticker.textContent = hints[idx]; ticker.style.opacity = '1'; }, 380);
       }, 8000);
     }
+  }
+
+  // ── Atemschutz-Trupptimer ─────────────────────────────────────────────
+  const troopTimers = document.querySelectorAll('.bs-time[data-entry]');
+  function tickTroopTimers() {
+    const now = Date.now();
+    troopTimers.forEach(el => {
+      const entry = new Date(el.dataset.entry).getTime();
+      const s = Math.max(0, Math.floor((now - entry) / 1000));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor(s % 3600 / 60);
+      const sec = s % 60;
+      el.textContent = h > 0
+        ? `${pad(h)}:${pad(m)}:${pad(sec)}`
+        : `${pad(m)}:${pad(sec)}`;
+    });
+  }
+  if (troopTimers.length) {
+    setInterval(tickTroopTimers, 1000);
+    tickTroopTimers();
   }
 </script>
 </body>

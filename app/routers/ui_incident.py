@@ -14,6 +14,7 @@ from app.core.permissions import has_role, require_role
 from app.core.security import sign_qr_token
 from app.core.templating import templates
 from app.db import get_db
+from app.models.breathing import BreathingTroop
 from app.models.incident import (
     PERSON_STATUS_VALUES,
     UNIT_STATUS_VALUES,
@@ -218,6 +219,17 @@ async def incident_dashboard(
     started_at_iso = incident.started_at.strftime("%Y-%m-%dT%H:%M:%SZ")
     lage_hints = db.query(LageHint).order_by(LageHint.display_order).all()
 
+    breathing_troops = (
+        db.query(BreathingTroop)
+        .filter(
+            BreathingTroop.incident_id == incident_id,
+            BreathingTroop.status.in_(["im_einsatz", "rueckzug"]),
+        )
+        .all()
+    )
+    for t in breathing_troops:
+        _ = list(t.pressure_logs)
+
     return templates.TemplateResponse(
         request,
         "incident/dashboard.html",
@@ -234,6 +246,7 @@ async def incident_dashboard(
             "person_stats": person_stats,
             "started_at_iso": started_at_iso,
             "lage_hints": lage_hints,
+            "breathing_troops": breathing_troops,
         },
     )
 
