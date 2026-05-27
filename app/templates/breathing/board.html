@@ -1,5 +1,66 @@
 {% extends "base.html" %}
 {% block title %}AS-Überwachung – Einsatz #{{ incident.id }}{% endblock %}
+
+{% block head_extra %}
+<style>
+/* ── Gauge ───────────────────────────────────────────────────────────────── */
+.gauge-wrap { display:flex; flex-direction:column; align-items:center; padding:8px 0 2px; }
+.gauge-svg  { width:100%; max-width:220px; overflow:visible; }
+.gauge-time { font-size:.72rem; color:var(--color-text-muted); text-align:center; min-height:1.1em; margin-top:2px; }
+.gauge-labels { display:flex; justify-content:space-between; width:100%; max-width:220px;
+                font-size:.68rem; color:var(--color-text-muted); padding:0 4px; margin-top:-2px; }
+
+/* ── Pressure picker ─────────────────────────────────────────────────────── */
+.press-picker-wrap { position:relative; display:inline-block; }
+.press-trigger { min-width:80px; font-size:.8rem; }
+.press-trigger--set { border-color:var(--color-success) !important; color:var(--color-success) !important; }
+.press-picker-popup {
+  position:absolute; z-index:60; right:0; top:calc(100% + 4px);
+  background:var(--color-surface-2,#2a2a2a); border:1px solid var(--color-border,#444);
+  border-radius:8px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.5);
+  min-width:270px;
+}
+.press-picker-header { font-size:.75rem; color:var(--color-text-muted); margin-bottom:6px;
+                        padding-bottom:4px; border-bottom:1px solid var(--color-border,#444); }
+.press-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
+.press-btn {
+  padding:6px 0; border-radius:4px; font-size:.78rem; font-weight:600; cursor:pointer;
+  border:1px solid var(--color-border,#555); background:transparent;
+  color:var(--color-text,#ddd); transition:background .1s, color .1s;
+  text-align:center;
+}
+.press-btn:hover { background:var(--color-primary,#b71921); color:#fff; border-color:var(--color-primary,#b71921); }
+.press-btn--high   { border-color:#48bb78; color:#48bb78; }
+.press-btn--warn   { border-color:#ed8936; color:#ed8936; }
+.press-btn--danger { border-color:#e53e3e; color:#e53e3e; }
+.press-btn--selected { background:var(--color-primary,#b71921) !important; color:#fff !important;
+                        border-color:var(--color-primary,#b71921) !important; }
+
+/* ── Member rows (active troop) ──────────────────────────────────────────── */
+.member-druck-row { display:flex; align-items:center; gap:8px; padding:4px 0; flex-wrap:wrap; }
+.member-druck-name { flex:1; min-width:0; }
+.member-druck-name strong { font-size:.85rem; }
+.member-druck-badge { display:inline-block; margin-left:4px; }
+.member-druck-press { font-size:.85rem; font-weight:700; min-width:60px; text-align:right; white-space:nowrap; }
+.member-druck-press--ok     { color:#48bb78; }
+.member-druck-press--warn   { color:#ed8936; }
+.member-druck-press--danger { color:#e53e3e; }
+
+/* ── Meldungen ───────────────────────────────────────────────────────────── */
+.troop-meldungen { margin-top:8px; border-top:1px solid var(--color-border,#444); padding-top:6px; }
+.troop-meldungen__label { font-size:.65rem; color:var(--color-text-muted); text-transform:uppercase;
+                            letter-spacing:.06em; margin-bottom:4px; }
+.troop-meldung-entry { font-size:.75rem; color:var(--color-text-muted); padding:2px 0;
+                        border-bottom:1px solid rgba(255,255,255,.04); line-height:1.5; }
+.troop-meldung-entry:last-child { border-bottom:none; }
+.troop-meldung-press { font-weight:700; color:var(--color-text,#ddd); }
+
+/* ── Timer row ───────────────────────────────────────────────────────────── */
+.troop-timer-row { display:flex; justify-content:space-between; font-size:.78rem;
+                    color:var(--color-text-muted); margin:4px 0 2px; }
+</style>
+{% endblock %}
+
 {% block content %}
 {% if incident.is_exercise %}<div class="exercise-topbar">⚠ ÜBUNG / SIMULATION ⚠</div>{% endif %}
 <div class="page-header">
@@ -10,75 +71,143 @@
   {% endif %}
 </div>
 
-<!-- Active Troops -->
 <div class="troops-grid" id="troopsGrid">
   {% for troop, warning in troops_with_warnings %}
+
+  {# ── Compute current pressure & last-log timestamp ── #}
+  {% set ns = namespace(last_log=None) %}
+  {% for log in troop.pressure_logs %}{% set ns.last_log = log %}{% endfor %}
+
+  {% set current_press = (troop.lowest_current_pressure or troop.start_press_avg or 300) | float %}
+  {% set max_press     = (troop.start_press_avg or 300) | float %}
+  {% set withdraw_press = (troop.withdraw_press_calc or (max_press * 0.5 + 10)) | float %}
+  {% set last_log_iso  = (ns.last_log.ts | local_iso if ns.last_log else '') %}
+
   <div class="troop-card troop-card--{{ troop.status }} troop-card--warn-{{ warning }}"
-       id="troop-{{ troop.id }}">
+       id="troop-{{ troop.id }}"
+       x-data="troopCard({{ current_press }}, {{ max_press }}, {{ withdraw_press }}, '{{ last_log_iso }}')"
+       x-init="init()">
+
+    <!-- Header -->
     <div class="troop-card__header">
       <span class="troop-card__name">{{ troop.name }}</span>
       <span class="troop-card__status-pill status-pill--{{ troop.status }}">
         {{ {'bereit':'Bereit','im_einsatz':'Im Einsatz','rueckzug':'Rückzug!','zurueck':'Zurück','erholt':'Erholt'}[troop.status] }}
       </span>
-      {% if warning == 'red' %}
-      <span class="troop-card__warn-badge warn-badge--red">⚠ RÜCKZUG</span>
-      {% elif warning == 'yellow' %}
-      <span class="troop-card__warn-badge warn-badge--yellow">⚠ 75%</span>
+      {% if warning == 'red' %}<span class="troop-card__warn-badge warn-badge--red">⚠ RÜCKZUG</span>
+      {% elif warning == 'yellow' %}<span class="troop-card__warn-badge warn-badge--yellow">⚠ 75%</span>
       {% endif %}
     </div>
 
-    {% if troop.task_text %}
-    <div class="troop-card__task">Auftrag: {{ troop.task_text }}</div>
-    {% endif %}
+    {% if troop.task_text %}<div class="troop-card__task">{{ troop.task_text }}</div>{% endif %}
 
-    <!-- Timer -->
-    {% if troop.entry_at %}
-    <div class="troop-card__timer"
-         x-data="troopTimer('{{ troop.entry_at|local_iso }}', '{{ (troop.back_at|local_iso if troop.back_at else '') }}')"
-         x-text="display">00:00</div>
-    {% endif %}
-
-    <!-- Pressure bar -->
+    <!-- ── Gauge (SVG) ── -->
     {% if troop.start_press_avg %}
-    <div class="press-bar-wrap">
-      <div class="press-bar">
-        {% set low = troop.lowest_current_pressure or troop.start_press_avg %}
-        {% set pct = [(low / troop.start_press_avg * 100)|int, 0]|max %}
-        <div class="press-bar__fill press-bar__fill--{{ warning }}" style="width: {{ pct }}%"></div>
-      </div>
-      <div class="press-bar__labels">
-        <span>{{ low|int }} bar</span>
-        <span>▼{{ troop.withdraw_press_calc|int if troop.withdraw_press_calc else '?' }} bar</span>
-        <span>{{ troop.start_press_avg|int }} bar</span>
+    <div class="gauge-wrap">
+      <svg class="gauge-svg" viewBox="0 0 200 112" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background track -->
+        <path d="M 20,100 A 80,80 0 0,1 180,100"
+              fill="none" stroke="#2a2a2a" stroke-width="20" stroke-linecap="round"/>
+        <!-- Red zone  : 180°→120° (0–33%) -->
+        <path d="M 20,100 A 80,80 0 0,1 60,30.7"
+              fill="none" stroke="#e53e3e" stroke-width="20" stroke-linecap="round"/>
+        <!-- Orange zone: 120°→60° (33–67%) -->
+        <path d="M 60,30.7 A 80,80 0 0,1 140,30.7"
+              fill="none" stroke="#ed8936" stroke-width="20" stroke-linecap="butt"/>
+        <!-- Green zone : 60°→0°  (67–100%) -->
+        <path d="M 140,30.7 A 80,80 0 0,1 180,100"
+              fill="none" stroke="#48bb78" stroke-width="20" stroke-linecap="round"/>
+
+        <!-- Withdrawal pressure marker on arc -->
+        <circle :cx="100 + 80 * Math.cos(Math.PI * (1 - withdrawPct))"
+                :cy="100 - 80 * Math.sin(Math.PI * (1 - withdrawPct))"
+                r="6" fill="#1a1a1a" stroke="#e53e3e" stroke-width="2.5"/>
+
+        <!-- Needle -->
+        <line x1="100" y1="100" x2="173" y2="100"
+              :transform="`rotate(${needleAngle}, 100, 100)`"
+              stroke="#f0f0f0" stroke-width="3" stroke-linecap="round"/>
+        <!-- Needle hub -->
+        <circle cx="100" cy="100" r="7" fill="#666"/>
+
+        <!-- Value text -->
+        <text x="100" y="82" text-anchor="middle" fill="#f0f0f0"
+              font-size="28" font-weight="700" x-text="currentPress + ' bar'"></text>
+      </svg>
+      <div class="gauge-time" x-text="timeAgo"></div>
+      <div class="gauge-labels">
+        <span style="color:#e53e3e">▼ {{ withdraw_press | int }} bar</span>
+        <span>{{ max_press | int }} bar</span>
       </div>
     </div>
     {% endif %}
 
-    <!-- Members -->
-    <div class="troop-members">
+    <!-- ── Timer ── -->
+    {% if troop.entry_at %}
+    <div class="troop-timer-row">
+      <span x-data="troopTimer('{{ troop.entry_at|local_iso }}', '{{ (troop.back_at|local_iso if troop.back_at else '') }}')"
+            x-init="init()" x-text="display">00:00</span>
+      <span>von 30 Minuten</span>
+    </div>
+    {% endif %}
+
+    <!-- ── Members with per-member Druck picker ── -->
+    <div class="troop-members" style="margin-top:6px">
       {% for m in troop.members %}
-      <div class="troop-member troop-member--{{ m.role }}">
-        <span class="troop-member__name">{{ m.display_name }}</span>
-        <span class="troop-member__role">{{ {'truppfuehrer':'TF','truppmann':'TM'}[m.role] }}</span>
-        {% if m.start_press %}<span class="troop-member__press">{{ m.start_press|int }} bar</span>{% endif %}
-        {% if m.member and m.member.is_agt %}
-        <span class="badge badge--agt">AGT</span>
-        {% elif not m.member %}
-        <span class="badge badge--warn">AGT?</span>
+      {# Find last pressure log for this member #}
+      {% set ns_m = namespace(last_press=None, warn_class='') %}
+      {% for log in troop.pressure_logs %}
+        {% if log.member_id == m.member_id %}{% set ns_m.last_press = log.pressure_bar %}{% endif %}
+      {% endfor %}
+      {% set member_press = ns_m.last_press if ns_m.last_press is not none else m.start_press %}
+      {% if member_press is not none and troop.withdraw_press_calc and member_press <= troop.withdraw_press_calc %}
+        {% set ns_m.warn_class = 'member-druck-press--danger' %}
+      {% elif member_press is not none and troop.start_press_avg and member_press <= troop.start_press_avg * 0.75 %}
+        {% set ns_m.warn_class = 'member-druck-press--warn' %}
+      {% elif member_press is not none %}
+        {% set ns_m.warn_class = 'member-druck-press--ok' %}
+      {% endif %}
+
+      <div class="member-druck-row" x-data="{ open: false }">
+        <div class="member-druck-name">
+          <strong>{{ m.display_name }}</strong>
+          <span style="font-size:.7rem;color:var(--color-text-muted)">
+            {{ {'truppfuehrer':'TF','truppmann':'TM'}[m.role] }}
+          </span>
+          {% if m.member and m.member.is_agt %}<span class="badge badge--agt member-druck-badge">AGT</span>{% endif %}
+        </div>
+
+        {% if member_press is not none %}
+        <span class="member-druck-press {{ ns_m.warn_class }}">{{ member_press | int }} bar</span>
+        {% endif %}
+
+        {% if (can_edit is not defined or can_edit) and troop.status in ['bereit','im_einsatz','rueckzug'] %}
+        <div class="press-picker-wrap" @click.outside="open = false">
+          <button type="button" class="btn btn--ghost btn--sm press-trigger" @click="open = !open">Druck</button>
+          <div x-show="open" class="press-picker-popup">
+            <div class="press-picker-header">{{ m.display_name }}</div>
+            <form hx-post="/einsatz/{{ incident.id }}/atemschutz/{{ troop.id }}/druck" hx-swap="none"
+                  x-ref="druckForm">
+              <input type="hidden" name="member_id" value="{{ m.member_id if m.member_id else '' }}">
+              <input type="hidden" name="pressure_bar" x-ref="pressVal">
+              <div class="press-grid">
+                {% for val in range(350, 0, -10) %}
+                <button type="button"
+                        class="press-btn {% if member_press is not none and val == member_press | int %}press-btn--selected{% elif troop.withdraw_press_calc and val <= troop.withdraw_press_calc %}press-btn--danger{% elif troop.start_press_avg and val <= troop.start_press_avg * 0.75 %}press-btn--warn{% else %}press-btn--high{% endif %}"
+                        @click="$refs.pressVal.value = '{{ val }}'; $refs.druckForm.requestSubmit(); open = false">
+                  {{ val }}
+                </button>
+                {% endfor %}
+              </div>
+            </form>
+          </div>
+        </div>
         {% endif %}
       </div>
       {% endfor %}
     </div>
 
-    <!-- Pressure logging -->
-    <form hx-post="/einsatz/{{ incident.id }}/atemschutz/{{ troop.id }}/druck" hx-swap="none" class="press-form">
-      <div class="input-row">
-        <input type="number" name="pressure_bar" class="form-input" placeholder="bar" min="0" max="400" step="5" required>
-        <button type="submit" class="btn btn--ghost btn--sm">Druck</button>
-      </div>
-    </form>
-
-    <!-- Status buttons -->
+    <!-- ── Status actions ── -->
     <div class="troop-card__actions">
       {% if troop.status == 'bereit' %}
       <form method="post" action="/einsatz/{{ incident.id }}/atemschutz/{{ troop.id }}/starten">
@@ -101,13 +230,38 @@
       </form>
       {% endif %}
     </div>
+
+    <!-- ── Meldungen (pressure log history) ── -->
+    {% if troop.pressure_logs %}
+    <div class="troop-meldungen">
+      <div class="troop-meldungen__label">Meldungen</div>
+      {% set shown = namespace(count=0) %}
+      {% for log in troop.pressure_logs | list | reverse %}
+        {% if shown.count < 5 %}
+          {% set ns_l = namespace(name='') %}
+          {% for m in troop.members %}
+            {% if m.member_id == log.member_id %}{% set ns_l.name = m.display_name %}{% endif %}
+          {% endfor %}
+          <div class="troop-meldung-entry">
+            {% if ns_l.name %}<strong>{{ ns_l.name }}:</strong> {% endif %}
+            <span class="troop-meldung-press">{{ log.pressure_bar | int }} bar</span>
+            <span style="color:var(--color-text-muted);font-size:.68rem">
+              — {{ (log.ts | local).strftime('%H:%M:%S') }}
+            </span>
+          </div>
+          {% set shown.count = shown.count + 1 %}
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
   </div>
   {% else %}
   <p class="text-muted">Noch keine Trupps angelegt.</p>
   {% endfor %}
 </div>
 
-<!-- Neuer Trupp Modal -->
+<!-- ── Neuer Trupp Modal ── -->
 <dialog class="modal modal--wide" id="newTroopModal">
   <form method="post" action="/einsatz/{{ incident.id }}/atemschutz/trupp"
         class="modal__content" x-data="newTroopForm()"
@@ -122,9 +276,6 @@
         Es müssen mindestens 2 Truppmitglieder ausgefüllt sein.
       </div>
       {% endif %}
-      <p class="form-hint" style="margin-bottom:8px;">
-        Trupp hat 3 Slots — mindestens 2 müssen ausgefüllt sein.
-      </p>
 
       <div class="form-row">
         <div class="form-group">
@@ -137,6 +288,10 @@
         </div>
       </div>
 
+      <p class="form-hint" style="margin-bottom:8px;">
+        Mindestens 2 Mitglieder ausfüllen — Anfangsdruck ist Pflichtfeld für jedes ausgefüllte Mitglied.
+      </p>
+
       <div class="troop-member-list">
         <template x-for="(m, i) in members" :key="i">
           <div class="troop-member-row">
@@ -146,18 +301,48 @@
               <option value="{{ member.id }}">{{ member.full_name }}{% if member.is_agt %} (AGT){% endif %}</option>
               {% endfor %}
             </select>
-            <input :name="`member_${i}_name`" x-model="m.name" type="text" class="form-input" placeholder="oder Name">
+            <input :name="`member_${i}_name`" x-model="m.name" type="text"
+                   class="form-input" placeholder="oder Name">
             <select :name="`member_${i}_role`" class="form-select form-select--xs">
               <option value="truppfuehrer">TF</option>
               <option value="truppmann">TM</option>
             </select>
-            <input :name="`member_${i}_press`" type="number" class="form-input form-input--press"
-                   placeholder="bar" min="100" max="400" step="10">
+
+            <!-- Pressure picker per member -->
+            <input :name="`member_${i}_press`" type="hidden" :value="m.press">
+            <div class="press-picker-wrap" @click.outside="m.pickerOpen = false">
+              <button type="button"
+                      class="btn btn--ghost btn--sm press-trigger"
+                      :class="{ 'press-trigger--set': m.press }"
+                      @click="m.pickerOpen = !m.pickerOpen">
+                <span x-text="m.press ? m.press + ' bar' : 'Druck *'"></span>
+              </button>
+              <div x-show="m.pickerOpen" class="press-picker-popup">
+                <div class="press-grid">
+                  <template x-for="val in pressValues" :key="val">
+                    <button type="button"
+                            class="press-btn"
+                            :class="{
+                              'press-btn--high':     val >= 300,
+                              'press-btn--warn':     val >= 150 && val < 300,
+                              'press-btn--danger':   val < 150,
+                              'press-btn--selected': m.press == val
+                            }"
+                            @click="m.press = val; m.pickerOpen = false"
+                            x-text="val">
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
             <button type="button" @click="removeMember(i)" class="btn btn--icon btn--danger">×</button>
           </div>
         </template>
       </div>
-      <button type="button" @click="members.push({})" class="btn btn--ghost btn--sm">+ Mitglied</button>
+      <button type="button"
+              @click="members.push({id:'',name:'',press:null,pickerOpen:false})"
+              class="btn btn--ghost btn--sm">+ Mitglied</button>
     </div>
     <div class="modal__footer">
       <button type="button" @click="$el.closest('dialog').close()" class="btn btn--ghost">Abbrechen</button>
@@ -169,18 +354,52 @@
 
 {% block scripts %}
 <script>
+/* ── Gauge + time-ago component ── */
+function troopCard(currentPress, maxPress, withdrawPress, lastLogIso) {
+  return {
+    currentPress: currentPress,
+    maxPress: maxPress || 300,
+    withdrawPct: maxPress ? Math.min(1, (withdrawPress || 0) / maxPress) : 0,
+    lastLog: lastLogIso ? new Date(lastLogIso) : null,
+    timeAgo: '',
+
+    get needleAngle() {
+      const pct = this.maxPress > 0
+        ? Math.min(1, Math.max(0, this.currentPress / this.maxPress))
+        : 0;
+      return 180 * pct - 180;
+    },
+
+    init() {
+      if (!this.lastLog) { this.timeAgo = 'Kein Messwert'; return; }
+      const update = () => {
+        const sec = Math.floor((new Date() - this.lastLog) / 1000);
+        if (sec < 60) {
+          this.timeAgo = `vor ${sec} Sek.`;
+        } else {
+          const m = Math.floor(sec / 60), s = sec % 60;
+          this.timeAgo = `vor ${m} Min. ${s} Sek.`;
+        }
+      };
+      update();
+      setInterval(update, 1000);
+    }
+  };
+}
+
+/* ── Elapsed-time timer ── */
 function troopTimer(entryAt, backAt) {
   return {
     display: '00:00',
     init() {
       const start = new Date(entryAt);
-      const end = backAt ? new Date(backAt) : null;
+      const end   = backAt ? new Date(backAt) : null;
       const update = () => {
         const now = end || new Date();
         const sec = Math.floor((now - start) / 1000);
-        const m = Math.floor(sec / 60).toString().padStart(2,'0');
-        const s = (sec % 60).toString().padStart(2,'0');
-        this.display = m + ':' + s;
+        const m = Math.floor(sec / 60).toString().padStart(2, '0');
+        const s = (sec % 60).toString().padStart(2, '0');
+        this.display = `${m}:${s}`;
       };
       update();
       if (!end) setInterval(update, 1000);
@@ -188,24 +407,34 @@ function troopTimer(entryAt, backAt) {
   };
 }
 
+/* ── New-troop form with picker + validation ── */
 function newTroopForm() {
   return {
-    members: [{}, {}, {}],
+    members: [
+      {id:'', name:'', press:null, pickerOpen:false},
+      {id:'', name:'', press:null, pickerOpen:false},
+      {id:'', name:'', press:null, pickerOpen:false},
+    ],
+    pressValues: Array.from({length: 35}, (_, i) => 350 - i * 10),
+
     validate() {
       const filled = this.members.filter(m =>
-        (m.id && m.id !== "") || (m.name && m.name.trim().length > 0)
-      ).length;
-      if (filled < 2) {
+        (m.id && m.id !== '') || (m.name && m.name.trim().length > 0)
+      );
+      if (filled.length < 2) {
         alert('Bitte mindestens 2 Truppmitglieder ausfüllen.');
+        return false;
+      }
+      const missingPress = filled.filter(m => !m.press || m.press <= 0);
+      if (missingPress.length > 0) {
+        alert('Bitte für alle ausgefüllten Truppmitglieder einen Anfangsdruck eingeben (Druck *).');
         return false;
       }
       return true;
     },
+
     removeMember(i) {
-      if (this.members.length <= 2) {
-        alert('Mindestens 2 Slots nötig.');
-        return;
-      }
+      if (this.members.length <= 2) { alert('Mindestens 2 Slots nötig.'); return; }
       this.members.splice(i, 1);
     },
   };

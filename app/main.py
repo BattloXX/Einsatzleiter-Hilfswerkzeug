@@ -68,6 +68,10 @@ def _bootstrap_admin() -> None:
     db = SessionLocal()
     try:
         from app.models.user import User as U
+        from app.seed_data import _upsert_roles
+        _upsert_roles(db)  # always sync role labels (e.g. Schriftführer → Bearbeiter)
+        db.commit()
+
         existing = db.query(U).first()
         if existing:
             return
