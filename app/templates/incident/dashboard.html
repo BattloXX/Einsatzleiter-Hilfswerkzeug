@@ -575,54 +575,41 @@
     .bs-badge--im_einsatz { background: rgba(249,115,22,.2); color: #fdba74; border: 1px solid rgba(249,115,22,.35); }
     .bs-badge--rueckzug   { background: rgba(239,68,68,.25); color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
 
-    /* ── Großes QR-Panel in Fahrzeug-Spalte ── */
-    .qr-panel {
+    /* ── QR-Code im Header ── */
+    .hdr-qr {
       flex-shrink: 0;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      gap: 1.2rem;
-      padding: .8rem 1.2rem;
-    }
-    .qr-panel a { text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: .4rem; }
-    .qr-panel img {
-      width: clamp(130px, 18vh, 200px);
-      height: auto;
-      border-radius: 6px;
-      background: #fff;
-      padding: 6px;
-      display: block;
-    }
-    .qr-panel__label {
-      font-family: var(--font-mono);
-      font-size: .65rem;
-      text-transform: uppercase;
-      letter-spacing: .1em;
-      color: rgba(255,255,255,.5);
-      white-space: nowrap;
-    }
-    .qr-panel__text {
       display: flex;
       flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 1.2rem;
+      border-left: 1px solid rgba(255,255,255,.12);
       gap: .25rem;
     }
-    .qr-panel__title {
+    .hdr-qr a {
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .25rem;
+    }
+    .hdr-qr img {
+      height: clamp(3.6rem, 7.5vh, 6.4rem);
+      width: auto;
+      border-radius: 5px;
+      background: #fff;
+      padding: 5px;
+      display: block;
+      transition: transform .15s ease;
+    }
+    .hdr-qr a:hover img { transform: scale(1.06); }
+    .hdr-qr__label {
       font-family: var(--font-mono);
-      font-size: .72rem;
-      font-weight: 700;
+      font-size: .6rem;
       text-transform: uppercase;
       letter-spacing: .1em;
-      color: var(--text-muted);
-    }
-    .qr-panel__hint {
-      font-size: .85rem;
-      color: var(--text-muted);
-      max-width: 200px;
-      line-height: 1.4;
+      color: rgba(255,255,255,.45);
+      white-space: nowrap;
     }
 
     /* ── Status-Tags in Item-Rows ── */
@@ -708,6 +695,15 @@
         <div class="hdr-block__value--clock" id="clockTime">–</div>
         <div class="hdr-block__sub">Upd. in <span id="refreshCountdown">30</span>s</div>
       </div>
+
+      {% if qr_img %}
+      <div class="hdr-qr">
+        <a href="/einsatz/{{ incident.id }}/qr" target="_blank" rel="noopener" title="QR-Code vergrößern">
+          <img src="data:image/png;base64,{{ qr_img }}" alt="Login-QR">
+          <span class="hdr-qr__label">📱 Beitreten</span>
+        </a>
+      </div>
+      {% endif %}
 
     </div>
   </header>
@@ -852,20 +848,6 @@
             </div>
             {% endfor %}
           </div>
-        </div>
-      </div>
-      {% endif %}
-
-      {% if qr_img %}
-      <!-- Großes QR-Panel zum Beitreten -->
-      <div class="qr-panel">
-        <a href="/einsatz/{{ incident.id }}/qr" target="_blank" rel="noopener" title="Login-QR — zum Vergrößern klicken">
-          <img src="data:image/png;base64,{{ qr_img }}" alt="Login-QR">
-          <span class="qr-panel__label">Login-QR</span>
-        </a>
-        <div class="qr-panel__text">
-          <div class="qr-panel__title">📱 Beitreten</div>
-          <div class="qr-panel__hint">QR-Code mit Smartphone scannen um dem Einsatz beizutreten.</div>
         </div>
       </div>
       {% endif %}
