@@ -685,8 +685,12 @@ async def create_message(
     if due_sec:
         from datetime import timedelta
         due_at = incident.started_at + timedelta(seconds=due_sec)
+    from app.services.incident_service import _get_column as _gc
+    msgs_col = _gc(incident, "messages")
     msg = Message(
-        incident_id=incident_id, title=title, detail=detail or None,
+        incident_id=incident_id,
+        column_id=msgs_col.id if msgs_col else None,
+        title=title, detail=detail or None,
         status=status,
         due_after_sec=due_sec, due_at=due_at,
         vehicle_id=vehicle_id or None,

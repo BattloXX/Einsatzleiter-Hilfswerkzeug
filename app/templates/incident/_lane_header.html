@@ -44,7 +44,7 @@
     {% endif %}
 
     {# Status-Übersicht für Meldungs-Spalte #}
-    {% if col.code == 'messages' and col_messages %}
+    {% if col_messages %}
     {% set mc_meldung     = col_messages | selectattr('status', 'equalto', 'meldung')     | list | length %}
     {% set mc_achtung     = col_messages | selectattr('status', 'equalto', 'achtung')     | list | length %}
     {% set mc_hinweis     = col_messages | selectattr('status', 'equalto', 'hinweis')     | list | length %}

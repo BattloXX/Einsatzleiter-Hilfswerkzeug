@@ -7,10 +7,11 @@
      hx-trigger="click[!event.target.closest('select,input,button,a')]"
      hx-on::after-swap="document.getElementById('cardDetailModal').showModal()">
   <div class="card__body">
-    <div class="card__title" style="display:flex;align-items:center;gap:6px;">
+    <div class="card__title">
+      {{ msg.title }}
       {% if can_edit %}
       {% set sl = msg.status if msg.status else 'meldung' %}
-      <span onclick="event.stopPropagation()" style="flex-shrink:0;">
+      <div onclick="event.stopPropagation()" style="margin-top:5px;">
         <select name="status" class="form-select form-select--xs form-select--status status-{{ sl }}"
                 style="width:auto;min-width:90px;"
                 hx-post="/einsatz/{{ incident.id }}/meldung/{{ msg.id }}/ampel"
@@ -24,9 +25,8 @@
           <option value="erledigt"    {% if sl=='erledigt'    or sl=='done'        %}selected{% endif %}>✅ Erledigt</option>
           <option value="storniert"   {% if sl=='storniert'   or sl=='cancelled'   %}selected{% endif %}>⚪ Storniert</option>
         </select>
-      </span>
+      </div>
       {% endif %}
-      {{ msg.title }}
     </div>
     {% if msg.detail %}<div class="card__sub">{{ msg.detail }}</div>{% endif %}
     {% if msg.due_at %}

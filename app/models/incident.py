@@ -300,6 +300,7 @@ class Message(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     incident_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("incident.id", ondelete="CASCADE"), nullable=False)
+    column_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("incident_column.id", ondelete="SET NULL"), nullable=True)
     vehicle_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("incident_vehicle.id", ondelete="SET NULL"), nullable=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -314,6 +315,7 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     incident: Mapped[Incident] = relationship(back_populates="messages")
+    column: Mapped[IncidentColumn | None] = relationship(foreign_keys=[column_id])
     vehicle: Mapped[IncidentVehicle | None] = relationship(foreign_keys=[vehicle_id])
     media: Mapped[list[MessageMedia]] = relationship(
         cascade="all, delete-orphan",
