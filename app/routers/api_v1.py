@@ -16,8 +16,10 @@ from sqlalchemy.orm import Session
 
 from app.core.audit import write_audit
 from app.core.security import hash_api_key
+from app.core.timezones import org_tz
 from app.db import get_db
 from app.models.incident import Incident, IncidentOrg
+from app.models.master import FireDept
 from app.models.user import ApiKey
 from app.services.broadcast import manager
 from app.services.incident_service import create_incident
@@ -138,7 +140,9 @@ async def create_incident_api(
         try:
             started_at = datetime.fromisoformat(payload.AlarmDatumZeit)
             if started_at.tzinfo is None:
-                started_at = started_at.replace(tzinfo=UTC)
+                # Naive string from alarm system is local org time, not UTC
+                _org = db.get(FireDept, api_key.org_id)
+                started_at = started_at.replace(tzinfo=org_tz(_org)).astimezone(UTC)
         except ValueError:
             started_at = None
 
