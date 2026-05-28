@@ -651,7 +651,19 @@ def move_card(
                 user_id=user_id,
             )
         elif column_id:
-            # Drop on a column
+            # Drop on a column — reorder siblings first
+            siblings = (
+                db.query(Task)
+                .filter(
+                    Task.incident_id == incident_id,
+                    Task.column_id == column_id,
+                    Task.id != uid,
+                )
+                .order_by(Task.display_order)
+                .all()
+            )
+            for i, sib in enumerate(siblings):
+                sib.display_order = i if i < position else i + 1
             task.vehicle_id = None
             task.column_id = column_id
             task.display_order = position
@@ -680,6 +692,19 @@ def move_card(
                 user_id=user_id,
             )
         elif column_id:
+            # Drop on a column — reorder siblings first
+            siblings = (
+                db.query(Message)
+                .filter(
+                    Message.incident_id == incident_id,
+                    Message.column_id == column_id,
+                    Message.id != uid,
+                )
+                .order_by(Message.display_order)
+                .all()
+            )
+            for i, sib in enumerate(siblings):
+                sib.display_order = i if i < position else i + 1
             msg.vehicle_id = None
             msg.column_id = column_id
             msg.display_order = position
