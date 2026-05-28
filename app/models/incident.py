@@ -62,7 +62,7 @@ class Incident(Base):
     columns: Mapped[list[IncidentColumn]] = relationship(
         back_populates="incident", order_by="IncidentColumn.display_order", cascade="all, delete-orphan"
     )
-    vehicles: Mapped[list[IncidentVehicle]] = relationship(back_populates="incident", cascade="all, delete-orphan")
+    vehicles: Mapped[list[IncidentVehicle]] = relationship(back_populates="incident", order_by="IncidentVehicle.display_order", cascade="all, delete-orphan")
     tasks: Mapped[list[Task]] = relationship(back_populates="incident", order_by="Task.display_order", cascade="all, delete-orphan")
     messages: Mapped[list[Message]] = relationship(back_populates="incident", order_by="Message.display_order", cascade="all, delete-orphan")
     rescued_persons: Mapped[list[RescuedPerson]] = relationship(back_populates="incident", cascade="all, delete-orphan")
