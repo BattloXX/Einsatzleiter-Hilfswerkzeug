@@ -259,7 +259,7 @@
     {% for col in columns %}
     {% set col_vehicles = incident.vehicles|selectattr('column_id', 'eq', col.id)|selectattr('removed_at', 'none')|list %}
     {% set col_tasks = incident.tasks|selectattr('column_id', 'eq', col.id)|list %}
-    {% set col_messages = incident.messages if col.code == 'messages' else [] %}
+    {% set col_messages = incident.messages|selectattr('column_id', 'eq', col.id)|list %}
     {% set col_persons = incident.rescued_persons if col.code == 'rescued' else [] %}
     {% set col_count = col_vehicles|length + col_tasks|length + col_messages|length + col_persons|length %}
     {% set lane = lane_map.get(col.code, 'vehicles') %}
@@ -279,11 +279,9 @@
         {% include "incident/_task_card.html" %}
         {% endfor %}
 
-        {% if col.code == 'messages' %}
         {% for msg in col_messages %}
         {% include "incident/_message_card.html" %}
         {% endfor %}
-        {% endif %}
 
         {% if col.code == 'rescued' %}
         {% for person in col_persons %}

@@ -224,6 +224,7 @@ def _populate_vehicles(db: Session, incident: Incident, alarm: AlarmType | None)
 def _create_default_messages(db: Session, incident: Incident, alarm: AlarmType | None) -> None:
     if alarm is None:
         return
+    msgs_col = _get_column(incident, "messages")
     msgs = db.query(DefaultMessage).filter(DefaultMessage.alarm_type_code == alarm.code).all()
     for i, dm in enumerate(msgs):
         due_at = None
@@ -233,6 +234,7 @@ def _create_default_messages(db: Session, incident: Incident, alarm: AlarmType |
             due_at = started + timedelta(seconds=dm.due_after_sec)
         db.add(Message(
             incident_id=incident.id,
+            column_id=msgs_col.id if msgs_col else None,
             title=dm.text,
             due_after_sec=dm.due_after_sec,
             due_at=due_at,
@@ -665,7 +667,7 @@ def move_card(
         msg = db.get(Msg, uid)
         if not msg:
             return
-        before = {"display_order": msg.display_order, "vehicle_id": msg.vehicle_id}
+        before = {"display_order": msg.display_order, "vehicle_id": msg.vehicle_id, "column_id": msg.column_id}
         if vehicle_id:
             v = db.get(IncidentVehicle, vehicle_id)
             if not v:
@@ -677,13 +679,14 @@ def move_card(
                 before=before, after={"vehicle_id": vehicle_id},
                 user_id=user_id,
             )
-        else:
+        elif column_id:
             msg.vehicle_id = None
+            msg.column_id = column_id
             msg.display_order = position
             db.flush()
             write_incident_change(
                 db, incident_id, "message.moved", "message", uid,
-                before=before, after={"display_order": position, "vehicle_id": None},
+                before=before, after={"column_id": column_id, "display_order": position, "vehicle_id": None},
                 user_id=user_id,
             )
 
