@@ -26,6 +26,8 @@ def upgrade():
         sa.Column("alarm_type_code", sa.String(10),
                   sa.ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False),
         sa.Column("display_order", sa.Integer, server_default="0", nullable=False),
+        mysql_charset="utf8mb4",
+        mysql_engine="InnoDB",
     )
     conn.execute(text("""
         INSERT INTO task_suggestion_alarm (task_suggestion_id, alarm_type_code, display_order)
@@ -43,6 +45,8 @@ def upgrade():
         sa.Column("alarm_type_code", sa.String(10),
                   sa.ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False),
         sa.Column("display_order", sa.Integer, server_default="0", nullable=False),
+        mysql_charset="utf8mb4",
+        mysql_engine="InnoDB",
     )
     conn.execute(text("""
         INSERT INTO message_suggestion_alarm (message_suggestion_id, alarm_type_code, display_order)
@@ -61,6 +65,8 @@ def upgrade():
                   sa.ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False),
         sa.Column("display_order", sa.Integer, server_default="0", nullable=False),
         sa.Column("due_after_sec", sa.Integer, server_default="300", nullable=False),
+        mysql_charset="utf8mb4",
+        mysql_engine="InnoDB",
     )
     conn.execute(text("""
         INSERT INTO default_message_alarm (default_message_id, alarm_type_code, display_order, due_after_sec)
