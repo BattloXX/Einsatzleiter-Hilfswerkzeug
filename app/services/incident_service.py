@@ -20,6 +20,7 @@ from app.models.master import (
     AlarmDispatchVehicle,
     AlarmType,
     DefaultMessage,
+    DefaultMessageAlarm,
     Member,
     MemberQualification,
     Qualification,
@@ -225,18 +226,26 @@ def _create_default_messages(db: Session, incident: Incident, alarm: AlarmType |
     if alarm is None:
         return
     msgs_col = _get_column(incident, "messages")
-    msgs = db.query(DefaultMessage).filter(DefaultMessage.alarm_type_code == alarm.code).all()
-    for i, dm in enumerate(msgs):
+    assignments = (
+        db.query(DefaultMessageAlarm)
+        .filter(DefaultMessageAlarm.alarm_type_code == alarm.code)
+        .order_by(DefaultMessageAlarm.display_order)
+        .all()
+    )
+    for i, a in enumerate(assignments):
+        dm = db.get(DefaultMessage, a.default_message_id)
+        if not dm:
+            continue
         due_at = None
-        if incident.started_at and dm.due_after_sec:
+        if incident.started_at and a.due_after_sec:
             from datetime import timedelta
             started = incident.started_at if incident.started_at.tzinfo else incident.started_at.replace(tzinfo=UTC)
-            due_at = started + timedelta(seconds=dm.due_after_sec)
+            due_at = started + timedelta(seconds=a.due_after_sec)
         db.add(Message(
             incident_id=incident.id,
             column_id=msgs_col.id if msgs_col else None,
             title=dm.text,
-            due_after_sec=dm.due_after_sec,
+            due_after_sec=a.due_after_sec,
             due_at=due_at,
             display_order=i,
         ))

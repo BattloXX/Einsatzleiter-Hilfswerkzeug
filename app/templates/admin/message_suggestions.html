@@ -1,33 +1,69 @@
 {% extends "admin/_layout.html" %}
+{% from "_tooltip.html" import tip %}
+{% from "admin/_breadcrumb.html" import breadcrumb %}
 {% block title %}Meldungsvorlagen – Admin{% endblock %}
+{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Meldungsvorlagen'}]) }}{% endblock %}
+
 {% block admin_content %}
 <div class="page-content">
   <div class="page-header">
     <div>
       <h1>Meldungsvorlagen</h1>
-      <p class="page-header__sub">Vorschläge für Meldungen pro Alarmstichwort – Reihenfolge per Drag &amp; Drop ändern</p>
+      <p class="page-header__sub">Vorlagen anlegen, dann per „Bearbeiten" den Alarmstichwörtern zuweisen und sortieren.</p>
     </div>
-    <button class="btn btn--primary" onclick="document.getElementById('newMsgSuggModal').showModal()">+ Vorlage anlegen</button>
+    <button class="btn btn--primary" onclick="document.getElementById('newMsgModal').showModal()">+ Vorlage</button>
   </div>
 
   {% if saved %}<div class="alert alert--success">Gespeichert.</div>{% endif %}
 
-  {% for atype, suggestions in by_alarm_type %}
-  <div class="admin-section-title">{{ atype.label or atype.code }} ({{ atype.code }})</div>
-  <table class="table-admin" style="margin-bottom:16px">
-    <thead>
-      <tr><th style="width:32px;"></th><th>Text</th><th style="width:140px;">Aktionen</th></tr>
-    </thead>
-    <tbody class="sugg-sortable-tbody" data-alarm-code="{{ atype.code }}" data-prefix="meldungsvorlagen">
+  <!-- ── Matrix ──────────────────────────────────────────────────── -->
+  <div style="overflow-x:auto; margin-bottom:24px;">
+    <table class="table-admin" style="min-width:600px;">
+      <thead>
+        <tr>
+          <th style="width:130px;">Alarmstichwort</th>
+          <th>Zugewiesene Vorlagen</th>
+          <th style="width:90px;">Aktion</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for atype in alarm_types %}
+        {% set row = assignments_by_alarm.get(atype.code, []) %}
+        <tr>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<br><small class="text-muted">{{ atype.label }}</small>{% endif %}</td>
+          <td>
+            {% if row %}
+              {% for a in row[:4] %}
+                <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;">
+                  {{ a.suggestion.text[:50] }}{% if a.suggestion.text|length > 50 %}…{% endif %}
+                </span>
+              {% endfor %}
+              {% if row|length > 4 %}<small class="text-muted"> +{{ row|length - 4 }} weitere</small>{% endif %}
+            {% else %}
+              <span class="text-muted">–</span>
+            {% endif %}
+          </td>
+          <td><a href="/admin/meldungsvorlagen?edit={{ atype.code }}" class="btn btn--ghost btn--xs">Bearbeiten</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Alle Vorlagen ────────────────────────────────────────────── -->
+  <div class="admin-section-title">Alle Vorlagen <small style="font-weight:400;color:var(--color-text-muted)">({{ suggestions|length }})</small></div>
+  <table class="table-admin" style="margin-bottom:24px;">
+    <thead><tr><th>Text</th><th style="width:130px;">Aktionen</th></tr></thead>
+    <tbody>
       {% for s in suggestions %}
-      <tr data-sid="{{ s.id }}">
-        <td class="drag-handle" style="cursor:grab;font-size:1.1rem;color:#888;text-align:center;">☰</td>
+      <tr>
         <td>{{ s.text }}</td>
         <td>
           <button class="btn btn--ghost btn--xs"
-                  onclick="openEditMsgSugg({{ s.id }}, '{{ s.text|replace("'","\\'")|e }}')">Bearbeiten</button>
+                  onclick="openEditMsg({{ s.id }}, '{{ s.text|replace("'","\\'")|e }}')"
+                  {{ tip('Text bearbeiten') }}>Bearbeiten</button>
           <form method="post" action="/admin/meldungsvorlagen/{{ s.id }}/loeschen" style="display:inline"
-                onsubmit="return confirm('Löschen?')">
+                onsubmit="return confirm('Vorlage löschen? Sie wird aus allen Stichwörtern entfernt.')">
             <button type="submit" class="btn btn--danger btn--xs">Löschen</button>
           </form>
         </td>
@@ -35,10 +71,87 @@
       {% endfor %}
     </tbody>
   </table>
-  {% endfor %}
+
+  {% if edit_alarm %}
+  <!-- ── Edit-Panel ───────────────────────────────────────────────── -->
+  <div id="msgEditSection" class="admin-section-title">
+    Zuweisung bearbeiten: {{ edit_alarm.label or edit_alarm.code }} ({{ edit_alarm.code }})
+  </div>
+  <p class="form-hint" style="margin-bottom:10px;">
+    Haken setzen = Vorlage erscheint bei diesem Stichwort. Reihenfolge per Drag-Drop am ☰ ändern.
+  </p>
+  <form method="post" action="/admin/meldungsvorlagen/{{ edit_alarm.code }}"
+        id="msgEditForm" style="max-width:720px;">
+    <table class="table-admin" id="msgEditTable">
+      <thead>
+        <tr>
+          <th style="width:40px;"></th>
+          <th style="width:50px;">Ein</th>
+          <th>Vorlage</th>
+        </tr>
+      </thead>
+      <tbody id="msgEditTbody">
+        {% for sid in edit_assigned_ids %}
+        {% for s in suggestions if s.id == sid %}
+        <tr data-sid="{{ s.id }}">
+          <td class="drag-handle" style="cursor:grab;font-size:1.2rem;color:#888;text-align:center;">☰</td>
+          <td><input type="checkbox" class="msg-checkbox" checked></td>
+          <td>{{ s.text }}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+        {% for s in suggestions if s.id not in edit_assigned_ids %}
+        <tr data-sid="{{ s.id }}">
+          <td class="drag-handle" style="cursor:grab;font-size:1.2rem;color:#888;text-align:center;">☰</td>
+          <td><input type="checkbox" class="msg-checkbox"></td>
+          <td>{{ s.text }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div id="msgHiddenInputs"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button type="submit" class="btn btn--primary" onclick="serializeMsg()">Speichern</button>
+      <a href="/admin/meldungsvorlagen" class="btn btn--ghost">Abbrechen</a>
+    </div>
+  </form>
+
+  <script>
+  (function () {
+    function initEdit() {
+      const tbody = document.getElementById('msgEditTbody');
+      if (!tbody) return;
+      if (!window.Sortable) { setTimeout(initEdit, 50); return; }
+      Sortable.create(tbody, { handle: '.drag-handle', animation: 150, ghostClass: 'card--ghost' });
+      const section = document.getElementById('msgEditSection');
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initEdit);
+    } else {
+      initEdit();
+    }
+  })();
+  window.serializeMsg = function () {
+    const hidden = document.getElementById('msgHiddenInputs');
+    hidden.replaceChildren();
+    document.querySelectorAll('#msgEditTbody tr').forEach(tr => {
+      const cb = tr.querySelector('.msg-checkbox');
+      if (cb && cb.checked) {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'suggestion_ids';
+        inp.value = tr.dataset.sid;
+        hidden.appendChild(inp);
+      }
+    });
+  };
+  </script>
+  {% endif %}
 </div>
 
-<dialog class="modal" id="newMsgSuggModal">
+<!-- Neue Vorlage -->
+<dialog class="modal" id="newMsgModal">
   <div class="modal__content">
     <div class="modal__header">
       <h3>Neue Meldungsvorlage</h3>
@@ -47,16 +160,9 @@
     <form method="post" action="/admin/meldungsvorlagen/neu">
       <div class="modal__body">
         <div class="form-group">
-          <label class="form-label">Alarmstichwort</label>
-          <select name="alarm_type_code" class="form-select" required>
-            {% for atype in alarm_types %}
-            <option value="{{ atype.code }}">{{ atype.label or atype.code }} ({{ atype.code }})</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
           <label class="form-label">Text</label>
-          <input type="text" name="text" class="form-input" required maxlength="500">
+          <input type="text" name="text" class="form-input" required maxlength="500"
+                 {{ tip('Die Vorlage kann danach mehreren Alarmstichwörtern zugewiesen werden') }}>
         </div>
       </div>
       <div class="modal__footer">
@@ -67,17 +173,18 @@
   </div>
 </dialog>
 
-<dialog class="modal" id="editMsgSuggModal">
+<!-- Vorlage bearbeiten -->
+<dialog class="modal" id="editMsgModal">
   <div class="modal__content">
     <div class="modal__header">
       <h3>Meldungsvorlage bearbeiten</h3>
       <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button>
     </div>
-    <form method="post" id="editMsgSuggForm">
+    <form method="post" id="editMsgForm">
       <div class="modal__body">
         <div class="form-group">
           <label class="form-label">Text</label>
-          <input type="text" name="text" id="ems_text" class="form-input" required maxlength="500">
+          <input type="text" name="text" id="em_text" class="form-input" required maxlength="500">
         </div>
       </div>
       <div class="modal__footer">
@@ -87,47 +194,14 @@
     </form>
   </div>
 </dialog>
-
 {% endblock %}
+
 {% block scripts %}
 <script>
-function openEditMsgSugg(id, text) {
-  document.getElementById('ems_text').value = text;
-  document.getElementById('editMsgSuggForm').action = `/admin/meldungsvorlagen/${id}/edit`;
-  document.getElementById('editMsgSuggModal').showModal();
+function openEditMsg(id, text) {
+  document.getElementById('em_text').value = text;
+  document.getElementById('editMsgForm').action = `/admin/meldungsvorlagen/${id}/edit`;
+  document.getElementById('editMsgModal').showModal();
 }
-
-(function () {
-  function initSuggSortable() {
-    if (!window.Sortable) { setTimeout(initSuggSortable, 50); return; }
-    document.querySelectorAll('.sugg-sortable-tbody').forEach(function (tbody) {
-      Sortable.create(tbody, {
-        handle: '.drag-handle',
-        animation: 150,
-        ghostClass: 'card--ghost',
-        onEnd: function () {
-          const code = tbody.dataset.alarmCode;
-          const prefix = tbody.dataset.prefix;
-          const ids = Array.from(tbody.querySelectorAll('tr[data-sid]')).map(tr => tr.dataset.sid);
-          const body = new URLSearchParams();
-          ids.forEach(id => body.append('ids', id));
-          fetch(`/admin/${prefix}/${encodeURIComponent(code)}/reorder`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: body.toString(),
-            credentials: 'same-origin',
-          }).catch(function (err) {
-            console.warn('[sugg-sort] reorder fehlgeschlagen:', err);
-          });
-        },
-      });
-    });
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSuggSortable);
-  } else {
-    initSuggSortable();
-  }
-})();
 </script>
 {% endblock %}

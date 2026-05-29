@@ -6,10 +6,12 @@ from app.db import SessionLocal
 from app.models.master import (
     AlarmType,
     DefaultMessage,
+    DefaultMessageAlarm,
     FireDept,
     LageHint,
     Qualification,
     TaskSuggestion,
+    TaskSuggestionAlarm,
     VehicleMaster,
 )
 from app.models.user import Role
@@ -251,17 +253,41 @@ def _upsert_depts_and_vehicles(db):
 def _upsert_task_suggestions(db):
     if db.query(TaskSuggestion).count() > 0:
         return
+    # Collect unique texts (a template may appear in multiple alarm types)
+    text_to_obj: dict[str, TaskSuggestion] = {}
     for alarm_code, suggestions in TASK_SUGGESTIONS.items():
         for i, text in enumerate(suggestions):
-            db.add(TaskSuggestion(alarm_type_code=alarm_code, text=text, display_order=i))
+            if text not in text_to_obj:
+                s = TaskSuggestion(text=text)
+                db.add(s)
+                db.flush()
+                text_to_obj[text] = s
+            db.add(TaskSuggestionAlarm(
+                task_suggestion_id=text_to_obj[text].id,
+                alarm_type_code=alarm_code,
+                display_order=i,
+            ))
 
 
 def _upsert_default_messages(db):
     if db.query(DefaultMessage).count() > 0:
         return
+    text_to_obj: dict[str, DefaultMessage] = {}
     for alarm_code, messages in DEFAULT_MESSAGES.items():
-        for msg in messages:
-            db.add(DefaultMessage(alarm_type_code=alarm_code, **msg))
+        for i, msg in enumerate(messages):
+            text = msg["text"]
+            due = msg.get("due_after_sec", 300)
+            if text not in text_to_obj:
+                m = DefaultMessage(text=text)
+                db.add(m)
+                db.flush()
+                text_to_obj[text] = m
+            db.add(DefaultMessageAlarm(
+                default_message_id=text_to_obj[text].id,
+                alarm_type_code=alarm_code,
+                display_order=i,
+                due_after_sec=due,
+            ))
 
 
 def _upsert_lage_hints(db):
