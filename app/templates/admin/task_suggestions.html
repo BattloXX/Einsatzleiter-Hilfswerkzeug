@@ -9,59 +9,44 @@
   <div class="page-header">
     <div>
       <h1>Auftragsvorlagen</h1>
-      <p class="page-header__sub">Vorlagen anlegen, dann per „Bearbeiten" den Alarmstichwörtern zuweisen und sortieren.</p>
+      <p class="page-header__sub">Vorlage anlegen, dann Alarmstichwörter zuweisen und sortieren.</p>
     </div>
     <button class="btn btn--primary" onclick="document.getElementById('newSuggModal').showModal()">+ Vorlage</button>
   </div>
 
   {% if saved %}<div class="alert alert--success">Gespeichert.</div>{% endif %}
-
-  <!-- ── Matrix ──────────────────────────────────────────────────── -->
-  <div style="overflow-x:auto; margin-bottom:24px;">
-    <table class="table-admin" style="min-width:600px;">
-      <thead>
-        <tr>
-          <th style="width:130px;">Alarmstichwort</th>
-          <th>Zugewiesene Vorlagen</th>
-          <th style="width:90px;">Aktion</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for atype in alarm_types %}
-        {% set row = assignments_by_alarm.get(atype.code, []) %}
-        <tr>
-          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<br><small class="text-muted">{{ atype.label }}</small>{% endif %}</td>
-          <td>
-            {% if row %}
-              {% for a in row[:4] %}
-                <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;">
-                  {{ a.suggestion.text[:50] }}{% if a.suggestion.text|length > 50 %}…{% endif %}
-                </span>
-              {% endfor %}
-              {% if row|length > 4 %}<small class="text-muted"> +{{ row|length - 4 }} weitere</small>{% endif %}
-            {% else %}
-              <span class="text-muted">–</span>
-            {% endif %}
-          </td>
-          <td><a href="/admin/auftragsvorlagen?edit={{ atype.code }}" class="btn btn--ghost btn--xs">Bearbeiten</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  {% if error == 'duplicate' %}<div class="alert alert--danger">Eine Vorlage mit diesem Text existiert bereits.</div>{% endif %}
 
   <!-- ── Alle Vorlagen ────────────────────────────────────────────── -->
   <div class="admin-section-title">Alle Vorlagen <small style="font-weight:400;color:var(--color-text-muted)">({{ suggestions|length }})</small></div>
   <table class="table-admin" style="margin-bottom:24px;">
-    <thead><tr><th>Text</th><th style="width:130px;">Aktionen</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Text</th>
+        <th>Zugewiesen zu</th>
+        <th style="width:160px;">Aktionen</th>
+      </tr>
+    </thead>
     <tbody>
       {% for s in suggestions %}
-      <tr>
+      {% set codes = s.alarm_assignments | sort(attribute='display_order') | map(attribute='alarm_type_code') | list %}
+      <tr{% if edit_suggestion and edit_suggestion.id == s.id %} style="background:var(--color-bg-highlight,#f0f7ff);"{% endif %}>
         <td>{{ s.text }}</td>
+        <td>
+          {% if codes %}
+            {% for code in codes %}
+              <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;">{{ code }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="text-muted">–</span>
+          {% endif %}
+        </td>
         <td>
           <button class="btn btn--ghost btn--xs"
                   onclick="openEditSugg({{ s.id }}, '{{ s.text|replace("'","\\'")|e }}')"
-                  {{ tip('Text bearbeiten') }}>Bearbeiten</button>
+                  {{ tip('Text bearbeiten') }}>Text</button>
+          <a href="/admin/auftragsvorlagen?edit={{ s.id }}" class="btn btn--ghost btn--xs"
+             {{ tip('Stichwörter zuweisen') }}>Stichwörter</a>
           <form method="post" action="/admin/auftragsvorlagen/{{ s.id }}/loeschen" style="display:inline"
                 onsubmit="return confirm('Vorlage löschen? Sie wird aus allen Stichwörtern entfernt.')">
             <button type="submit" class="btn btn--danger btn--xs">Löschen</button>
@@ -72,54 +57,54 @@
     </tbody>
   </table>
 
-  {% if edit_alarm %}
-  <!-- ── Edit-Panel ───────────────────────────────────────────────── -->
+  {% if edit_suggestion %}
+  <!-- ── Stichwort-Zuweisung ──────────────────────────────────────── -->
   <div id="suggEditSection" class="admin-section-title">
-    Zuweisung bearbeiten: {{ edit_alarm.label or edit_alarm.code }} ({{ edit_alarm.code }})
+    Stichwörter zuweisen: <em>{{ edit_suggestion.text[:70] }}{% if edit_suggestion.text|length > 70 %}…{% endif %}</em>
   </div>
   <p class="form-hint" style="margin-bottom:10px;">
-    Haken setzen = Vorlage erscheint bei diesem Stichwort. Reihenfolge per Drag-Drop am ☰ ändern.
+    Haken setzen = Vorlage erscheint bei diesem Stichwort. Reihenfolge (innerhalb der Vorlage) per Drag-Drop am ☰ ändern.
   </p>
-  <form method="post" action="/admin/auftragsvorlagen/{{ edit_alarm.code }}"
-        id="suggEditForm" style="max-width:720px;">
-    <table class="table-admin" id="suggEditTable">
+  <form method="post" action="/admin/auftragsvorlagen/{{ edit_suggestion.id }}/alarms"
+        id="alarmEditForm" style="max-width:620px;">
+    <table class="table-admin" id="alarmEditTable">
       <thead>
         <tr>
           <th style="width:40px;"></th>
           <th style="width:50px;">Ein</th>
-          <th>Vorlage</th>
+          <th>Alarmstichwort</th>
         </tr>
       </thead>
-      <tbody id="suggEditTbody">
-        {% for sid in edit_assigned_ids %}
-        {% for s in suggestions if s.id == sid %}
-        <tr data-sid="{{ s.id }}">
+      <tbody id="alarmEditTbody">
+        {% for code in edit_assigned_codes %}
+        {% for atype in alarm_types if atype.code == code %}
+        <tr data-code="{{ atype.code }}">
           <td class="drag-handle" style="cursor:grab;font-size:1.2rem;color:#888;text-align:center;">☰</td>
-          <td><input type="checkbox" class="sugg-checkbox" checked></td>
-          <td>{{ s.text }}</td>
+          <td><input type="checkbox" class="alarm-checkbox" checked></td>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<span class="text-muted"> – {{ atype.label }}</span>{% endif %}</td>
         </tr>
         {% endfor %}
         {% endfor %}
-        {% for s in suggestions if s.id not in edit_assigned_ids %}
-        <tr data-sid="{{ s.id }}">
+        {% for atype in alarm_types if atype.code not in edit_assigned_codes %}
+        <tr data-code="{{ atype.code }}">
           <td class="drag-handle" style="cursor:grab;font-size:1.2rem;color:#888;text-align:center;">☰</td>
-          <td><input type="checkbox" class="sugg-checkbox"></td>
-          <td>{{ s.text }}</td>
+          <td><input type="checkbox" class="alarm-checkbox"></td>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<span class="text-muted"> – {{ atype.label }}</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    <div id="suggHiddenInputs"></div>
+    <div id="alarmHiddenInputs"></div>
     <div style="margin-top:14px;display:flex;gap:8px;">
-      <button type="submit" class="btn btn--primary" onclick="serializeSugg()">Speichern</button>
-      <a href="/admin/auftragsvorlagen" class="btn btn--ghost">Abbrechen</a>
+      <button type="submit" class="btn btn--primary" onclick="serializeAlarms()">Speichern</button>
+      <a href="/admin/auftragsvorlagen" class="btn btn--ghost">Schließen</a>
     </div>
   </form>
 
   <script>
   (function () {
     function initEdit() {
-      const tbody = document.getElementById('suggEditTbody');
+      const tbody = document.getElementById('alarmEditTbody');
       if (!tbody) return;
       if (!window.Sortable) { setTimeout(initEdit, 50); return; }
       Sortable.create(tbody, { handle: '.drag-handle', animation: 150, ghostClass: 'card--ghost' });
@@ -132,22 +117,55 @@
       initEdit();
     }
   })();
-  window.serializeSugg = function () {
-    const hidden = document.getElementById('suggHiddenInputs');
+  window.serializeAlarms = function () {
+    const hidden = document.getElementById('alarmHiddenInputs');
     hidden.replaceChildren();
-    document.querySelectorAll('#suggEditTbody tr').forEach(tr => {
-      const cb = tr.querySelector('.sugg-checkbox');
+    document.querySelectorAll('#alarmEditTbody tr').forEach(tr => {
+      const cb = tr.querySelector('.alarm-checkbox');
       if (cb && cb.checked) {
         const inp = document.createElement('input');
         inp.type = 'hidden';
-        inp.name = 'suggestion_ids';
-        inp.value = tr.dataset.sid;
+        inp.name = 'alarm_type_codes';
+        inp.value = tr.dataset.code;
         hidden.appendChild(inp);
       }
     });
   };
   </script>
   {% endif %}
+
+  <!-- ── Übersicht Matrix ─────────────────────────────────────────── -->
+  <div class="admin-section-title" style="margin-top:32px;">Übersicht nach Alarmstichwort</div>
+  <div style="overflow-x:auto; margin-bottom:24px;">
+    <table class="table-admin" style="min-width:500px;">
+      <thead>
+        <tr>
+          <th style="width:130px;">Alarmstichwort</th>
+          <th>Zugewiesene Vorlagen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for atype in alarm_types %}
+        {% set row = assignments_by_alarm.get(atype.code, []) %}
+        <tr>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<br><small class="text-muted">{{ atype.label }}</small>{% endif %}</td>
+          <td>
+            {% if row %}
+              {% for a in row[:5] %}
+                <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;">
+                  {{ a.suggestion.text[:50] }}{% if a.suggestion.text|length > 50 %}…{% endif %}
+                </span>
+              {% endfor %}
+              {% if row|length > 5 %}<small class="text-muted"> +{{ row|length - 5 }} weitere</small>{% endif %}
+            {% else %}
+              <span class="text-muted">–</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <!-- Neue Vorlage -->
@@ -162,7 +180,7 @@
         <div class="form-group">
           <label class="form-label">Text</label>
           <input type="text" name="text" class="form-input" required maxlength="500"
-                 {{ tip('Die Vorlage kann danach mehreren Alarmstichwörtern zugewiesen werden') }}>
+                 {{ tip('Nach dem Anlegen können Alarmstichwörter zugewiesen werden') }}>
         </div>
       </div>
       <div class="modal__footer">
@@ -173,7 +191,7 @@
   </div>
 </dialog>
 
-<!-- Vorlage bearbeiten -->
+<!-- Vorlage Text bearbeiten -->
 <dialog class="modal" id="editSuggModal">
   <div class="modal__content">
     <div class="modal__header">
