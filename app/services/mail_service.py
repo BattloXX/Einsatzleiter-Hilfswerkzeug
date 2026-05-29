@@ -100,11 +100,15 @@ async def _send(msg: EmailMessage, smtp_cfg: dict) -> None:
             "die Dependency in pyproject.toml aktivieren."
         )
 
+    port = smtp_cfg["port"]
+    # Port 465 = Implicit SSL (use_tls); Port 587/25 = STARTTLS
+    use_implicit_ssl = port == 465
     kwargs: dict[str, Any] = {
         "hostname": smtp_cfg["host"],
-        "port": smtp_cfg["port"],
+        "port": port,
         "timeout": smtp_cfg["timeout"],
-        "start_tls": bool(smtp_cfg["starttls"]),
+        "use_tls": use_implicit_ssl,
+        "start_tls": bool(smtp_cfg["starttls"]) and not use_implicit_ssl,
     }
     if smtp_cfg.get("user"):
         kwargs["username"] = smtp_cfg["user"]
