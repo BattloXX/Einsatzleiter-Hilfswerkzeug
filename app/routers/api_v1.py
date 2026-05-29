@@ -8,6 +8,8 @@ die Org als Kollaborator beteiligt ist.
 Antworten sind JSON; Fehler folgen FastAPI-Konvention mit `detail`-Feld.
 """
 from datetime import UTC, datetime
+from hashlib import sha256
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -15,9 +17,10 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.audit import write_audit
-from app.core.security import hash_api_key
+from app.core.security import hash_api_key, sign_qr_token
 from app.db import get_db
-from app.models.incident import Incident, IncidentOrg
+from app.models.incident import Incident, IncidentOrg, IncidentToken
+from app.models.master import FireDept
 from app.models.user import ApiKey
 from app.services.broadcast import manager
 from app.services.incident_service import create_incident
@@ -60,6 +63,16 @@ class AlarmPayload(BaseModel):
     Strasse: str | None = Field(None, description="Straße.")
     HausNr: str | None = Field(None, description="Hausnummer.")
     Uebung: bool = Field(False, description="Übungsalarm (kein echter Einsatz).")
+    Zeitzone: str | None = Field(
+        None,
+        description=(
+            "IANA-Zeitzone für naive `AlarmDatumZeit`-Werte ohne UTC-Offset "
+            "(z. B. `'Europe/Vienna'`). "
+            "Fehlt das Feld, wird die Zeitzone der Organisation verwendet; "
+            "ist auch diese nicht gesetzt, greift der Server-Default."
+        ),
+        examples=["Europe/Vienna"],
+    )
 
 
 class IncidentCreatedResponse(BaseModel):
@@ -68,6 +81,22 @@ class IncidentCreatedResponse(BaseModel):
     external_key: str = Field(..., description="Vom Aufrufer mitgegebener Schlüssel.")
     url: str = Field(..., description="UI-URL zum neu angelegten Einsatz.")
     created: bool = Field(..., description="True bei Neuanlage, False bei Idempotency-Treffer.")
+    board_token: str | None = Field(
+        None,
+        description=(
+            "Signiertes QR-Token für direkten Board-Zugriff ohne Passwort. "
+            "Gültig solange der Einsatz aktiv ist. "
+            "Null, wenn dem API-Key kein Benutzer zugeordnet ist."
+        ),
+    )
+    board_url: str | None = Field(
+        None,
+        description=(
+            "Vollständige Login-URL für QR-Code-Zugriff auf das Einsatz-Board "
+            "(direkt verlinkbar / als QR-Code druckbar). "
+            "Null, wenn dem API-Key kein Benutzer zugeordnet ist."
+        ),
+    )
 
 
 class IncidentSummary(BaseModel):
@@ -86,6 +115,41 @@ class IncidentDetail(BaseModel):
     started_at: datetime | None
     address: str = Field(..., description="Zusammengesetzte Adresse: 'Strasse HausNr, Ort'.")
     is_exercise: bool
+
+
+def _resolve_tz(tz_name: str | None, org: FireDept | None) -> ZoneInfo:
+    """Resolves a timezone: explicit name → org timezone → server default."""
+    from app.config import settings
+    for name in (tz_name, getattr(org, "timezone", None), settings.DEFAULT_TIMEZONE):
+        if name:
+            try:
+                return ZoneInfo(name)
+            except ZoneInfoNotFoundError:
+                continue
+    return ZoneInfo("UTC")
+
+
+def _get_or_create_board_token(
+    db: Session, incident_id: int, user_id: int | None, base_url: str
+) -> tuple[str | None, str | None]:
+    """Returns (token, board_url) for QR-code board access, or (None, None) if no user."""
+    if not user_id:
+        return None, None
+    token = sign_qr_token(incident_id, user_id)
+    token_hash = sha256(token.encode()).hexdigest()
+    existing = db.query(IncidentToken).filter(
+        IncidentToken.incident_id == incident_id,
+        IncidentToken.issued_by_user_id == user_id,
+        IncidentToken.revoked_at.is_(None),
+    ).first()
+    if not existing:
+        db.add(IncidentToken(
+            incident_id=incident_id,
+            token_hash=token_hash,
+            issued_by_user_id=user_id,
+        ))
+    board_url = f"{base_url}qr-login?incident_id={incident_id}&token={token}"
+    return token, board_url
 
 
 def _get_api_key(x_api_key: str = Header(..., alias="X-API-Key"), db: Session = Depends(get_db)):
@@ -119,27 +183,40 @@ async def create_incident_api(
     db: Session = Depends(get_db),
     api_key: ApiKey = Depends(_get_api_key),
 ):
+    org = db.get(FireDept, api_key.org_id) if api_key.org_id else None
+
     # Idempotency check
     existing = db.query(Incident).filter(Incident.external_key == payload.Key).first()
     if existing:
         write_audit(db, "api.incident.duplicate", api_key_id=api_key.id,
                     incident_id=existing.id, ip=request.client.host if request.client else None)
+        board_token, board_url = _get_or_create_board_token(
+            db, existing.id, api_key.created_by_user_id, str(request.base_url)
+        )
         db.commit()
-        return {"id": existing.id, "external_key": existing.external_key,
-                "url": f"/einsatz/{existing.id}", "created": False}
+        return {
+            "id": existing.id,
+            "external_key": existing.external_key,
+            "url": f"/einsatz/{existing.id}",
+            "created": False,
+            "board_token": board_token,
+            "board_url": board_url,
+        }
 
     # Map Stufe to alarm type code
     stufe_raw = (payload.Stufe or "T1").lower().strip()
     alarm_type_code = STUFE_MAP.get(stufe_raw, "T1")
 
-    # Parse AlarmDatumZeit
+    # Parse AlarmDatumZeit; naive values are interpreted in the request/org timezone
     started_at = None
     if payload.AlarmDatumZeit:
         try:
             started_at = datetime.fromisoformat(payload.AlarmDatumZeit)
             if started_at.tzinfo is None:
-                started_at = started_at.replace(tzinfo=UTC)
-        except ValueError:
+                tz = _resolve_tz(payload.Zeitzone, org)
+                started_at = started_at.replace(tzinfo=tz)
+            started_at = started_at.astimezone(UTC)
+        except (ValueError, ZoneInfoNotFoundError):
             started_at = None
 
     incident = create_incident(
@@ -188,11 +265,18 @@ async def create_incident_api(
     push_body = address or payload.Meldung or "Kein Ort angegeben"
     notify_all(db, push_title, push_body, url=f"/einsatz/{incident.id}")
 
+    board_token, board_url = _get_or_create_board_token(
+        db, incident.id, api_key.created_by_user_id, str(request.base_url)
+    )
+    db.commit()
+
     return {
         "id": incident.id,
         "external_key": incident.external_key,
         "url": f"/einsatz/{incident.id}",
         "created": True,
+        "board_token": board_token,
+        "board_url": board_url,
     }
 
 
