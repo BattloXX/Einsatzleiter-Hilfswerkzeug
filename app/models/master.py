@@ -126,18 +126,52 @@ class TaskSuggestion(Base):
     __tablename__ = "task_suggestion"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    alarm_type_code: Mapped[str] = mapped_column(String(10), ForeignKey("alarm_type.code"), nullable=False)
     text: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    alarm_assignments: Mapped[list["TaskSuggestionAlarm"]] = relationship(
+        back_populates="suggestion", cascade="all, delete-orphan"
+    )
+
+
+class TaskSuggestionAlarm(Base):
+    __tablename__ = "task_suggestion_alarm"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    task_suggestion_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("task_suggestion.id", ondelete="CASCADE"), nullable=False
+    )
+    alarm_type_code: Mapped[str] = mapped_column(
+        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    )
     display_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    suggestion: Mapped["TaskSuggestion"] = relationship(back_populates="alarm_assignments")
 
 
 class MessageSuggestion(Base):
     __tablename__ = "message_suggestion"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    alarm_type_code: Mapped[str] = mapped_column(String(10), ForeignKey("alarm_type.code"), nullable=False)
     text: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    alarm_assignments: Mapped[list["MessageSuggestionAlarm"]] = relationship(
+        back_populates="suggestion", cascade="all, delete-orphan"
+    )
+
+
+class MessageSuggestionAlarm(Base):
+    __tablename__ = "message_suggestion_alarm"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    message_suggestion_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("message_suggestion.id", ondelete="CASCADE"), nullable=False
+    )
+    alarm_type_code: Mapped[str] = mapped_column(
+        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    )
     display_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    suggestion: Mapped["MessageSuggestion"] = relationship(back_populates="alarm_assignments")
 
 
 class LageHint(Base):
@@ -152,9 +186,27 @@ class DefaultMessage(Base):
     __tablename__ = "default_message"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    alarm_type_code: Mapped[str] = mapped_column(String(10), ForeignKey("alarm_type.code"), nullable=False)
     text: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    alarm_assignments: Mapped[list["DefaultMessageAlarm"]] = relationship(
+        back_populates="message", cascade="all, delete-orphan"
+    )
+
+
+class DefaultMessageAlarm(Base):
+    __tablename__ = "default_message_alarm"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    default_message_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("default_message.id", ondelete="CASCADE"), nullable=False
+    )
+    alarm_type_code: Mapped[str] = mapped_column(
+        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    )
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
     due_after_sec: Mapped[int] = mapped_column(Integer, default=300)
+
+    message: Mapped["DefaultMessage"] = relationship(back_populates="alarm_assignments")
 
 
 class OrgSettings(Base):

@@ -17,14 +17,17 @@ from app.models.master import (
     AlarmDispatchVehicle,
     AlarmType,
     DefaultMessage,
+    DefaultMessageAlarm,
     FireDept,
     LageHint,
     Member,
     MemberQualification,
     MessageSuggestion,
+    MessageSuggestionAlarm,
     Qualification,
     SystemSettings,
     TaskSuggestion,
+    TaskSuggestionAlarm,
     VehicleMaster,
 )
 from app.models.user import ApiKey, AuditLog, Role, User, UserRole
@@ -820,34 +823,36 @@ async def reorder_vehicle(
 @router.get("/auftragsvorlagen", response_class=HTMLResponse)
 async def task_suggestions_list(request: Request, db: Session = Depends(get_db),
                                 _=Depends(require_role("admin", "org_admin"))):
+    from sqlalchemy.orm import joinedload
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
-    suggestions = db.query(TaskSuggestion).order_by(
-        TaskSuggestion.alarm_type_code, TaskSuggestion.display_order
-    ).all()
-    by_alarm_type = []
-    sugg_by_code: dict = {}
-    for s in suggestions:
-        sugg_by_code.setdefault(s.alarm_type_code, []).append(s)
-    for at in alarm_types:
-        by_alarm_type.append((at, sugg_by_code.get(at.code, [])))
-    saved = request.query_params.get("saved")
+    suggestions = db.query(TaskSuggestion).order_by(TaskSuggestion.id).all()
+    all_assignments = (
+        db.query(TaskSuggestionAlarm)
+        .options(joinedload(TaskSuggestionAlarm.suggestion))
+        .order_by(TaskSuggestionAlarm.alarm_type_code, TaskSuggestionAlarm.display_order)
+        .all()
+    )
+    assignments_by_alarm: dict[str, list] = {at.code: [] for at in alarm_types}
+    for a in all_assignments:
+        if a.alarm_type_code in assignments_by_alarm:
+            assignments_by_alarm[a.alarm_type_code].append(a)
+    edit_code = request.query_params.get("edit")
+    edit_alarm = db.get(AlarmType, edit_code) if edit_code else None
+    edit_assigned_ids = [a.task_suggestion_id for a in assignments_by_alarm.get(edit_code or "", [])]
     return templates.TemplateResponse(request, "admin/task_suggestions.html", {
         "user": request.state.user, "alarm_types": alarm_types,
-        "by_alarm_type": by_alarm_type, "saved": saved,
+        "suggestions": suggestions, "assignments_by_alarm": assignments_by_alarm,
+        "edit_alarm": edit_alarm, "edit_assigned_ids": edit_assigned_ids,
+        "saved": request.query_params.get("saved"),
     })
 
 
 @router.post("/auftragsvorlagen/neu")
 async def create_task_suggestion(
-    request: Request,
-    alarm_type_code: str = Form(...), text: str = Form(...),
+    request: Request, text: str = Form(...),
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
-    max_order = db.query(TaskSuggestion).filter(
-        TaskSuggestion.alarm_type_code == alarm_type_code
-    ).count()
-    s = TaskSuggestion(alarm_type_code=alarm_type_code, text=text, display_order=max_order)
-    db.add(s)
+    db.add(TaskSuggestion(text=text))
     db.commit()
     return RedirectResponse("/admin/auftragsvorlagen?saved=1", status_code=303)
 
@@ -876,19 +881,21 @@ async def delete_task_suggestion(
     return RedirectResponse("/admin/auftragsvorlagen", status_code=303)
 
 
-@router.post("/auftragsvorlagen/{alarm_type_code}/reorder")
-async def reorder_task_suggestions_dnd(
-    alarm_type_code: str, request: Request, db: Session = Depends(get_db),
-    _=Depends(require_role("admin", "org_admin")),
+@router.post("/auftragsvorlagen/{alarm_type_code}")
+async def save_task_suggestions_for_alarm(
+    alarm_type_code: str, request: Request,
+    suggestion_ids: list[int] = Form([]),
+    db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
-    form = await request.form()
-    ids = [int(v) for v in form.getlist("ids")]
-    for position, sid in enumerate(ids):
-        s = db.get(TaskSuggestion, sid)
-        if s and s.alarm_type_code == alarm_type_code:
-            s.display_order = position
+    db.query(TaskSuggestionAlarm).filter(
+        TaskSuggestionAlarm.alarm_type_code == alarm_type_code
+    ).delete()
+    for i, sid in enumerate(suggestion_ids):
+        db.add(TaskSuggestionAlarm(
+            task_suggestion_id=sid, alarm_type_code=alarm_type_code, display_order=i,
+        ))
     db.commit()
-    return {"ok": True}
+    return RedirectResponse("/admin/auftragsvorlagen?saved=1", status_code=303)
 
 
 # ── Meldungsvorlagen CRUD ─────────────────────────────────────────────────────
@@ -896,32 +903,36 @@ async def reorder_task_suggestions_dnd(
 @router.get("/meldungsvorlagen", response_class=HTMLResponse)
 async def msg_suggestions_list(request: Request, db: Session = Depends(get_db),
                                _=Depends(require_role("admin", "org_admin"))):
+    from sqlalchemy.orm import joinedload
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
-    suggestions = db.query(MessageSuggestion).order_by(
-        MessageSuggestion.alarm_type_code, MessageSuggestion.display_order
-    ).all()
-    sugg_by_code: dict = {}
-    for s in suggestions:
-        sugg_by_code.setdefault(s.alarm_type_code, []).append(s)
-    by_alarm_type = [(at, sugg_by_code.get(at.code, [])) for at in alarm_types]
-    saved = request.query_params.get("saved")
+    suggestions = db.query(MessageSuggestion).order_by(MessageSuggestion.id).all()
+    all_assignments = (
+        db.query(MessageSuggestionAlarm)
+        .options(joinedload(MessageSuggestionAlarm.suggestion))
+        .order_by(MessageSuggestionAlarm.alarm_type_code, MessageSuggestionAlarm.display_order)
+        .all()
+    )
+    assignments_by_alarm: dict[str, list] = {at.code: [] for at in alarm_types}
+    for a in all_assignments:
+        if a.alarm_type_code in assignments_by_alarm:
+            assignments_by_alarm[a.alarm_type_code].append(a)
+    edit_code = request.query_params.get("edit")
+    edit_alarm = db.get(AlarmType, edit_code) if edit_code else None
+    edit_assigned_ids = [a.message_suggestion_id for a in assignments_by_alarm.get(edit_code or "", [])]
     return templates.TemplateResponse(request, "admin/message_suggestions.html", {
         "user": request.state.user, "alarm_types": alarm_types,
-        "by_alarm_type": by_alarm_type, "saved": saved,
+        "suggestions": suggestions, "assignments_by_alarm": assignments_by_alarm,
+        "edit_alarm": edit_alarm, "edit_assigned_ids": edit_assigned_ids,
+        "saved": request.query_params.get("saved"),
     })
 
 
 @router.post("/meldungsvorlagen/neu")
 async def create_msg_suggestion(
-    request: Request,
-    alarm_type_code: str = Form(...), text: str = Form(...),
+    request: Request, text: str = Form(...),
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
-    max_order = db.query(MessageSuggestion).filter(
-        MessageSuggestion.alarm_type_code == alarm_type_code
-    ).count()
-    s = MessageSuggestion(alarm_type_code=alarm_type_code, text=text, display_order=max_order)
-    db.add(s)
+    db.add(MessageSuggestion(text=text))
     db.commit()
     return RedirectResponse("/admin/meldungsvorlagen?saved=1", status_code=303)
 
@@ -950,19 +961,21 @@ async def delete_msg_suggestion(
     return RedirectResponse("/admin/meldungsvorlagen", status_code=303)
 
 
-@router.post("/meldungsvorlagen/{alarm_type_code}/reorder")
-async def reorder_msg_suggestions_dnd(
-    alarm_type_code: str, request: Request, db: Session = Depends(get_db),
-    _=Depends(require_role("admin", "org_admin")),
+@router.post("/meldungsvorlagen/{alarm_type_code}")
+async def save_msg_suggestions_for_alarm(
+    alarm_type_code: str, request: Request,
+    suggestion_ids: list[int] = Form([]),
+    db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
-    form = await request.form()
-    ids = [int(v) for v in form.getlist("ids")]
-    for position, sid in enumerate(ids):
-        s = db.get(MessageSuggestion, sid)
-        if s and s.alarm_type_code == alarm_type_code:
-            s.display_order = position
+    db.query(MessageSuggestionAlarm).filter(
+        MessageSuggestionAlarm.alarm_type_code == alarm_type_code
+    ).delete()
+    for i, sid in enumerate(suggestion_ids):
+        db.add(MessageSuggestionAlarm(
+            message_suggestion_id=sid, alarm_type_code=alarm_type_code, display_order=i,
+        ))
     db.commit()
-    return {"ok": True}
+    return RedirectResponse("/admin/meldungsvorlagen?saved=1", status_code=303)
 
 
 # ── Alarmtypen CRUD ───────────────────────────────────────────────────────────
@@ -1244,39 +1257,55 @@ async def reorder_lage_hint(
 @router.get("/default-meldungen", response_class=HTMLResponse)
 async def default_messages_list(request: Request, db: Session = Depends(get_db),
                                 _=Depends(require_role("admin", "org_admin"))):
+    from sqlalchemy.orm import joinedload
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
-    msgs = db.query(DefaultMessage).order_by(DefaultMessage.alarm_type_code, DefaultMessage.due_after_sec).all()
-    msg_by_code: dict = {}
-    for m in msgs:
-        msg_by_code.setdefault(m.alarm_type_code, []).append(m)
-    by_alarm_type = [(at, msg_by_code.get(at.code, [])) for at in alarm_types]
-    saved = request.query_params.get("saved")
+    messages = db.query(DefaultMessage).order_by(DefaultMessage.id).all()
+    all_assignments = (
+        db.query(DefaultMessageAlarm)
+        .options(joinedload(DefaultMessageAlarm.message))
+        .order_by(DefaultMessageAlarm.alarm_type_code, DefaultMessageAlarm.display_order)
+        .all()
+    )
+    assignments_by_alarm: dict[str, list] = {at.code: [] for at in alarm_types}
+    for a in all_assignments:
+        if a.alarm_type_code in assignments_by_alarm:
+            assignments_by_alarm[a.alarm_type_code].append(a)
+    edit_code = request.query_params.get("edit")
+    edit_alarm = db.get(AlarmType, edit_code) if edit_code else None
+    # Build dict: message_id → due_after_sec for this alarm type
+    edit_due_by_mid: dict[int, int] = {}
+    edit_assigned_ids: list[int] = []
+    if edit_code:
+        for a in assignments_by_alarm.get(edit_code, []):
+            edit_assigned_ids.append(a.default_message_id)
+            edit_due_by_mid[a.default_message_id] = a.due_after_sec
     return templates.TemplateResponse(request, "admin/default_messages.html", {
         "user": request.state.user, "alarm_types": alarm_types,
-        "by_alarm_type": by_alarm_type, "saved": saved,
+        "messages": messages, "assignments_by_alarm": assignments_by_alarm,
+        "edit_alarm": edit_alarm, "edit_assigned_ids": edit_assigned_ids,
+        "edit_due_by_mid": edit_due_by_mid,
+        "saved": request.query_params.get("saved"),
     })
 
 
 @router.post("/default-meldungen/neu")
 async def create_default_message(
-    request: Request,
-    alarm_type_code: str = Form(...), text: str = Form(...), due_after_sec: int = Form(300),
+    request: Request, text: str = Form(...),
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
-    db.add(DefaultMessage(alarm_type_code=alarm_type_code, text=text, due_after_sec=due_after_sec))
+    db.add(DefaultMessage(text=text))
     db.commit()
     return RedirectResponse("/admin/default-meldungen?saved=1", status_code=303)
 
 
 @router.post("/default-meldungen/{mid}/edit")
 async def edit_default_message(
-    mid: int, request: Request, text: str = Form(...), due_after_sec: int = Form(300),
+    mid: int, request: Request, text: str = Form(...),
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
     m = db.get(DefaultMessage, mid)
     if m:
         m.text = text
-        m.due_after_sec = due_after_sec
         db.commit()
     return RedirectResponse("/admin/default-meldungen?saved=1", status_code=303)
 
@@ -1291,6 +1320,30 @@ async def delete_default_message(
         db.delete(m)
         db.commit()
     return RedirectResponse("/admin/default-meldungen", status_code=303)
+
+
+@router.post("/default-meldungen/{alarm_type_code}")
+async def save_default_messages_for_alarm(
+    alarm_type_code: str, request: Request,
+    db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
+):
+    form = await request.form()
+    message_ids = [int(v) for v in form.getlist("message_ids")]
+    db.query(DefaultMessageAlarm).filter(
+        DefaultMessageAlarm.alarm_type_code == alarm_type_code
+    ).delete()
+    for i, mid in enumerate(message_ids):
+        due_min = form.get(f"due_min_{mid}", "5")
+        try:
+            due_after_sec = max(60, int(due_min) * 60)
+        except (ValueError, TypeError):
+            due_after_sec = 300
+        db.add(DefaultMessageAlarm(
+            default_message_id=mid, alarm_type_code=alarm_type_code,
+            display_order=i, due_after_sec=due_after_sec,
+        ))
+    db.commit()
+    return RedirectResponse("/admin/default-meldungen?saved=1", status_code=303)
 
 
 # ── System-Einstellungen ──────────────────────────────────────────────────────
@@ -1425,13 +1478,30 @@ async def backup_json(request: Request, db: Session = Depends(get_db),
             for at in db.query(AlarmType).all()
         ],
         "task_suggestions": [
-            {"alarm_type_code": s.alarm_type_code, "text": s.text, "display_order": s.display_order}
-            for s in db.query(TaskSuggestion).order_by(TaskSuggestion.alarm_type_code, TaskSuggestion.display_order).all()
+            {
+                "text": s.text,
+                "alarms": [{"alarm_type_code": a.alarm_type_code, "display_order": a.display_order}
+                           for a in sorted(s.alarm_assignments, key=lambda x: x.display_order)],
+            }
+            for s in db.query(TaskSuggestion).order_by(TaskSuggestion.id).all()
+        ],
+        "message_suggestions": [
+            {
+                "text": s.text,
+                "alarms": [{"alarm_type_code": a.alarm_type_code, "display_order": a.display_order}
+                           for a in sorted(s.alarm_assignments, key=lambda x: x.display_order)],
+            }
+            for s in db.query(MessageSuggestion).order_by(MessageSuggestion.id).all()
         ],
         "lage_hints": [{"text": h.text, "display_order": h.display_order} for h in db.query(LageHint).all()],
         "default_messages": [
-            {"alarm_type_code": m.alarm_type_code, "text": m.text, "due_after_sec": m.due_after_sec}
-            for m in db.query(DefaultMessage).all()
+            {
+                "text": m.text,
+                "alarms": [{"alarm_type_code": a.alarm_type_code,
+                            "display_order": a.display_order, "due_after_sec": a.due_after_sec}
+                           for a in sorted(m.alarm_assignments, key=lambda x: x.display_order)],
+            }
+            for m in db.query(DefaultMessage).order_by(DefaultMessage.id).all()
         ],
         "alarm_dispatch": [
             {"alarm_type_code": e.alarm_type_code, "vehicle_master_id": e.vehicle_master_id, "display_order": e.display_order}
@@ -1506,10 +1576,28 @@ async def backup_restore(
         # TaskSuggestions – replace all
         if "task_suggestions" in data:
             db.query(TaskSuggestion).delete()
-            for s in data["task_suggestions"]:
-                db.add(TaskSuggestion(alarm_type_code=s["alarm_type_code"],
-                                      text=s["text"], display_order=s.get("display_order", 0)))
+            db.flush()
+            for item in data["task_suggestions"]:
+                s = TaskSuggestion(text=item["text"])
+                db.add(s); db.flush()
+                for a in item.get("alarms", []):
+                    db.add(TaskSuggestionAlarm(task_suggestion_id=s.id,
+                                               alarm_type_code=a["alarm_type_code"],
+                                               display_order=a.get("display_order", 0)))
             lines.append(f"Auftragsvorlagen: {len(data['task_suggestions'])} importiert")
+
+        # MessageSuggestions – replace all
+        if "message_suggestions" in data:
+            db.query(MessageSuggestion).delete()
+            db.flush()
+            for item in data["message_suggestions"]:
+                s = MessageSuggestion(text=item["text"])
+                db.add(s); db.flush()
+                for a in item.get("alarms", []):
+                    db.add(MessageSuggestionAlarm(message_suggestion_id=s.id,
+                                                  alarm_type_code=a["alarm_type_code"],
+                                                  display_order=a.get("display_order", 0)))
+            lines.append(f"Meldungsvorlagen: {len(data['message_suggestions'])} importiert")
 
         # LageHints – replace all
         if "lage_hints" in data:
@@ -1521,9 +1609,15 @@ async def backup_restore(
         # DefaultMessages – replace all
         if "default_messages" in data:
             db.query(DefaultMessage).delete()
-            for m in data["default_messages"]:
-                db.add(DefaultMessage(alarm_type_code=m["alarm_type_code"],
-                                      text=m["text"], due_after_sec=m.get("due_after_sec", 300)))
+            db.flush()
+            for item in data["default_messages"]:
+                m = DefaultMessage(text=item["text"])
+                db.add(m); db.flush()
+                for a in item.get("alarms", []):
+                    db.add(DefaultMessageAlarm(default_message_id=m.id,
+                                               alarm_type_code=a["alarm_type_code"],
+                                               display_order=a.get("display_order", 0),
+                                               due_after_sec=a.get("due_after_sec", 300)))
             lines.append(f"Default-Meldungen: {len(data['default_messages'])} importiert")
 
         # AlarmDispatch – replace all

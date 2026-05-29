@@ -36,8 +36,10 @@ from app.models.master import (
     Member,
     MemberQualification,
     MessageSuggestion,
+    MessageSuggestionAlarm,
     Qualification,
     TaskSuggestion,
+    TaskSuggestionAlarm,
     VehicleMaster,
 )
 from app.models.user import Role, User, UserRole
@@ -162,12 +164,20 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
     db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons"])
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
     lage_hints = db.query(LageHint).order_by(LageHint.display_order).all()
-    task_suggestions = db.query(TaskSuggestion).filter(
-        TaskSuggestion.alarm_type_code == incident.alarm_type_code
-    ).order_by(TaskSuggestion.display_order).all()
-    msg_suggestions = db.query(MessageSuggestion).filter(
-        MessageSuggestion.alarm_type_code == incident.alarm_type_code
-    ).order_by(MessageSuggestion.display_order).all()
+    task_suggestions = (
+        db.query(TaskSuggestion)
+        .join(TaskSuggestionAlarm, TaskSuggestionAlarm.task_suggestion_id == TaskSuggestion.id)
+        .filter(TaskSuggestionAlarm.alarm_type_code == incident.alarm_type_code)
+        .order_by(TaskSuggestionAlarm.display_order)
+        .all()
+    ) if incident.alarm_type_code else []
+    msg_suggestions = (
+        db.query(MessageSuggestion)
+        .join(MessageSuggestionAlarm, MessageSuggestionAlarm.message_suggestion_id == MessageSuggestion.id)
+        .filter(MessageSuggestionAlarm.alarm_type_code == incident.alarm_type_code)
+        .order_by(MessageSuggestionAlarm.display_order)
+        .all()
+    ) if incident.alarm_type_code else []
     can_edit = has_role(user, "incident_leader", "admin", "recorder")
     # Leader candidates: active users of same org with relevant roles
     leader_roles = {"incident_leader", "admin", "org_admin", "system_admin"}

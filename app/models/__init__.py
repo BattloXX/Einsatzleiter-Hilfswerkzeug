@@ -13,12 +13,16 @@ from app.models.incident import (
 from app.models.master import (
     AlarmType,
     DefaultMessage,
+    DefaultMessageAlarm,
     FireDept,
     LageHint,
     Member,
     MemberQualification,
+    MessageSuggestion,
+    MessageSuggestionAlarm,
     Qualification,
     TaskSuggestion,
+    TaskSuggestionAlarm,
     VehicleMaster,
 )
 from app.models.lagekarte import LagekarteToken
@@ -28,7 +32,9 @@ from app.models.user import ApiKey, AuditLog, PushSubscription, Role, User, User
 __all__ = [
     "User", "Role", "UserRole", "ApiKey", "AuditLog", "PushSubscription",
     "FireDept", "VehicleMaster", "Member", "Qualification", "MemberQualification",
-    "AlarmType", "TaskSuggestion", "LageHint", "DefaultMessage",
+    "AlarmType", "TaskSuggestion", "TaskSuggestionAlarm",
+    "MessageSuggestion", "MessageSuggestionAlarm",
+    "LageHint", "DefaultMessage", "DefaultMessageAlarm",
     "Incident", "IncidentColumn", "IncidentVehicle", "Task", "Message",
     "RescuedPerson", "IncidentLog", "IncidentChange", "IncidentToken",
     "BreathingTroop", "TroopMember", "PressureLog",
