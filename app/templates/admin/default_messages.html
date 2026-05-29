@@ -9,60 +9,46 @@
   <div class="page-header">
     <div>
       <h1>Default-Meldungen</h1>
-      <p class="page-header__sub">Automatische Erinnerungsmeldungen anlegen, dann per „Bearbeiten" Stichwörtern zuweisen und Fälligkeitszeit setzen.</p>
+      <p class="page-header__sub">Meldung anlegen, dann Alarmstichwörter zuweisen und Fälligkeitszeit festlegen.</p>
     </div>
     <button class="btn btn--primary" onclick="document.getElementById('newDmModal').showModal()">+ Meldung</button>
   </div>
 
   {% if saved %}<div class="alert alert--success">Gespeichert.</div>{% endif %}
-
-  <!-- ── Matrix ──────────────────────────────────────────────────── -->
-  <div style="overflow-x:auto; margin-bottom:24px;">
-    <table class="table-admin" style="min-width:600px;">
-      <thead>
-        <tr>
-          <th style="width:130px;">Alarmstichwort</th>
-          <th>Zugewiesene Meldungen</th>
-          <th style="width:90px;">Aktion</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for atype in alarm_types %}
-        {% set row = assignments_by_alarm.get(atype.code, []) %}
-        <tr>
-          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<br><small class="text-muted">{{ atype.label }}</small>{% endif %}</td>
-          <td>
-            {% if row %}
-              {% for a in row[:4] %}
-                <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;"
-                      {{ tip('Fällig nach ' ~ (a.due_after_sec // 60) ~ ' Min.') }}>
-                  {{ a.message.text[:45] }}{% if a.message.text|length > 45 %}…{% endif %}
-                </span>
-              {% endfor %}
-              {% if row|length > 4 %}<small class="text-muted"> +{{ row|length - 4 }} weitere</small>{% endif %}
-            {% else %}
-              <span class="text-muted">–</span>
-            {% endif %}
-          </td>
-          <td><a href="/admin/default-meldungen?edit={{ atype.code }}" class="btn btn--ghost btn--xs">Bearbeiten</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  {% if error == 'duplicate' %}<div class="alert alert--danger">Eine Meldung mit diesem Text existiert bereits.</div>{% endif %}
 
   <!-- ── Alle Meldungen ───────────────────────────────────────────── -->
   <div class="admin-section-title">Alle Meldungen <small style="font-weight:400;color:var(--color-text-muted)">({{ messages|length }})</small></div>
   <table class="table-admin" style="margin-bottom:24px;">
-    <thead><tr><th>Text</th><th style="width:130px;">Aktionen</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Text</th>
+        <th>Zugewiesen zu</th>
+        <th style="width:160px;">Aktionen</th>
+      </tr>
+    </thead>
     <tbody>
       {% for m in messages %}
-      <tr>
+      {% set codes = m.alarm_assignments | sort(attribute='display_order') | map(attribute='alarm_type_code') | list %}
+      <tr{% if edit_message and edit_message.id == m.id %} style="background:var(--color-bg-highlight,#f0f7ff);"{% endif %}>
         <td>{{ m.text }}</td>
+        <td>
+          {% if codes %}
+            {% for code in codes %}
+              {% set a = m.alarm_assignments | selectattr('alarm_type_code', 'equalto', code) | first %}
+              <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;"
+                    {{ tip('Fällig nach ' ~ (a.due_after_sec // 60) ~ ' Min.') }}>{{ code }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="text-muted">–</span>
+          {% endif %}
+        </td>
         <td>
           <button class="btn btn--ghost btn--xs"
                   onclick="openEditDm({{ m.id }}, '{{ m.text|replace("'","\\'")|e }}')"
-                  {{ tip('Text bearbeiten') }}>Bearbeiten</button>
+                  {{ tip('Text bearbeiten') }}>Text</button>
+          <a href="/admin/default-meldungen?edit={{ m.id }}" class="btn btn--ghost btn--xs"
+             {{ tip('Stichwörter und Fälligkeitszeiten zuweisen') }}>Stichwörter</a>
           <form method="post" action="/admin/default-meldungen/{{ m.id }}/loeschen" style="display:inline"
                 onsubmit="return confirm('Meldung löschen? Sie wird aus allen Stichwörtern entfernt.')">
             <button type="submit" class="btn btn--danger btn--xs">Löschen</button>
@@ -73,59 +59,58 @@
     </tbody>
   </table>
 
-  {% if edit_alarm %}
-  <!-- ── Edit-Panel ───────────────────────────────────────────────── -->
+  {% if edit_message %}
+  <!-- ── Stichwort-Zuweisung ──────────────────────────────────────── -->
   <div id="dmEditSection" class="admin-section-title">
-    Zuweisung bearbeiten: {{ edit_alarm.label or edit_alarm.code }} ({{ edit_alarm.code }})
+    Stichwörter zuweisen: <em>{{ edit_message.text[:70] }}{% if edit_message.text|length > 70 %}…{% endif %}</em>
   </div>
   <p class="form-hint" style="margin-bottom:10px;">
     Haken setzen = Meldung erscheint bei diesem Stichwort. Fälligkeitszeit in Minuten angeben. Reihenfolge per Drag-Drop am ☰ ändern.
   </p>
-  <form method="post" action="/admin/default-meldungen/{{ edit_alarm.code }}"
-        id="dmEditForm" style="max-width:820px;">
-    <table class="table-admin" id="dmEditTable">
+  <form method="post" action="/admin/default-meldungen/{{ edit_message.id }}/alarms"
+        id="dmAlarmEditForm" style="max-width:820px;">
+    <table class="table-admin" id="dmAlarmEditTable">
       <thead>
         <tr>
           <th style="width:40px;"></th>
           <th style="width:50px;">Ein</th>
-          <th>Meldungstext</th>
-          <th style="width:130px;">Fällig nach (Min.)</th>
+          <th>Alarmstichwort</th>
+          <th style="width:150px;">Fällig nach (Min.)</th>
         </tr>
       </thead>
-      <tbody id="dmEditTbody">
-        {% for mid in edit_assigned_ids %}
-        {% for m in messages if m.id == mid %}
-        <tr data-mid="{{ m.id }}">
+      <tbody id="dmAlarmEditTbody">
+        {% for code in edit_assigned_codes %}
+        {% for atype in alarm_types if atype.code == code %}
+        <tr data-code="{{ atype.code }}">
           <td class="drag-handle" style="cursor:grab;font-size:1.2rem;color:#888;text-align:center;">☰</td>
-          <td><input type="checkbox" class="dm-checkbox" checked></td>
-          <td>{{ m.text }}</td>
+          <td><input type="checkbox" class="alarm-checkbox" checked></td>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<span class="text-muted"> – {{ atype.label }}</span>{% endif %}</td>
           <td><input type="number" class="dm-due-min form-input" style="width:90px;"
-                     min="1" value="{{ edit_due_by_mid.get(m.id, 300) // 60 }}"></td>
+                     min="1" value="{{ edit_due_by_code.get(atype.code, 300) // 60 }}"></td>
         </tr>
         {% endfor %}
         {% endfor %}
-        {% for m in messages if m.id not in edit_assigned_ids %}
-        <tr data-mid="{{ m.id }}">
+        {% for atype in alarm_types if atype.code not in edit_assigned_codes %}
+        <tr data-code="{{ atype.code }}">
           <td class="drag-handle" style="cursor:grab;font-size:1.2rem;color:#888;text-align:center;">☰</td>
-          <td><input type="checkbox" class="dm-checkbox"></td>
-          <td>{{ m.text }}</td>
-          <td><input type="number" class="dm-due-min form-input" style="width:90px;"
-                     min="1" value="5"></td>
+          <td><input type="checkbox" class="alarm-checkbox"></td>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<span class="text-muted"> – {{ atype.label }}</span>{% endif %}</td>
+          <td><input type="number" class="dm-due-min form-input" style="width:90px;" min="1" value="5"></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    <div id="dmHiddenInputs"></div>
+    <div id="dmAlarmHiddenInputs"></div>
     <div style="margin-top:14px;display:flex;gap:8px;">
-      <button type="submit" class="btn btn--primary" onclick="serializeDm()">Speichern</button>
-      <a href="/admin/default-meldungen" class="btn btn--ghost">Abbrechen</a>
+      <button type="submit" class="btn btn--primary" onclick="serializeDmAlarms()">Speichern</button>
+      <a href="/admin/default-meldungen" class="btn btn--ghost">Schließen</a>
     </div>
   </form>
 
   <script>
   (function () {
     function initEdit() {
-      const tbody = document.getElementById('dmEditTbody');
+      const tbody = document.getElementById('dmAlarmEditTbody');
       if (!tbody) return;
       if (!window.Sortable) { setTimeout(initEdit, 50); return; }
       Sortable.create(tbody, { handle: '.drag-handle', animation: 150, ghostClass: 'card--ghost' });
@@ -138,21 +123,22 @@
       initEdit();
     }
   })();
-  window.serializeDm = function () {
-    const hidden = document.getElementById('dmHiddenInputs');
+  window.serializeDmAlarms = function () {
+    const hidden = document.getElementById('dmAlarmHiddenInputs');
     hidden.replaceChildren();
-    document.querySelectorAll('#dmEditTbody tr').forEach(tr => {
-      const cb = tr.querySelector('.dm-checkbox');
+    document.querySelectorAll('#dmAlarmEditTbody tr').forEach(tr => {
+      const cb = tr.querySelector('.alarm-checkbox');
       if (cb && cb.checked) {
-        const midInp = document.createElement('input');
-        midInp.type = 'hidden';
-        midInp.name = 'message_ids';
-        midInp.value = tr.dataset.mid;
-        hidden.appendChild(midInp);
+        const code = tr.dataset.code;
+        const codeInp = document.createElement('input');
+        codeInp.type = 'hidden';
+        codeInp.name = 'alarm_type_codes';
+        codeInp.value = code;
+        hidden.appendChild(codeInp);
+        const dueField = tr.querySelector('.dm-due-min');
         const dueInp = document.createElement('input');
         dueInp.type = 'hidden';
-        dueInp.name = 'due_min_' + tr.dataset.mid;
-        const dueField = tr.querySelector('.dm-due-min');
+        dueInp.name = 'due_min_' + code;
         dueInp.value = dueField ? dueField.value : '5';
         hidden.appendChild(dueInp);
       }
@@ -160,6 +146,40 @@
   };
   </script>
   {% endif %}
+
+  <!-- ── Übersicht Matrix ─────────────────────────────────────────── -->
+  <div class="admin-section-title" style="margin-top:32px;">Übersicht nach Alarmstichwort</div>
+  <div style="overflow-x:auto; margin-bottom:24px;">
+    <table class="table-admin" style="min-width:500px;">
+      <thead>
+        <tr>
+          <th style="width:130px;">Alarmstichwort</th>
+          <th>Zugewiesene Meldungen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for atype in alarm_types %}
+        {% set row = assignments_by_alarm.get(atype.code, []) %}
+        <tr>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<br><small class="text-muted">{{ atype.label }}</small>{% endif %}</td>
+          <td>
+            {% if row %}
+              {% for a in row[:5] %}
+                <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;"
+                      {{ tip('Fällig nach ' ~ (a.due_after_sec // 60) ~ ' Min.') }}>
+                  {{ a.message.text[:45] }}{% if a.message.text|length > 45 %}…{% endif %}
+                </span>
+              {% endfor %}
+              {% if row|length > 5 %}<small class="text-muted"> +{{ row|length - 5 }} weitere</small>{% endif %}
+            {% else %}
+              <span class="text-muted">–</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <!-- Neue Meldung -->
@@ -174,7 +194,7 @@
         <div class="form-group">
           <label class="form-label">Text</label>
           <input type="text" name="text" class="form-input" required maxlength="500"
-                 {{ tip('Die Meldung kann danach mehreren Stichwörtern zugewiesen werden; Fälligkeitszeit wird pro Stichwort festgelegt') }}>
+                 {{ tip('Nach dem Anlegen können Alarmstichwörter und Fälligkeitszeiten zugewiesen werden') }}>
         </div>
       </div>
       <div class="modal__footer">
@@ -185,7 +205,7 @@
   </div>
 </dialog>
 
-<!-- Meldung bearbeiten -->
+<!-- Meldung Text bearbeiten -->
 <dialog class="modal" id="editDmModal">
   <div class="modal__content">
     <div class="modal__header">
