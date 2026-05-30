@@ -17,12 +17,28 @@
 
   {% if saved and new_token %}
   <div class="alert alert--success" style="margin-bottom:20px;">
-    <strong>Gerät „{{ new_label }}" erstellt.</strong> Bitte die URL jetzt kopieren – sie wird nur einmal angezeigt.
-    <div style="margin-top:12px;background:var(--surface-high);border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
-      <code id="newTokenUrl" style="flex:1;word-break:break-all;font-size:.88rem;">{{ base_url }}/geraet-login?token={{ new_token }}</code>
-      <button class="btn btn--ghost btn--sm" onclick="copyDeviceUrl()" {{ tip('URL in Zwischenablage kopieren') }}>
-        📋 Kopieren
-      </button>
+    <strong>Gerät „{{ new_label }}" erstellt.</strong> Bitte die URL / den QR-Code jetzt sichern – sie werden nur einmal angezeigt.
+    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
+      <div style="flex:1;min-width:220px;background:var(--surface-high);border-radius:6px;padding:12px 14px;">
+        <div style="font-size:.8rem;font-weight:600;margin-bottom:6px;">Login-URL</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <code id="newTokenUrl" style="flex:1;word-break:break-all;font-size:.83rem;">{{ base_url }}/geraet-login?token={{ new_token }}</code>
+          <button class="btn btn--ghost btn--sm" onclick="copyDeviceUrl()" {{ tip('URL in Zwischenablage kopieren') }}>
+            📋 Kopieren
+          </button>
+        </div>
+        <div style="margin-top:6px;font-size:.78rem;color:var(--color-text-muted);">
+          → In der Android-App QR scannen <strong>oder</strong> URL direkt öffnen
+        </div>
+      </div>
+      {% if new_qr_b64 %}
+      <div style="background:#fff;border-radius:6px;padding:8px;display:inline-block;">
+        <div style="font-size:.75rem;font-weight:600;color:#333;text-align:center;margin-bottom:4px;">App-Login QR-Code</div>
+        <img src="data:image/png;base64,{{ new_qr_b64 }}"
+             alt="QR-Code Login" style="width:160px;height:160px;display:block;">
+        <div style="font-size:.7rem;color:#555;text-align:center;margin-top:4px;">Mit einsatzleiter App scannen</div>
+      </div>
+      {% endif %}
     </div>
   </div>
   {% elif saved %}
@@ -130,6 +146,7 @@
       <li>Jedes Gerät erhält eine eigene Session und kann unabhängig gesperrt werden.</li>
       <li>Geräte erscheinen nicht in der normalen Benutzerliste.</li>
       <li>Wird ein Gerät einem Fahrzeug zugeordnet, erhält es automatisch eine Push-Nachricht, wenn dem Fahrzeug ein Auftrag oder eine Meldung zugewiesen wird.</li>
+      <li>Die <strong>Android-App</strong> (einsatzleiter.cloud) kann beim ersten Start den QR-Code scannen, um sich dauerhaft einzuloggen.</li>
     </ul>
   </div>
 </div>

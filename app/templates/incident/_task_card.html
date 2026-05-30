@@ -39,7 +39,7 @@
     {% endif %}
     <div class="card__meta">
       <span class="card__time">{{ task.created_at|local_time }}</span>
-      {% if task.vehicle_id %}<span class="card__gk" style="font-size:.7rem;opacity:.75;">→ {{ task.vehicle.vehicle_master.code if task.vehicle else '' }}</span>{% endif %}
+      {% if task.vehicle_id %}<span class="card__gk" style="font-size:.7rem;opacity:.75;">→ {{ task.vehicle.vehicle_master.display_label if task.vehicle else '' }}</span>{% endif %}
     </div>
   </div>
   {% if can_edit and not task.is_done %}
@@ -49,7 +49,7 @@
       <option value="">Einheit zuweisen...</option>
       {% for v in incident.vehicles %}
       {% if v.removed_at is none %}
-      <option value="{{ v.id }}">{{ v.vehicle_master.code }}</option>
+      <option value="{{ v.id }}">{{ v.vehicle_master.display_label }}</option>
       {% endif %}
       {% endfor %}
     </select>

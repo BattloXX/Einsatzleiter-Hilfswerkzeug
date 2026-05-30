@@ -97,6 +97,8 @@
        {{ tip('Übersichts-Dashboard in neuem Fenster öffnen') }}>Dashboard</a>
     <a href="/einsatz/{{ incident.id }}/qr" class="btn btn--sm btn--ghost"
        {{ tip('QR-Code zum Einsatz beitreten anzeigen') }}>QR</a>
+    <a href="/einsatz/{{ incident.id }}/screensaver" class="btn btn--sm btn--ghost"
+       {{ tip('Bildschirmschoner: Logo, Uhrzeit und Alarmtext – Bildschirm bleibt aktiv') }}>🖥</a>
     <a href="/archiv/{{ incident.id }}/pdf" class="btn btn--sm btn--ghost"
        {{ tip('Einsatzdokumentation als PDF herunterladen') }}>PDF</a>
     {% if can_edit %}
@@ -325,7 +327,7 @@
             <option value="">– keine –</option>
             {% for v in incident.vehicles %}
             {% if v.removed_at is none %}
-            <option value="{{ v.id }}">{{ v.vehicle_master.code }}</option>
+            <option value="{{ v.id }}">{{ v.vehicle_master.display_label }}</option>
             {% endif %}
             {% endfor %}
           </select>
@@ -376,7 +378,7 @@
             <option value="">– keine –</option>
             {% for v in incident.vehicles %}
             {% if v.removed_at is none %}
-            <option value="{{ v.id }}">{{ v.vehicle_master.code }}</option>
+            <option value="{{ v.id }}">{{ v.vehicle_master.display_label }}</option>
             {% endif %}
             {% endfor %}
           </select>
@@ -561,7 +563,7 @@
               <option value="">– später / keine –</option>
               {% for v in incident.vehicles %}
               {% if v.removed_at is none %}
-              <option value="{{ v.id }}">{{ v.vehicle_master.code }} ({{ v.vehicle_master.dept.name }})</option>
+              <option value="{{ v.id }}">{{ v.vehicle_master.display_label }} ({{ v.vehicle_master.dept.name }})</option>
               {% endif %}
               {% endfor %}
             </select>

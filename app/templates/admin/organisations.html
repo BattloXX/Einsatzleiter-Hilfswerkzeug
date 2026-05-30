@@ -20,6 +20,7 @@
       <tr>
         <th>Farbe</th>
         <th>Name</th>
+        <th>Slug</th>
         <th>Kürzel</th>
         <th>BOS</th>
         <th>Kontakt</th>
@@ -37,6 +38,13 @@
           <strong>{{ org.name }}</strong>
         </td>
         <td><code>{{ org.slug }}</code></td>
+        <td>
+          {% if org.short_code %}
+          <strong>{{ org.short_code }}</strong>
+          {% else %}
+          <span class="text-muted">–</span>
+          {% endif %}
+        </td>
         <td>{{ org.bos }}</td>
         <td>{{ org.contact_email or '–' }}</td>
         <td>

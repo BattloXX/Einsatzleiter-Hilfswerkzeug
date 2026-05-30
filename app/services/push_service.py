@@ -1,8 +1,12 @@
-"""Web Push notifications via VAPID.
+"""Web Push notifications via VAPID + native Android Push via FCM.
 
 VAPID-Schlüssel und der enable_push-Schalter werden aus den System-Einstellungen
 (Datenbank) geladen. Env-Variablen dienen als Fallback. Der enable_push-Schalter
 kann über Admin > System-Einstellungen umgeschaltet werden, ohne einen Neustart.
+
+FCM (Firebase Cloud Messaging) ist ein zweiter Sendepfad für native Android-Apps.
+Er wird nur ausgelöst, wenn FCM_ENABLED=true und ein Service-Account-Credentials-
+Pfad konfiguriert ist. PWA-Nutzer erhalten weiterhin Web-Push über VAPID.
 """
 import json
 import logging
@@ -11,9 +15,53 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models.user import PushSubscription
+from app.models.user import FcmToken, PushSubscription
 
 log = logging.getLogger(__name__)
+
+# Gecachter FCM-App-Zustand – wird beim ersten Aufruf initialisiert
+_fcm_app: Any = None
+
+
+def _get_fcm_app():
+    """Gibt eine initialisierte firebase_admin.App zurück oder None wenn FCM nicht konfiguriert."""
+    global _fcm_app
+    if _fcm_app is not None:
+        return _fcm_app
+    if not settings.FCM_ENABLED or not settings.FCM_PROJECT_ID or not settings.FCM_CREDENTIALS_PATH:
+        return None
+    try:
+        import firebase_admin  # type: ignore
+        from firebase_admin import credentials  # type: ignore
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(settings.FCM_CREDENTIALS_PATH)
+            _fcm_app = firebase_admin.initialize_app(cred, {"projectId": settings.FCM_PROJECT_ID})
+        else:
+            _fcm_app = firebase_admin.get_app()
+        return _fcm_app
+    except Exception:
+        log.exception("FCM-Initialisierung fehlgeschlagen")
+        return None
+
+
+def send_fcm(fcm_token_row: FcmToken, title: str, body: str, url: str | None = None) -> bool:
+    """Sendet eine FCM-Nachricht an ein einzelnes Gerät."""
+    app = _get_fcm_app()
+    if app is None:
+        return False
+    try:
+        from firebase_admin import messaging  # type: ignore
+        message = messaging.Message(
+            notification=messaging.Notification(title=title, body=body),
+            data={"url": url or "/", "title": title, "body": body},
+            android=messaging.AndroidConfig(priority="high"),
+            token=fcm_token_row.token,
+        )
+        messaging.send(message)
+        return True
+    except Exception as exc:
+        log.warning("FCM fehlgeschlagen für Token %s: %s", fcm_token_row.id, exc)
+        return False
 
 
 def _push_cfg(db: Session | None) -> dict[str, Any]:
@@ -83,34 +131,50 @@ def send_push(subscription: PushSubscription, title: str, body: str,
         return False
 
 
+def _notify_fcm_users(db: Session, user_ids: set[int], title: str, body: str,
+                      url: str | None) -> int:
+    """Sendet FCM an alle registrierten Tokens der angegebenen User-IDs."""
+    if not settings.FCM_ENABLED:
+        return 0
+    tokens = db.query(FcmToken).filter(FcmToken.user_id.in_(user_ids)).all() if user_ids else []
+    return sum(1 for t in tokens if send_fcm(t, title, body, url))
+
+
 def notify_all(db: Session, title: str, body: str, url: str | None = None,
                source: str = "system") -> int:
     cfg = _push_cfg(db)
-    if not cfg["enabled"]:
-        return 0
-    subs = db.query(PushSubscription).all()
-    count = sum(1 for s in subs if send_push(s, title, body, url, db=db))
-    _log_push(db, title, body, url, source, None, count, len(subs))
-    return count
+    # Web-Push (VAPID)
+    if cfg["enabled"]:
+        subs = db.query(PushSubscription).all()
+        wp_count = sum(1 for s in subs if send_push(s, title, body, url, db=db))
+        _log_push(db, title, body, url, source, None, wp_count, len(subs))
+    else:
+        wp_count = 0
+    # FCM
+    all_user_ids = {s.user_id for s in db.query(PushSubscription.user_id).distinct()}
+    fcm_extra = _notify_fcm_users(db, all_user_ids, title, body, url)
+    return wp_count + fcm_extra
 
 
 def notify_user(db: Session, user_id: int, title: str, body: str,
                 url: str | None = None, source: str = "system") -> int:
     cfg = _push_cfg(db)
-    if not cfg["enabled"]:
-        return 0
-    subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
-    count = sum(1 for s in subs if send_push(s, title, body, url, db=db))
-    _log_push(db, title, body, url, source, user_id, count, len(subs))
-    return count
+    # Web-Push
+    if cfg["enabled"]:
+        subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
+        wp_count = sum(1 for s in subs if send_push(s, title, body, url, db=db))
+        _log_push(db, title, body, url, source, user_id, wp_count, len(subs))
+    else:
+        wp_count = 0
+    # FCM
+    fcm_extra = _notify_fcm_users(db, {user_id}, title, body, url)
+    return wp_count + fcm_extra
 
 
 def notify_vehicle(db: Session, vehicle_master_id: int, title: str, body: str,
                    url: str | None = None) -> int:
     """Push an alle Geräte, die mit diesem VehicleMaster verknüpft sind."""
     cfg = _push_cfg(db)
-    if not cfg["enabled"]:
-        return 0
     from app.models.user import DeviceToken
     device_tokens = (
         db.query(DeviceToken)
@@ -123,8 +187,14 @@ def notify_vehicle(db: Session, vehicle_master_id: int, title: str, body: str,
     if not device_tokens:
         return 0
     user_ids = {dt.user_id for dt in device_tokens}
-    subs = db.query(PushSubscription).filter(PushSubscription.user_id.in_(user_ids)).all()
-    count = sum(1 for s in subs if send_push(s, title, body, url, db=db))
-    if subs:
-        _log_push(db, title, body, url, "vehicle_assigned", None, count, len(subs))
-    return count
+    # Web-Push
+    if cfg["enabled"]:
+        subs = db.query(PushSubscription).filter(PushSubscription.user_id.in_(user_ids)).all()
+        wp_count = sum(1 for s in subs if send_push(s, title, body, url, db=db))
+        if subs:
+            _log_push(db, title, body, url, "vehicle_assigned", None, wp_count, len(subs))
+    else:
+        wp_count = 0
+    # FCM
+    fcm_extra = _notify_fcm_users(db, user_ids, title, body, url)
+    return wp_count + fcm_extra

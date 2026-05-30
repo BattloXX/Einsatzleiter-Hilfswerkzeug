@@ -33,6 +33,8 @@ class FireDept(Base):
     # Fallback-Position für den Karten-Picker (wird genutzt, wenn Geocoding fehlschlägt)
     fallback_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     fallback_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Kurz-Kürzel (max. 3 Zeichen, z.B. "WOL") für Fahrzeug-Darstellung: "RLF WOL"
+    short_code: Mapped[str | None] = mapped_column(String(3), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     vehicles: Mapped[list[VehicleMaster]] = relationship(back_populates="dept")
@@ -62,6 +64,12 @@ class VehicleMaster(Base):
     @property
     def effective_bos(self) -> str:
         return self.bos_override or (self.dept.bos if self.dept else "Feuerwehr")
+
+    @property
+    def display_label(self) -> str:
+        """Fahrzeug-Code + Organisations-Kürzel, z.B. 'RLF WOL'. Ohne Kürzel nur 'RLF'."""
+        kuerzel = self.dept.short_code if self.dept and self.dept.short_code else None
+        return f"{self.code} {kuerzel}" if kuerzel else self.code
 
 
 class Qualification(Base):

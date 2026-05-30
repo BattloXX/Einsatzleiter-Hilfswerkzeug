@@ -18,6 +18,7 @@ from app.models.user import Role, User
 from app.routers import (
     api_v1,
     auth,
+    device_api,
     lagekarte_api,
     ui_admin,
     ui_archive,
@@ -269,6 +270,7 @@ if limiter is not None:
 app.include_router(auth.router)
 app.include_router(ui_password_reset.router)
 app.include_router(api_v1.router)
+app.include_router(device_api.router)
 app.include_router(lagekarte_api.router)
 app.include_router(ws.router)
 app.include_router(ui_incident.router)

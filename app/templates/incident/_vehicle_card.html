@@ -8,7 +8,7 @@
      hx-on::after-swap="document.getElementById('cardDetailModal').showModal()">
   <div class="card__body">
     <div class="card__title">
-      {{ vehicle.vehicle_master.code }}
+      {{ vehicle.vehicle_master.display_label }}
       <span class="card__org">{{ vehicle.vehicle_master.dept.name }}</span>
       {% set bos = vehicle.vehicle_master.effective_bos %}
       {% if bos and bos != 'Feuerwehr' %}

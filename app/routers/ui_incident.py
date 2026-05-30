@@ -893,6 +893,25 @@ async def qr_print(incident_id: int, request: Request, db: Session = Depends(get
     })
 
 
+# ── Bildschirmschoner ─────────────────────────────────────────────────────────
+
+@router.get("/einsatz/{incident_id}/screensaver", response_class=HTMLResponse)
+async def screensaver(incident_id: int, request: Request, db: Session = Depends(get_db)):
+    """Bildschirmschoner-Modus: Logo, Uhrzeit, Alarmtext.
+
+    Hält den Bildschirm über die native Wake-Lock-Bridge der Android-App aktiv
+    (oder Web Screen Wake Lock API im Browser). Live-Update via WebSocket.
+    """
+    user = getattr(request.state, "user", None)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    incident = _incident_or_404(incident_id, db)
+    return templates.TemplateResponse(request, "incident/screensaver.html", {
+        "user": user,
+        "incident": incident,
+    })
+
+
 # ── Verlauf / Historie ────────────────────────────────────────────────────────
 
 def _enrich_history(changes, db, incident_id: int) -> list[dict]:

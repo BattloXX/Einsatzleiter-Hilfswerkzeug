@@ -123,9 +123,13 @@
 <div class="page-header">
   <a href="/einsatz/{{ incident.id }}" class="btn btn--ghost">← Board</a>
   <h2>Atemschutzüberwachung – {{ incident.alarm_type_code }} #{{ incident.id }}</h2>
-  {% if can_edit is not defined or can_edit %}
-  <button class="btn btn--primary" onclick="document.getElementById('newTroopModal').showModal()">+ Trupp anlegen</button>
-  {% endif %}
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <a href="/einsatz/{{ incident.id }}/screensaver" class="btn btn--ghost btn--sm"
+       title="Bildschirmschoner – Bildschirm bleibt aktiv">🖥 Screensaver</a>
+    {% if can_edit is not defined or can_edit %}
+    <button class="btn btn--primary" onclick="document.getElementById('newTroopModal').showModal()">+ Trupp anlegen</button>
+    {% endif %}
+  </div>
 </div>
 
 <div class="troops-grid" id="troopsGrid" @click.once="unlockAudio()">

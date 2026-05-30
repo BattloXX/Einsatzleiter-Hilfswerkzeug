@@ -33,7 +33,7 @@
     <div class="card__due">⏰ Fällig: {{ msg.due_at|local_time }}</div>
     {% endif %}
     {% if msg.vehicle %}
-    <div class="card__gk" style="font-size:.75rem;opacity:.7;">→ {{ msg.vehicle.vehicle_master.code }}</div>
+    <div class="card__gk" style="font-size:.75rem;opacity:.7;">→ {{ msg.vehicle.vehicle_master.display_label }}</div>
     {% endif %}
     {% if msg.media %}
     <div class="card__media">

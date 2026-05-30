@@ -29,7 +29,7 @@
     <h3>Fahrzeuge ({{ incident.vehicles|length }})</h3>
     {% for v in incident.vehicles %}
     <div class="vehicle-row">
-      <span class="vehicle-code">{{ v.vehicle_master.code }}</span>
+      <span class="vehicle-code">{{ v.vehicle_master.display_label }}</span>
       <span class="vehicle-dept">{{ v.vehicle_master.dept.name }}</span>
     </div>
     {% endfor %}

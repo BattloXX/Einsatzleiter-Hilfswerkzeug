@@ -27,10 +27,11 @@ from app.models.master import (
 )
 from app.models.lagekarte import LagekarteToken
 from app.models.password_reset import PasswordResetToken
-from app.models.user import ApiKey, AuditLog, PushSubscription, Role, User, UserRole
+from app.models.user import ApiKey, AuditLog, DeviceToken, FcmToken, PushLog, PushSubscription, Role, User, UserRole
 
 __all__ = [
     "User", "Role", "UserRole", "ApiKey", "AuditLog", "PushSubscription",
+    "DeviceToken", "FcmToken", "PushLog",
     "FireDept", "VehicleMaster", "Member", "Qualification", "MemberQualification",
     "AlarmType", "TaskSuggestion", "TaskSuggestionAlarm",
     "MessageSuggestion", "MessageSuggestionAlarm",

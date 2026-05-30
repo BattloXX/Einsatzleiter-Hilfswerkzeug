@@ -85,6 +85,7 @@ async def save_org_settings(
     db=Depends(get_db),
     user: User = Depends(require_role("org_admin", "admin")),
     org_name: str = Form(""),
+    short_code: str = Form(""),
     contact_email: str = Form(""),
     contact_phone: str = Form(""),
     street: str = Form(""),
@@ -107,6 +108,10 @@ async def save_org_settings(
     org = db.query(FireDept).filter(FireDept.id == effective_org_id).first()
     if org and org_name:
         org.name = org_name
+    if org:
+        # Kürzel: max. 3 Zeichen, Großbuchstaben; leerer String → NULL
+        cleaned_code = short_code.strip().upper()[:3] if short_code.strip() else None
+        org.short_code = cleaned_code
     if org and contact_email:
         org.contact_email = contact_email
     if org and contact_phone:

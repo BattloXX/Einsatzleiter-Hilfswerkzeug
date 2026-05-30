@@ -1926,6 +1926,7 @@ async def device_tokens_list(
         "base_url": base_url,
         "new_token": None,
         "new_label": None,
+        "new_qr_b64": None,
     })
 
 
@@ -2018,6 +2019,24 @@ async def create_device_token(
         .all()
     )
     base_url = str(request.base_url).rstrip("/")
+    login_url = f"{base_url}/geraet-login?token={raw_token}"
+
+    # QR-Code für den Device-Login generieren (gleiche Methode wie Einsatz-QR)
+    new_qr_b64: str | None = None
+    try:
+        import base64
+        import io
+        import qrcode  # type: ignore
+        qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=6, border=4)
+        qr.add_data(login_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        new_qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        pass  # QR-Generierung optional; URL bleibt weiterhin sichtbar
+
     return templates.TemplateResponse(request, "admin/device_tokens.html", {
         "user": current_user,
         "tokens": all_tokens,
@@ -2030,6 +2049,7 @@ async def create_device_token(
         "base_url": base_url,
         "new_token": raw_token,
         "new_label": label,
+        "new_qr_b64": new_qr_b64,
     })
 
 

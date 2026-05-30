@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "admin@feuerwehr-wolfurt.at"
 
+    # Firebase Cloud Messaging (native Android Push)
+    FCM_ENABLED: bool = False
+    FCM_PROJECT_ID: str = ""
+    # Pfad zur Service-Account-JSON-Datei (außerhalb des Repos!)
+    FCM_CREDENTIALS_PATH: str = ""
+
     BOOTSTRAP_ADMIN_USER: str = "admin"
     BOOTSTRAP_ADMIN_PASSWORD: str = ""  # Leer → wird beim ersten Start zufällig generiert
 

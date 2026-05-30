@@ -789,7 +789,7 @@
           <div class="vehicle-grid">
             {% for v in active_vehicles %}
             <div class="v-card v-card--active">
-              <div class="v-code">{{ v.vehicle_master.code if v.vehicle_master else '—' }}</div>
+              <div class="v-code">{{ v.vehicle_master.display_label if v.vehicle_master else '—' }}</div>
               {% if v.vehicle_master and v.vehicle_master.name %}
               <div class="v-name">{{ v.vehicle_master.name }}</div>
               {% endif %}
@@ -825,7 +825,7 @@
           <div class="vehicle-grid">
             {% for v in dispatched_vehicles %}
             <div class="v-card v-card--dispatch">
-              <div class="v-code">{{ v.vehicle_master.code if v.vehicle_master else '—' }}</div>
+              <div class="v-code">{{ v.vehicle_master.display_label if v.vehicle_master else '—' }}</div>
               {% if v.vehicle_master and v.vehicle_master.name %}
               <div class="v-name">{{ v.vehicle_master.name }}</div>
               {% endif %}
@@ -838,7 +838,7 @@
             {% endfor %}
             {% for v in other_vehicles %}
             <div class="v-card v-card--other">
-              <div class="v-code">{{ v.vehicle_master.code if v.vehicle_master else '—' }}</div>
+              <div class="v-code">{{ v.vehicle_master.display_label if v.vehicle_master else '—' }}</div>
               {% if v.vehicle_master and v.vehicle_master.name %}
               <div class="v-name">{{ v.vehicle_master.name }}</div>
               {% endif %}
@@ -893,7 +893,7 @@
               <div class="item-meta">
                 <span class="status-tag status-tag--{{ ts }}">{% if ts == 'open' %}Offen{% elif ts == 'in_progress' %}In Arbeit{% elif ts == 'cancelled' %}Storniert{% else %}{{ ts }}{% endif %}</span>
                 {% if t.vehicle and t.vehicle.vehicle_master %}
-                  <span class="v-badge">{{ t.vehicle.vehicle_master.code }}</span>
+                  <span class="v-badge">{{ t.vehicle.vehicle_master.display_label }}</span>
                 {% else %}
                   <span class="unassigned">nicht zugewiesen</span>
                 {% endif %}
@@ -971,7 +971,7 @@
               <div class="item-meta">
                 <span class="status-tag status-tag--{{ ms }}">{% if ms == 'meldung' %}Meldung{% elif ms == 'achtung' %}Achtung{% elif ms == 'hinweis' %}Hinweis{% elif ms == 'information' %}Information{% else %}{{ ms }}{% endif %}</span>
                 {% if m.vehicle and m.vehicle.vehicle_master %}
-                  <span class="v-badge v-badge--msg">{{ m.vehicle.vehicle_master.code }}</span>
+                  <span class="v-badge v-badge--msg">{{ m.vehicle.vehicle_master.display_label }}</span>
                 {% endif %}
                 {% if m.due_at %}
                   <span style="color:#fbbf24;">⏰ {{ m.due_at|local_time }}</span>

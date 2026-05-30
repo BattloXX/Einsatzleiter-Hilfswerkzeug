@@ -1,6 +1,6 @@
 <div class="modal__header" style="border-left: 6px solid {{ vehicle.vehicle_master.dept.color }};">
   <div>
-    <h3 class="modal__title">{{ vehicle.vehicle_master.code }} – {{ vehicle.vehicle_master.dept.name }}</h3>
+    <h3 class="modal__title">{{ vehicle.vehicle_master.display_label }} – {{ vehicle.vehicle_master.dept.name }}</h3>
     <p class="modal__subtitle">Standort: {{ vehicle.column.title }} · {{ vehicle.vehicle_master.type }}</p>
   </div>
   <button type="button" onclick="document.getElementById('cardDetailModal').close()" class="modal__close">×</button>
@@ -12,7 +12,7 @@
   <div class="detail-section">
     <div class="detail-kv">
       <span class="detail-kv__label">Einheit</span>
-      <span class="detail-kv__value">{{ vehicle.vehicle_master.code }} · {{ vehicle.vehicle_master.dept.name }}</span>
+      <span class="detail-kv__value">{{ vehicle.vehicle_master.display_label }} · {{ vehicle.vehicle_master.dept.name }}</span>
     </div>
     <div class="detail-kv">
       <span class="detail-kv__label">Typ</span>

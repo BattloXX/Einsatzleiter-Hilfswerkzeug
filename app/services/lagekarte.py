@@ -45,12 +45,38 @@ def scatter_coords(base_lat: float, base_lng: float, index: int, count: int) -> 
     return lat, lng
 
 
+def _live_position(db: "Session", vehicle_master_id: int) -> tuple[float, float] | None:
+    """Gibt die zuletzt gemeldete GPS-Position eines Fahrzeugs zurück, wenn frisch genug.
+
+    Frisch = in den letzten 5 Minuten übermittelt. Ältere Positionen werden ignoriert,
+    damit das Fahrzeug beim Einsatzende nicht dauerhaft an der letzten Koordinate hängt.
+    """
+    from datetime import UTC, datetime, timedelta
+    from app.models.user import DeviceToken
+    threshold = datetime.now(UTC) - timedelta(minutes=5)
+    dt = (
+        db.query(DeviceToken)
+        .filter(
+            DeviceToken.vehicle_master_id == vehicle_master_id,
+            DeviceToken.revoked_at.is_(None),
+            DeviceToken.last_lat.isnot(None),
+            DeviceToken.last_lng.isnot(None),
+            DeviceToken.last_location_at >= threshold,
+        )
+        .order_by(DeviceToken.last_location_at.desc())
+        .first()
+    )
+    if dt and dt.last_lat is not None and dt.last_lng is not None:
+        return dt.last_lat, dt.last_lng
+    return None
+
+
 def vehicle_features(db: "Session", incident: "Incident") -> list[dict]:
     """Baut GeoJSON-Features für alle aktiven Fahrzeuge eines Einsatzes.
 
-    Koordinaten: Einsatz lat/lng mit deterministischem Jitter je Fahrzeug.
-    Wenn keine Einsatz-Koordinaten → leere Liste (kein 404, damit
-    lagekarte.info-Polling geräuschlos bleibt).
+    Koordinaten: echte GPS-Position falls vorhanden (live übermittelt vom Gerät),
+    sonst deterministischer Jitter um den Einsatz-Mittelpunkt.
+    Wenn keine Einsatz-Koordinaten → leere Liste.
     """
     if incident.lat is None or incident.lng is None:
         return []
@@ -60,8 +86,13 @@ def vehicle_features(db: "Session", incident: "Incident") -> list[dict]:
     features = []
 
     for idx, iv in enumerate(active_vehicles):
-        lat, lng = scatter_coords(incident.lat, incident.lng, idx, count)
         vm = iv.vehicle_master
+        # Echte Position bevorzugen, falls frisch vorhanden
+        live = _live_position(db, vm.id) if vm else None
+        if live:
+            lat, lng = live
+        else:
+            lat, lng = scatter_coords(incident.lat, incident.lng, idx, count)
 
         open_tasks = iv.open_task_count
         info = f"{open_tasks} offene Aufgabe{'n' if open_tasks != 1 else ''}" if open_tasks else ""
@@ -73,12 +104,13 @@ def vehicle_features(db: "Session", incident: "Incident") -> list[dict]:
                 "coordinates": [lng, lat],  # GeoJSON: [lng, lat]
             },
             "properties": {
-                "name": vm.code if vm else "",
+                "name": vm.display_label if vm else "",
                 "typ": (vm.type or vm.name) if vm else "",
                 "status": iv.unit_status,
                 "info": info,
                 "einsatz_id": incident.id,
                 "fahrzeug_id": iv.id,
+                "live_position": live is not None,
             },
         }
         features.append(feature)

@@ -89,7 +89,7 @@
   <tr><th>Fahrzeug</th><th>Organisation</th><th>Spalte</th><th>Gruppenkommandant</th></tr>
   {% for v in incident.vehicles %}
   <tr>
-    <td>{{ v.vehicle_master.code }}</td>
+    <td>{{ v.vehicle_master.display_label }}</td>
     <td>{{ v.vehicle_master.dept.name }}</td>
     <td>{{ v.column.title if v.column else '–' }}</td>
     <td>{{ v.commander.full_name if v.commander else '–' }}</td>
@@ -103,7 +103,7 @@
   {% for t in incident.tasks %}
   <tr>
     <td class="{% if t.is_done %}done{% endif %}">{{ t.title }}{% if t.detail %}<br><span style="font-size:8pt;color:#555;">{{ t.detail }}</span>{% endif %}</td>
-    <td>{{ t.vehicle.vehicle_master.code if t.vehicle else '–' }}</td>
+    <td>{{ t.vehicle.vehicle_master.display_label if t.vehicle else '–' }}</td>
     <td>{% if t.is_done %}Erledigt{% elif t.is_cancelled %}Abgebrochen{% else %}Offen{% endif %}</td>
     <td>{{ t.done_at|local_time if t.done_at else '–' }}</td>
   </tr>
