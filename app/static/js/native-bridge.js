@@ -118,7 +118,9 @@
   }
 
   // ─── QR-Scanner ─────────────────────────────────────────────────────────────
-  // @capacitor-mlkit/barcode-scanning v7: scan() → { barcodes: [{rawValue, ...}] }
+  // @capacitor-mlkit/barcode-scanning v7: scan() nutzt das Google Barcode Scanner
+  // Module (Google Play Services). scan() → { barcodes: [{rawValue, ...}] }
+  // Kein explizites requestPermissions() nötig – das Modul regelt das intern.
   async function scanQr(onResult) {
     if (!isCapacitor) {
       console.warn('[ELNative] QR-Scanner nur in nativer App verfügbar');
@@ -130,11 +132,19 @@
         console.warn('[ELNative] BarcodeScanner-Plugin nicht verfügbar');
         return;
       }
-      // Kamera-Berechtigung sicherstellen
-      const perm = await BarcodeScanner.requestPermissions();
-      if (perm.camera !== 'granted') {
-        console.warn('[ELNative] Kamera-Berechtigung nicht erteilt:', perm.camera);
-        return;
+      // Google Barcode Scanner Module prüfen und ggf. installieren (COMPLETED=4, FAILED=5)
+      const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+      if (!available) {
+        await new Promise(async (resolve, reject) => {
+          const handle = await BarcodeScanner.addListener(
+            'googleBarcodeScannerModuleInstallProgress',
+            (event) => {
+              if (event.state === 4) { handle.remove(); resolve(); }
+              else if (event.state === 5) { handle.remove(); reject(new Error('Modulinstallation fehlgeschlagen')); }
+            }
+          );
+          await BarcodeScanner.installGoogleBarcodeScannerModule();
+        });
       }
       const { barcodes } = await BarcodeScanner.scan();
       if (barcodes && barcodes.length > 0 && typeof onResult === 'function') {
