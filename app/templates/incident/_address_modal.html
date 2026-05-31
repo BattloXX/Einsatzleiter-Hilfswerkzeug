@@ -64,6 +64,20 @@
 
     <div id="mapPickerContainer" style="height:260px;border-radius:6px;margin-bottom:1rem;border:1px solid var(--border)"></div>
 
+    {# — GeoJSON-Feed für lagekarte.info — #}
+    {% if auto_token %}
+    <div class="form-group" style="margin-bottom:1rem">
+      <label class="form-label">GeoJSON-Feed für lagekarte.info</label>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <code id="geojsonFeedUrl" style="flex:1;font-size:.78rem;word-break:break-all;background:var(--surface-high);padding:5px 8px;border-radius:4px;">{{ request.base_url }}api/lagekarte/einsatz/{{ incident.id }}/fahrzeuge.geojson?token={{ auto_token }}</code>
+        <button type="button" class="btn btn--ghost btn--xs"
+                onclick="navigator.clipboard.writeText(document.getElementById('geojsonFeedUrl').textContent.trim()).then(function(){var b=event.target;b.textContent='✓';setTimeout(function(){b.textContent='📋'},1500)})"
+                title="URL kopieren">📋</button>
+      </div>
+      <small class="form-hint">In lagekarte.info → <em>Daten importieren → URL</em> eintragen, Auto-Reload 30–60 s.</small>
+    </div>
+    {% endif %}
+
     {# — Lagekarte.info SHASH/Projekt-Link — #}
     <div class="form-group" style="margin-bottom:1rem">
       <label class="form-label">Lagekarte.info-Projekt-Link (optional)</label>

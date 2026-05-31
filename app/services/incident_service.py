@@ -322,10 +322,17 @@ def move_vehicle_to_column(
 def close_incident(db: Session, incident: Incident, user_id: int | None = None) -> Incident:
     incident.status = "closed"
     incident.closed_at = _now()
-    # Revoke all QR tokens
+    now = _now()
+    # Revoke all QR (IncidentToken) tokens
     for token in incident.tokens:
         if token.revoked_at is None:
-            token.revoked_at = _now()
+            token.revoked_at = now
+    # Revoke LagekarteTokens scoped to this incident (auto-token + manuelle)
+    from app.models.lagekarte import LagekarteToken
+    db.query(LagekarteToken).filter(
+        LagekarteToken.einsatz_id == incident.id,
+        LagekarteToken.revoked_at.is_(None),
+    ).update({"revoked_at": now}, synchronize_session=False)
     db.flush()
     write_audit(db, "incident.closed", incident_id=incident.id, user_id=user_id)
     return incident

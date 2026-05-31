@@ -53,45 +53,135 @@
         <button id="btn-qr-scan" onclick="_handleQrScan()" class="btn btn--ghost btn--sm">QR scannen</button>
       </div>
       <div id="qr-section" class="hidden login-qr">
-        <p id="qr-status">Verwende die Kamera deines Geräts, um den QR-Code vom Board zu scannen.</p>
+        <p id="qr-status"></p>
+        <video id="qr-video" autoplay playsinline muted
+               style="width:100%;max-width:320px;border-radius:8px;margin:6px auto;display:none;"></video>
+        <input type="file" id="qr-file-input" accept="image/*" capture="environment"
+               style="display:none;" onchange="_handleFileQr(this)">
+        <button id="qr-stop-btn" class="btn btn--ghost btn--sm"
+                style="display:none;margin-top:6px;" onclick="_stopBrowserScan()">&#9632; Scanner stoppen</button>
       </div>
+
       <script>
+        var _qrStream = null;
+        var _qrScanning = false;
+
         function _handleQrScan() {
           var statusEl = document.getElementById('qr-status');
           var sectionEl = document.getElementById('qr-section');
           sectionEl.classList.remove('hidden');
 
           if (window.ELNative && window.ELNative.isNative) {
+            // ── Native Capacitor-App ──────────────────────────────────────────
             statusEl.textContent = 'Kamera wird geöffnet…';
             window.ELNative.scanQr(
-              function(url) {
-                try {
-                  var u = new URL(url, window.location.origin);
-                  var allowed = ['/geraet-login', '/qr-login'];
-                  if ((u.protocol === 'https:' || u.protocol === 'http:') &&
-                      u.origin === window.location.origin &&
-                      allowed.indexOf(u.pathname) !== -1) {
-                    window.location.href = u.toString();
-                    return;
-                  }
-                } catch (_) {}
-                statusEl.textContent = 'Ungültiger QR-Code. Bitte versuche es erneut.';
-              },
-              function(err) {
-                statusEl.textContent = 'Scanner-Fehler: ' + err;
-              }
+              function(url) { _handleQrResult(url, statusEl); },
+              function(err) { statusEl.textContent = 'Scanner-Fehler: ' + err; }
             );
           } else {
-            // Kein Capacitor – Debug-Info anzeigen
-            var info = [];
-            if (!window.Capacitor) info.push('kein window.Capacitor');
-            else if (typeof window.Capacitor.isNativePlatform !== 'function') info.push('isNativePlatform fehlt');
-            else if (!window.Capacitor.isNativePlatform()) info.push('isNativePlatform()=false');
-            if (!window.ELNative) info.push('kein ELNative');
-            statusEl.textContent = info.length
-              ? 'Nur in der App verfügbar (' + info.join(', ') + ')'
-              : 'Nur in der nativen App verfügbar.';
+            // ── PWA / Browser ─────────────────────────────────────────────────
+            _startBrowserQrScan(statusEl);
           }
+        }
+
+        function _startBrowserQrScan(statusEl) {
+          if (_qrScanning) { _stopBrowserScan(); return; }
+
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            statusEl.textContent = 'Kein Kamera-Zugriff – bitte Foto aufnehmen:';
+            document.getElementById('qr-file-input').click();
+            return;
+          }
+
+          if (!('BarcodeDetector' in window)) {
+            // BarcodeDetector nicht verfügbar (Firefox) → file-input
+            statusEl.textContent = 'Bitte QR-Code fotografieren:';
+            document.getElementById('qr-file-input').click();
+            return;
+          }
+
+          statusEl.textContent = 'Kamera wird gestartet…';
+          navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+            .then(function(stream) {
+              _qrStream = stream;
+              _qrScanning = true;
+              var video = document.getElementById('qr-video');
+              video.srcObject = stream;
+              video.style.display = 'block';
+              document.getElementById('qr-stop-btn').style.display = '';
+              statusEl.textContent = 'QR-Code vor die Kamera halten…';
+
+              var detector = new BarcodeDetector({ formats: ['qr_code'] });
+              function _scan() {
+                if (!_qrScanning) return;
+                detector.detect(video).then(function(barcodes) {
+                  if (barcodes.length > 0) {
+                    _stopBrowserScan();
+                    _handleQrResult(barcodes[0].rawValue, statusEl);
+                  } else {
+                    requestAnimationFrame(_scan);
+                  }
+                }).catch(function() { requestAnimationFrame(_scan); });
+              }
+              video.play().then(_scan).catch(function() { requestAnimationFrame(_scan); });
+            })
+            .catch(function() {
+              statusEl.textContent = 'Kamera-Zugriff verweigert – bitte Foto aufnehmen:';
+              document.getElementById('qr-file-input').click();
+            });
+        }
+
+        function _stopBrowserScan() {
+          _qrScanning = false;
+          if (_qrStream) {
+            _qrStream.getTracks().forEach(function(t) { t.stop(); });
+            _qrStream = null;
+          }
+          var video = document.getElementById('qr-video');
+          video.srcObject = null;
+          video.style.display = 'none';
+          document.getElementById('qr-stop-btn').style.display = 'none';
+        }
+
+        function _handleQrResult(url, statusEl) {
+          try {
+            var u = new URL(url, window.location.origin);
+            var allowed = ['/geraet-login', '/qr-login'];
+            if ((u.protocol === 'https:' || u.protocol === 'http:') &&
+                u.origin === window.location.origin &&
+                allowed.indexOf(u.pathname) !== -1) {
+              window.location.href = u.toString();
+              return;
+            }
+          } catch (_) {}
+          if (statusEl) statusEl.textContent = 'Ung\xfcltiger QR-Code. Bitte erneut versuchen.';
+        }
+
+        async function _handleFileQr(input) {
+          var statusEl = document.getElementById('qr-status');
+          if (!input.files || !input.files[0]) return;
+          if (!('BarcodeDetector' in window)) {
+            statusEl.textContent = 'QR-Erkennung wird von diesem Browser nicht unterst\xfctzt.';
+            return;
+          }
+          statusEl.textContent = 'Bild wird ausgewertet…';
+          try {
+            var detector = new BarcodeDetector({ formats: ['qr_code'] });
+            var img = new Image();
+            var url = URL.createObjectURL(input.files[0]);
+            img.src = url;
+            await img.decode();
+            var barcodes = await detector.detect(img);
+            URL.revokeObjectURL(url);
+            if (barcodes.length > 0) {
+              _handleQrResult(barcodes[0].rawValue, statusEl);
+            } else {
+              statusEl.textContent = 'Kein QR-Code im Bild gefunden. Bitte erneut versuchen.';
+            }
+          } catch (e) {
+            statusEl.textContent = 'Fehler beim Auswerten: ' + (e.message || e);
+          }
+          input.value = '';
         }
       </script>
     </div>
