@@ -30,6 +30,11 @@ a { color: inherit; }
 
 .lp-wrap { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
 
+/* Freier CMS-Inhalt (WYSIWYG) */
+.lp-cms img { max-width: 100%; height: auto; border-radius: 8px; }
+.lp-cms a { color: var(--lp-red); }
+.lp-cms .lp-doc a { color: var(--lp-red); }
+
 /* ── Header ─────────────────────────────────────────────── */
 .lp-header {
   position: sticky; top: 0; z-index: 50;

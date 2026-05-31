@@ -106,10 +106,10 @@
          {{ tip('VAPID, Push-Konfiguration, globale Parameter') }}>
         <span class="admin-nav__icon">⚙️</span>System
       </a>
-      <a href="/admin/startseite"
-         class="admin-nav__item {% if '/admin/startseite' in request.url.path %}is-active{% endif %}"
-         {{ tip('Texte & Bilder der öffentlichen Startseite pflegen') }}>
-        <span class="admin-nav__icon">🌍</span>Startseite
+      <a href="/admin/seiten"
+         class="admin-nav__item {% if '/admin/seiten' in request.url.path %}is-active{% endif %}"
+         {{ tip('Öffentliche Seiten (Startseite, Impressum, Über) per WYSIWYG bearbeiten') }}>
+        <span class="admin-nav__icon">🌍</span>Seiten
       </a>
       <a href="/admin/system/update"
          class="admin-nav__item {% if '/admin/system/update' in request.url.path %}is-active{% endif %}"

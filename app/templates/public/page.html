@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#d42225">
+  <meta name="description" content="einsatzleiter.cloud – digitales Hilfswerkzeug für die Einsatzleitung von Feuerwehren und Rettungskräften.">
+  <title>{{ page_title }} – einsatzleiter.cloud</title>
+  <link rel="stylesheet" href="/static/css/landing.css">
+  <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
+</head>
+<body class="lp">
+
+  {% include "public/_header.html" %}
+
+  {% if preview %}
+  <div style="background:#1a2540;color:#dae2fd;text-align:center;padding:8px;font-size:.9rem;border-bottom:1px solid rgba(255,255,255,.1)">
+    👁 Vorschau – so sieht die Seite für nicht angemeldete Besucher aus.
+    <a href="/admin/seiten/{{ page_slug }}" style="color:#ffb4ab;font-weight:600">Bearbeiten</a>
+  </div>
+  {% endif %}
+
+  <main class="lp-cms">
+    {{ body_html | safe }}
+  </main>
+
+  {% if contact %}
+  {% include "public/_contact.html" %}
+  {% endif %}
+
+  {% include "public/_footer.html" %}
+
+</body>
+</html>

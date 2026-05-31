@@ -1,0 +1,132 @@
+{% extends "admin/_layout.html" %}
+{% block title %}{{ meta.label }} bearbeiten{% endblock %}
+
+{% block head_extra %}
+<style>
+  .wysiwyg-toolbar {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 8px;
+    background: var(--surface-low); border: 1px solid var(--border);
+    border-bottom: none; border-radius: 8px 8px 0 0; position: sticky; top: 0; z-index: 5;
+  }
+  .wysiwyg-toolbar button {
+    background: var(--surface-high); color: var(--on-surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; font-size: .85rem; cursor: pointer; min-width: 34px;
+  }
+  .wysiwyg-toolbar button:hover { background: var(--red); border-color: var(--red); color: #fff; }
+  .wysiwyg-toolbar .sep { width: 1px; background: var(--border); margin: 2px 4px; }
+  .wysiwyg-editor {
+    min-height: 60vh; padding: 24px; background: #0b1326; color: #dae2fd;
+    border: 1px solid var(--border); border-radius: 0 0 8px 8px; overflow-wrap: anywhere;
+    line-height: 1.55;
+  }
+  .wysiwyg-editor:focus { outline: 2px solid var(--red); outline-offset: -2px; }
+  .wysiwyg-editor img { max-width: 100%; height: auto; border-radius: 8px; }
+  .wysiwyg-editor h1 { font-size: 2rem; }
+  .wysiwyg-editor h2 { font-size: 1.5rem; margin-top: 1em; }
+  .wysiwyg-editor h3 { font-size: 1.2rem; }
+  .wysiwyg-editor a { color: #ff8a85; }
+  .wysiwyg-hint { color: var(--text-muted); font-size: .82rem; margin-top: 10px; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="page-header">
+  <div>
+    <h1>{{ meta.label }} bearbeiten</h1>
+    <p class="page-header__sub">Ganze Seite per WYSIWYG-Editor – Änderungen mit „Speichern" übernehmen.</p>
+  </div>
+  <div class="page-header__actions">
+    {% if slug == 'landing' %}
+    <a href="/startseite/vorschau" target="_blank" class="btn btn--ghost">Vorschau ↗</a>
+    {% else %}
+    <a href="/{{ slug }}" target="_blank" class="btn btn--ghost">Ansehen ↗</a>
+    {% endif %}
+    <a href="/admin/seiten" class="btn btn--ghost">← Übersicht</a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert--success">Seite gespeichert.</div>
+{% endif %}
+
+<div class="wysiwyg-toolbar" role="toolbar" aria-label="Formatierung">
+  <button type="button" data-cmd="bold" title="Fett"><strong>B</strong></button>
+  <button type="button" data-cmd="italic" title="Kursiv"><em>I</em></button>
+  <button type="button" data-cmd="underline" title="Unterstrichen"><u>U</u></button>
+  <span class="sep"></span>
+  <button type="button" data-cmd="formatBlock" data-val="H2" title="Überschrift 2">H2</button>
+  <button type="button" data-cmd="formatBlock" data-val="H3" title="Überschrift 3">H3</button>
+  <button type="button" data-cmd="formatBlock" data-val="P" title="Absatz">¶</button>
+  <span class="sep"></span>
+  <button type="button" data-cmd="insertUnorderedList" title="Aufzählung">• Liste</button>
+  <button type="button" data-cmd="insertOrderedList" title="Nummerierte Liste">1. Liste</button>
+  <span class="sep"></span>
+  <button type="button" id="btn-link" title="Link einfügen">🔗 Link</button>
+  <button type="button" id="btn-image" title="Bild hochladen &amp; einfügen">🖼 Bild</button>
+  <span class="sep"></span>
+  <button type="button" data-cmd="removeFormat" title="Formatierung entfernen">✕ Format</button>
+</div>
+
+<div id="editor" class="wysiwyg-editor" contenteditable="true">{{ body_html | safe }}</div>
+<p class="wysiwyg-hint">Tipp: Bilder werden beim Einfügen automatisch hochgeladen. Mit „Vorschau" siehst du das Ergebnis im echten Seiten-Design.</p>
+
+<form id="save-form" method="post" action="/admin/seiten/{{ slug }}" style="margin-top:16px">
+  <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+  <input type="hidden" name="html" id="html-field">
+  <button type="submit" class="btn btn--primary">Speichern</button>
+</form>
+
+<input type="file" id="image-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none">
+
+<script>
+(function () {
+  const editor = document.getElementById('editor');
+  const exec = (cmd, val) => { editor.focus(); document.execCommand(cmd, false, val || null); };
+
+  document.querySelectorAll('.wysiwyg-toolbar button[data-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => exec(btn.dataset.cmd, btn.dataset.val));
+  });
+
+  document.getElementById('btn-link').addEventListener('click', () => {
+    const url = prompt('Link-Adresse (URL):', 'https://');
+    if (url) exec('createLink', url);
+  });
+
+  function csrfToken() {
+    const m = document.cookie.match(/(?:^|;\s*)fwwo_csrf=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  const imageInput = document.getElementById('image-input');
+  document.getElementById('btn-image').addEventListener('click', () => imageInput.click());
+  imageInput.addEventListener('change', async () => {
+    const file = imageInput.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('image', file);
+    fd.append('_csrf', csrfToken());
+    try {
+      const res = await fetch('/admin/seiten/bild', {
+        method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrfToken() },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert('Upload fehlgeschlagen: ' + (err.detail || res.status));
+        return;
+      }
+      const data = await res.json();
+      exec('insertImage', data.url);
+    } catch (e) {
+      alert('Upload fehlgeschlagen.');
+    } finally {
+      imageInput.value = '';
+    }
+  });
+
+  // Beim Absenden den aktuellen Editor-Inhalt ins Hidden-Feld übertragen.
+  document.getElementById('save-form').addEventListener('submit', () => {
+    document.getElementById('html-field').value = editor.innerHTML;
+  });
+})();
+</script>
+{% endblock %}

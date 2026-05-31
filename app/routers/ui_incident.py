@@ -84,12 +84,9 @@ async def index(request: Request, db: Session = Depends(get_db)):
     user = getattr(request.state, "user", None)
     if not user:
         # Nicht angemeldet → öffentliche Startseite (Funktionsumfang, Kontakt).
-        from app.services import landing as landing_service
-        return templates.TemplateResponse(request, "public/landing.html", {
-            "user": None,
-            "c": landing_service.get_landing_content(db),
-            "kontakt": request.query_params.get("kontakt"),
-        })
+        from app.routers.public import render_public_page
+        return render_public_page(request, db, "landing",
+                                  kontakt=request.query_params.get("kontakt"))
     active = db.query(Incident).filter(Incident.status == "active").order_by(Incident.started_at.desc()).all()
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
     return templates.TemplateResponse(request, "index.html", {

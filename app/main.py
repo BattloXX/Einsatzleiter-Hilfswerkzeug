@@ -204,7 +204,11 @@ async def session_middleware(request: Request, call_next):
 
     response = await call_next(request)
 
-    if _refresh_user_id is not None and request.state.user is not None:
+    # Sliding-Window-Refresh, ABER nicht auf /logout: dort löscht der Handler das
+    # Session-Cookie – ein Refresh würde es sofort wieder setzen und das Abmelden
+    # damit wirkungslos machen.
+    if (_refresh_user_id is not None and request.state.user is not None
+            and request.url.path != "/logout"):
         from app.core.security import sign_session as _sign
         response.set_cookie(
             "session",
