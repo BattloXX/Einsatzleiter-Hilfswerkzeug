@@ -85,7 +85,8 @@
             // Kein Capacitor – Debug-Info anzeigen
             var info = [];
             if (!window.Capacitor) info.push('kein window.Capacitor');
-            else if (!window.Capacitor.isNative) info.push('Capacitor.isNative=false');
+            else if (typeof window.Capacitor.isNativePlatform !== 'function') info.push('isNativePlatform fehlt');
+            else if (!window.Capacitor.isNativePlatform()) info.push('isNativePlatform()=false');
             if (!window.ELNative) info.push('kein ELNative');
             statusEl.textContent = info.length
               ? 'Nur in der App verfügbar (' + info.join(', ') + ')'

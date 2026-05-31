@@ -17,10 +17,14 @@
   'use strict';
 
   // Lazy helper — wird bei jedem Aufruf frisch ausgewertet.
-  // Capacitor Remote-Mode injiziert den Bridge-JS asynchron (addDocumentStartJavaScript)
-  // und auf älteren Geräten / WebView-Versionen evtl. erst nach dem ersten Script-Lauf.
+  // Capacitor v7 setzt window.Capacitor.isNativePlatform() (Funktion), NICHT isNative (Property).
+  // isNative existiert in v7 nicht und ist immer undefined/falsy.
   function _isNative() {
-    return !!(window.Capacitor && window.Capacitor.isNative);
+    return !!(
+      window.Capacitor &&
+      typeof window.Capacitor.isNativePlatform === 'function' &&
+      window.Capacitor.isNativePlatform()
+    );
   }
 
   // ─── FCM-Token registrieren ─────────────────────────────────────────────────
