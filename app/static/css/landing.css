@@ -65,9 +65,18 @@ a { color: inherit; }
 .lp-btn:active { transform: scale(.97); }
 .lp-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-/* Login im Header: weiße Pille auf rotem Header */
-.lp-btn--login { background: #fff; color: var(--lp-red); }
-.lp-btn--login:hover { background: #ffe9e9; }
+/* Login im Header: weiße Pille auf rotem Header.
+   Spezifität via .lp-nav a..., sonst überschreibt .lp-nav a den Text auf Weiß
+   (weiß auf weiß = unsichtbar). */
+.lp-btn--login,
+.lp-nav a.lp-btn--login {
+  background: #fff; color: var(--lp-red);
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+.lp-btn--login:hover,
+.lp-nav a.lp-btn--login:hover {
+  background: #ffe9e9; color: var(--lp-red-dark); transform: translateY(-1px);
+}
 
 /* Buttons gelten auch innerhalb des CMS-Inhalts (.lp-cms a) – Selektor mit
    passender Spezifität, damit die Farben nicht von der Link-Regel überschrieben werden. */
