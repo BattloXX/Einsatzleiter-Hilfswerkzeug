@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#d42225">
+  <title>Über – einsatzleiter.cloud</title>
+  <link rel="stylesheet" href="/static/css/landing.css">
+  <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
+</head>
+<body class="lp">
+
+  {% include "public/_header.html" %}
+
+  <main class="lp-wrap">
+    <div class="lp-doc">
+      <h1>{{ c.about_title }}</h1>
+      <p>{{ c.about_text }}</p>
+
+      <h2>Idee &amp; Umsetzung</h2>
+      <p>{{ c.impressum_extra }}</p>
+
+      <p style="margin-top:28px">
+        <a href="/#kontakt" class="lp-btn lp-btn--primary">Kontakt aufnehmen</a>
+        <a href="/" class="lp-btn lp-btn--ghost">Zur Startseite</a>
+      </p>
+    </div>
+  </main>
+
+  {% include "public/_footer.html" %}
+
+</body>
+</html>

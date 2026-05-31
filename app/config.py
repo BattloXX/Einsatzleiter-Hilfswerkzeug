@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     BOOTSTRAP_ADMIN_USER: str = "admin"
     BOOTSTRAP_ADMIN_PASSWORD: str = ""  # Leer → wird beim ersten Start zufällig generiert
 
-    PDF_LOGO_PATH: str = "app/static/img/logo.png"
+    PDF_LOGO_PATH: str = "app/static/img/Logo-rot.png"
 
     # IANA-Zeitzone fuer Anzeige von Datums-/Zeitwerten, wenn die Org keine eigene
     # Zeitzone konfiguriert hat. DB-Werte bleiben immer UTC.

@@ -298,7 +298,7 @@
 
 <!-- Quick-Add Auftrag Dialog -->
 <dialog class="modal" id="quickAddTaskDialog" x-data="{colId: null}">
-  <div class="modal__content" style="min-width:400px;">
+  <div class="modal__content" style="min-width:min(400px,90vw);">
     <div class="modal__header">
       <h3 class="modal__title">Auftrag anlegen</h3>
       <button type="button" @click="$el.closest('dialog').close()" class="modal__close">×</button>
@@ -343,7 +343,7 @@
 
 <!-- Quick-Add Meldung Dialog -->
 <dialog class="modal" id="quickAddMsgDialog">
-  <div class="modal__content" style="min-width:400px;">
+  <div class="modal__content" style="min-width:min(400px,90vw);">
     <div class="modal__header">
       <h3 class="modal__title">Meldung anlegen</h3>
       <button type="button" @click="$el.closest('dialog').close()" class="modal__close">×</button>
@@ -398,7 +398,7 @@
 
 <!-- Neuer Abschnitt / Spalte Dialog -->
 <dialog class="modal" id="addColumnDialog">
-  <div class="modal__content" style="min-width:360px;">
+  <div class="modal__content" style="min-width:min(360px,90vw);">
     <div class="modal__header">
       <h3 class="modal__title">Abschnitt hinzufügen</h3>
       <button type="button" @click="$el.closest('dialog').close()" class="modal__close">×</button>
@@ -428,7 +428,7 @@
 
 <!-- Einheit Wizard Dialog -->
 <dialog class="modal" id="vehicleWizard">
-  <div class="modal__content" x-data="vehicleWizard({{ incident.id }})" x-init="loadSuggestions()" style="min-width:560px;">
+  <div class="modal__content" x-data="vehicleWizard({{ incident.id }})" x-init="loadSuggestions()" style="min-width:min(560px,90vw);">
     <div class="modal__header">
       <div>
         <h3 class="modal__title">Einheit hinzufügen</h3>

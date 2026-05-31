@@ -41,7 +41,7 @@ new Chart(document.getElementById('monthChart'), {
   data: {
     labels: {{ by_month|map(attribute=0)|list|tojson }},
     datasets: [{ label: 'Einsätze', data: {{ by_month|map(attribute=1)|list|tojson }},
-      backgroundColor: '#b71921' }]
+      backgroundColor: '#d42225' }]
   },
   options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
 });
@@ -50,7 +50,7 @@ new Chart(document.getElementById('alarmChart'), {
   data: {
     labels: {{ by_alarm|map(attribute=0)|list|tojson }},
     datasets: [{ data: {{ by_alarm|map(attribute=1)|list|tojson }},
-      backgroundColor: ['#b71921','#1877f2','#8e44ad','#2e9d55','#e67e22','#00a6a6','#687386','#d83030','#18a957','#f2b02e','#555'] }]
+      backgroundColor: ['#d42225','#1877f2','#8e44ad','#2e9d55','#e67e22','#00a6a6','#687386','#d83030','#18a957','#f2b02e','#555'] }]
   }
 });
 </script>

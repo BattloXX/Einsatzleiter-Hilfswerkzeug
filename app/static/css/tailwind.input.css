@@ -35,9 +35,9 @@
   --outline:          #5b403d;
 
   /* Brand red (Feuerwehr) — bleibt fuer Alarme/Akzente */
-  --red:      #b71921;
-  --red-dark: #8c0f15;
-  --red-light:#e02029;
+  --red:      #d42225;
+  --red-dark: #a5161a;
+  --red-light:#e8403f;
   --green:    #18a957;
   --yellow:   #f2b02e;
   --orange:   #e67e22;
@@ -106,7 +106,7 @@
   --app-padding: 20px;
   --column-width: 320px;
   --topnav-h:  64px;
-  --topnav-bg: #b71921;
+  --topnav-bg: #d42225;
   --sidebar-w: 320px;
   --radius:    0.5rem;
   --radius-sm: 0.375rem;
@@ -154,7 +154,7 @@ a:hover { text-decoration: underline; }
 /* ── Top Navigation ───────────────────────────────────────── */
 .topnav {
   position: sticky; top: 0; z-index: 100; height: var(--topnav-h);
-  background: var(--topnav-bg, #b71921); border-bottom: 1px solid rgba(0,0,0,.2);
+  background: var(--topnav-bg, #d42225); border-bottom: 1px solid rgba(0,0,0,.2);
   display: flex; align-items: center; padding: 0 20px; gap: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,.4);
 }
@@ -206,7 +206,7 @@ body.mobile-menu-open .topnav__burger-bar:nth-child(3) { transform: translateY(-
 .mobile-menu__header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; border-bottom: 1px solid var(--border);
-  background: var(--topnav-bg, #b71921); color: #fff;
+  background: var(--topnav-bg, #d42225); color: #fff;
 }
 .mobile-menu__user { font-weight: 700; font-size: .95rem; }
 .mobile-menu__close {
@@ -905,9 +905,17 @@ body.dnd-active .board-tabs { box-shadow: 0 0 0 2px var(--primary, #2563eb); }
 
 @media (max-width: 760px) {
   .kanban-col { min-width: 100%; max-width: 100%; display: none; }
-  .kanban-col[data-lane-active] { display: flex; }
+  .kanban-col[data-lane-active] { display: flex; flex: 1 1 auto; min-height: 0; }
   .kanban { flex-direction: column; overflow-x: hidden; padding: 8px; }
   .board-tabs { display: flex; }
+  /* Mobile: Spalten-Inhalt luftiger, Karten besser lesbar (keine festen 280px mehr) */
+  .kanban-col__header { padding: 12px 14px; }
+  .kanban-col__title { font-size: 1rem; }
+  .kanban-col__body { padding: 10px; }
+  .card { margin-bottom: 10px; border-left-width: 5px; }
+  .card__body { padding: 12px 14px; padding-right: 32px; }
+  .card__title { font-size: 1rem; line-height: 1.3; overflow-wrap: anywhere; }
+  .card__sub, .card__gk, .card__meta { overflow-wrap: anywhere; }
   .incident-header { gap: 6px; padding: 8px 12px; }
   .incident-header__alarm { gap: 6px; flex-wrap: wrap; }
   .incident-header__address { font-size: .78rem; width: 100%; }

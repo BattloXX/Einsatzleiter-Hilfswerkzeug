@@ -7,6 +7,13 @@
   <div class="page-header__actions">
     <a href="/archiv/{{ incident.id }}/pdf" class="btn btn--primary">PDF herunterladen</a>
     <a href="/einsatz/{{ incident.id }}/historie" class="btn btn--ghost">Änderungshistorie</a>
+    {% if incident.status == 'closed' and (user.is_system_admin or user.is_org_admin) %}
+    <form method="post" action="/einsatz/{{ incident.id }}/wiedereroeffnen" style="display:inline"
+          onsubmit="return confirm('Diesen Einsatz wieder eröffnen? Er wird erneut als aktiver Einsatz geführt.');">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <button type="submit" class="btn btn--ghost">↻ Wiedereröffnen</button>
+    </form>
+    {% endif %}
   </div>
 </div>
 

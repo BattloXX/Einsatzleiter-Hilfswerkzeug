@@ -15,7 +15,7 @@ class FireDept(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     slug: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
-    color: Mapped[str] = mapped_column(String(7), nullable=False, default="#b71921")
+    color: Mapped[str] = mapped_column(String(7), nullable=False, default="#d42225")
     bos: Mapped[str] = mapped_column(String(20), nullable=False, default="Feuerwehr")
     withdraw_press_factor: Mapped[float] = mapped_column(default=0.5)
     withdraw_press_reserve: Mapped[int] = mapped_column(Integer, default=10)

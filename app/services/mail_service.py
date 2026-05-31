@@ -9,7 +9,9 @@ SMTP-Konfiguration: Werte aus den System-Einstellungen (Datenbank) haben Vorrang
 vor Umgebungsvariablen. So können SMTP-Parameter über das Admin-UI gepflegt werden,
 ohne die .env-Datei anpassen zu müssen.
 """
+import html
 import logging
+import re
 from email.message import EmailMessage
 from typing import Any
 
@@ -140,7 +142,7 @@ angefordert wurde.</p>
 <p>Öffne folgenden Link innerhalb von <strong>{ttl} Minuten</strong>, um ein neues
 Passwort zu vergeben:</p>
 <p style="text-align:center;">
-  <a href="{reset_url}" style="background:#b71921;color:#fff;padding:10px 18px;
+  <a href="{reset_url}" style="background:#d42225;color:#fff;padding:10px 18px;
      border-radius:6px;text-decoration:none;display:inline-block;">
      Neues Passwort setzen
   </a>
@@ -152,6 +154,59 @@ kannst du diese Mail ignorieren. Dein Passwort bleibt unverändert.</p>
 """
     msg = _build_message(to=to, subject=subject, body_txt=body_txt,
                          body_html=body_html, smtp_cfg=smtp_cfg)
+    await _send(msg, smtp_cfg)
+
+
+CONTACT_RECIPIENT = "johannes@battlogg.org"
+
+
+def _header_safe(value: str) -> str:
+    """Entfernt CR/LF (Header-Injection-Schutz) und kürzt überlange Werte."""
+    return value.replace("\r", " ").replace("\n", " ").strip()[:200]
+
+
+def _looks_like_email(value: str) -> bool:
+    """Sehr einfache Plausibilitätsprüfung – verhindert v.a. Header-Injection."""
+    if any(c in value for c in '\r\n<>",;'):
+        return False
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", value))
+
+
+async def send_contact_message(*, name: str, reply_email: str, message: str, db=None) -> None:
+    """Versendet eine Kontaktanfrage von der öffentlichen Startseite an den Betreiber.
+
+    Name/E-Mail/Nachricht stammen aus einem öffentlichen, nicht authentifizierten
+    Formular und werden daher konsequent escaped (HTML) bzw. von CR/LF befreit (Header).
+    """
+    smtp_cfg = get_smtp_cfg(db)
+    # Header-sichere Variante für Subject/Reply-To (kein CR/LF).
+    safe_name_hdr = _header_safe(name)
+    subject = f"Kontaktanfrage von {safe_name_hdr or 'Unbekannt'} – einsatzleiter.cloud"
+
+    body_txt = (
+        f"Neue Kontaktanfrage über einsatzleiter.cloud:\n\n"
+        f"Name:    {name}\n"
+        f"E-Mail:  {reply_email}\n\n"
+        f"Nachricht:\n{message}\n"
+    )
+    # HTML-Body: jeden Wert escapen (XSS-in-Email verhindern).
+    safe_name = html.escape(name)
+    safe_mail = html.escape(reply_email, quote=True)
+    safe_msg = html.escape(message)
+    body_html = f"""<!doctype html>
+<html lang="de"><body style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
+<h2 style="color:#d42225;">Neue Kontaktanfrage</h2>
+<p><strong>Name:</strong> {safe_name}<br>
+<strong>E-Mail:</strong> {safe_mail}</p>
+<p><strong>Nachricht:</strong></p>
+<p style="white-space:pre-wrap;border-left:3px solid #d42225;padding-left:12px;">{safe_msg}</p>
+</body></html>
+"""
+    msg = _build_message(to=CONTACT_RECIPIENT, subject=subject, body_txt=body_txt,
+                         body_html=body_html, smtp_cfg=smtp_cfg)
+    # Reply-To nur setzen, wenn die Adresse plausibel & header-sicher ist.
+    if _looks_like_email(reply_email):
+        msg["Reply-To"] = reply_email
     await _send(msg, smtp_cfg)
 
 

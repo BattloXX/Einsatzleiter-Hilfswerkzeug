@@ -237,7 +237,7 @@ async def create_organisation(
     user: User = Depends(require_system_admin),
     slug: str = Form(...),
     name: str = Form(...),
-    color: str = Form("#b71921"),
+    color: str = Form("#d42225"),
     bos: str = Form("Feuerwehr"),
     contact_email: str = Form(""),
 ):

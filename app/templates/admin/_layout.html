@@ -106,6 +106,11 @@
          {{ tip('VAPID, Push-Konfiguration, globale Parameter') }}>
         <span class="admin-nav__icon">⚙️</span>System
       </a>
+      <a href="/admin/startseite"
+         class="admin-nav__item {% if '/admin/startseite' in request.url.path %}is-active{% endif %}"
+         {{ tip('Texte & Bilder der öffentlichen Startseite pflegen') }}>
+        <span class="admin-nav__icon">🌍</span>Startseite
+      </a>
       <a href="/admin/system/update"
          class="admin-nav__item {% if '/admin/system/update' in request.url.path %}is-active{% endif %}"
          {{ tip('Neues Release per ZIP einspielen') }}>

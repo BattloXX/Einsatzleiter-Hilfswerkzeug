@@ -338,6 +338,24 @@ def close_incident(db: Session, incident: Incident, user_id: int | None = None) 
     return incident
 
 
+def reopen_incident(db: Session, incident: Incident, user_id: int | None = None) -> Incident:
+    """Wiedereröffnen eines abgeschlossenen Einsatzes (system_admin/org_admin).
+
+    Setzt den Status zurück auf "active" und löscht den Abschluss-Zeitstempel.
+    Beim Abschließen widerrufene QR-/Lagekarte-Tokens werden NICHT automatisch
+    neu erzeugt – diese können bei Bedarf neu generiert werden.
+    """
+    incident.status = "active"
+    incident.closed_at = None
+    # Ursprüngliche started_at bleibt erhalten (Datenintegrität). Eine evtl. anstehende
+    # Autoclose-Warnung wird zurückgesetzt; bei >48h alten Einsätzen erscheint erneut das
+    # "Offen halten?"-Banner, über das der Zähler bei Bedarf neu gestartet wird.
+    incident.autoclose_warn_sent_at = None
+    db.flush()
+    write_audit(db, "incident.reopened", incident_id=incident.id, user_id=user_id)
+    return incident
+
+
 def add_section_column(
     db: Session,
     incident: Incident,

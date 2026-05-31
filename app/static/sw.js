@@ -1,5 +1,5 @@
 /* Service Worker – PWA Offline Cache */
-const CACHE = 'fwwo-v2';
+const CACHE = 'fwwo-v3';
 const BOARD_CACHE = 'fwwo-board-v1';
 const PRECACHE = [
   '/',
@@ -60,7 +60,7 @@ self.addEventListener('fetch', e => {
           if (cached) {
             // Inject offline banner into the cached HTML response
             const html = await cached.text();
-            const banner = `<div id="offline-banner" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#b71921;color:#fff;text-align:center;padding:6px 12px;font-size:.85rem;">
+            const banner = `<div id="offline-banner" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#d42225;color:#fff;text-align:center;padding:6px 12px;font-size:.85rem;">
               Offline-Modus — zuletzt synchronisiert: ${new Date(cached.headers.get('date') || Date.now()).toLocaleString('de-AT')}
             </div>`;
             const patched = html.replace('<body', `${banner}<body`);
@@ -103,7 +103,7 @@ self.addEventListener('push', e => {
   e.waitUntil(
     self.registration.showNotification(data.title || 'FF Wolfurt', {
       body: data.body || '',
-      icon: '/static/img/logo.png',
+      icon: '/static/img/Logo-rot.png',
       badge: '/static/img/badge.png',
       data: { url: data.url || '/' },
       requireInteraction: true,

@@ -50,9 +50,9 @@ module.exports = {
         'background': '#0b1326',
         'on-background': '#dae2fd',
         // Brand red (FF Wolfurt) — fuer Logo-Akzent + Alarm-Indikatoren
-        'brand-red': '#b71921',
-        'brand-red-dark': '#8c0f15',
-        'brand-red-light': '#e02029',
+        'brand-red': '#d42225',
+        'brand-red-dark': '#a5161a',
+        'brand-red-light': '#e8403f',
         // Semantik (Status, Warnungen, Erfolge)
         'success': '#18a957',
         'warning': '#f2b02e',

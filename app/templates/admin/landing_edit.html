@@ -1,0 +1,72 @@
+{% extends "admin/_layout.html" %}
+{% block title %}Startseite – Pflege{% endblock %}
+
+{% block admin_content %}
+<div class="page-header">
+  <div>
+    <h1>Öffentliche Startseite</h1>
+    <p class="page-header__sub">Texte und Bilder der Startseite vor dem Login pflegen</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="/" target="_blank" class="btn btn--ghost">Startseite ansehen ↗</a>
+  </div>
+</div>
+
+{% if saved == 'texte' %}
+<div class="alert alert--success">Texte gespeichert.</div>
+{% elif saved == 'bild' %}
+<div class="alert alert--success">Bild aktualisiert.</div>
+{% endif %}
+
+<section class="card mb-4">
+  <div class="card-header"><h2>Texte</h2></div>
+  <div class="card-body">
+    <form method="post" action="/admin/startseite">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <div class="form-grid">
+        {% for key, label, multiline in text_fields %}
+        <div class="form-group" style="grid-column:1 / -1">
+          <label for="f-{{ key }}">{{ label }}</label>
+          {% if multiline %}
+          <textarea id="f-{{ key }}" name="{{ key }}" class="form-control" rows="3">{{ c[key] }}</textarea>
+          {% else %}
+          <input id="f-{{ key }}" type="text" name="{{ key }}" value="{{ c[key] }}" class="form-control">
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:16px">
+        <button type="submit" class="btn btn--primary">Texte speichern</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="card mb-4">
+  <div class="card-header"><h2>Bilder</h2></div>
+  <div class="card-body">
+    <p class="page-header__sub" style="margin-top:0">PNG, JPG oder WEBP, max. 4 MB.</p>
+    {% for slug, label in image_slugs.items() %}
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid var(--border);">
+      <div style="width:160px;height:100px;border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--surface-low);flex-shrink:0;">
+        {% if c.images[slug] %}
+        <img src="{{ c.images[slug] }}" alt="{{ label }}" style="max-width:100%;max-height:100%;object-fit:contain;">
+        {% else %}
+        <span style="color:var(--text-muted);font-size:.8rem;">kein Bild</span>
+        {% endif %}
+      </div>
+      <form method="post" action="/admin/startseite/bild" enctype="multipart/form-data"
+            style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        <input type="hidden" name="slug" value="{{ slug }}">
+        <div>
+          <label style="font-weight:600">{{ label }}</label>
+          <input type="file" name="image" accept="image/png,image/jpeg,image/webp" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn--primary">Hochladen</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

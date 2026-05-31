@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#d42225">
+  <title>Impressum – einsatzleiter.cloud</title>
+  <link rel="stylesheet" href="/static/css/landing.css">
+  <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
+</head>
+<body class="lp">
+
+  {% include "public/_header.html" %}
+
+  <main class="lp-wrap">
+    <div class="lp-doc">
+      <h1>Impressum</h1>
+
+      <h2>Betreiber</h2>
+      <p>{{ c.impressum_betreiber }}</p>
+      {% if c.impressum_address %}<address>{{ c.impressum_address }}</address>{% endif %}
+
+      <h2>Kontakt</h2>
+      <p>E-Mail: <a href="mailto:{{ c.impressum_email }}">{{ c.impressum_email }}</a></p>
+
+      <h2>Projekt</h2>
+      <p>{{ c.impressum_extra }}</p>
+
+      <h2>Haftungsausschluss</h2>
+      <p>Die Inhalte dieser Seite wurden mit größtmöglicher Sorgfalt erstellt. Für die Richtigkeit,
+Vollständigkeit und Aktualität der Inhalte wird jedoch keine Gewähr übernommen.</p>
+    </div>
+  </main>
+
+  {% include "public/_footer.html" %}
+
+</body>
+</html>

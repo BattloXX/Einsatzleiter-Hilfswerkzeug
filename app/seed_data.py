@@ -41,7 +41,7 @@ ALARM_TYPES = [
 ]
 
 FIRE_DEPTS = [
-    {"slug": "wolfurt",   "name": "FF Wolfurt",       "color": "#b71921", "is_home_org": True,  "bos": "Feuerwehr"},
+    {"slug": "wolfurt",   "name": "FF Wolfurt",       "color": "#d42225", "is_home_org": True,  "bos": "Feuerwehr"},
     {"slug": "lauterach", "name": "FF Lauterach",     "color": "#1877f2", "is_home_org": False, "bos": "Feuerwehr"},
     {"slug": "schwarzach","name": "FF Schwarzach",    "color": "#8e44ad", "is_home_org": False, "bos": "Feuerwehr"},
     {"slug": "bildstein", "name": "FF Bildstein",     "color": "#2e9d55", "is_home_org": False, "bos": "Feuerwehr"},

@@ -20,6 +20,7 @@ from app.routers import (
     auth,
     device_api,
     lagekarte_api,
+    public,
     ui_admin,
     ui_archive,
     ui_breathing,
@@ -269,6 +270,7 @@ if limiter is not None:
 
 # Routers
 app.include_router(auth.router)
+app.include_router(public.router)
 app.include_router(ui_password_reset.router)
 app.include_router(api_v1.router)
 app.include_router(device_api.router)

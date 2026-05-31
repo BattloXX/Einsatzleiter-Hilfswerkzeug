@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core.permissions import has_role, require_role
+from app.core.permissions import can_access_incident, has_role, require_role
 from app.core.security import sign_qr_token
 from app.core.templating import templates
 from app.db import get_db
@@ -56,6 +56,7 @@ from app.services.incident_service import (
     move_card,
     move_vehicle_to_column,
     quick_create_commander,
+    reopen_incident,
     quick_create_el,
     set_commander,
     set_message_status,
@@ -82,7 +83,13 @@ def _incident_or_404(incident_id: int, db: Session):
 async def index(request: Request, db: Session = Depends(get_db)):
     user = getattr(request.state, "user", None)
     if not user:
-        return RedirectResponse("/login", status_code=302)
+        # Nicht angemeldet → öffentliche Startseite (Funktionsumfang, Kontakt).
+        from app.services import landing as landing_service
+        return templates.TemplateResponse(request, "public/landing.html", {
+            "user": None,
+            "c": landing_service.get_landing_content(db),
+            "kontakt": request.query_params.get("kontakt"),
+        })
     active = db.query(Incident).filter(Incident.status == "active").order_by(Incident.started_at.desc()).all()
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
     return templates.TemplateResponse(request, "index.html", {
@@ -784,6 +791,28 @@ async def close_incident_view(
     return RedirectResponse(f"/archiv/{incident_id}", status_code=303)
 
 
+# ── Einsatz wiedereröffnen (system_admin / org_admin) ─────────────────────────
+
+@router.post("/einsatz/{incident_id}/wiedereroeffnen")
+async def reopen_incident_view(
+    incident_id: int, request: Request, db: Session = Depends(get_db),
+    _=Depends(require_role("org_admin", "admin")),
+):
+    """Reaktiviert einen abgeschlossenen Einsatz. Nur system_admin/org_admin."""
+    incident = _incident_or_404(incident_id, db)
+    user = request.state.user
+    if not can_access_incident(user, incident):
+        from fastapi import HTTPException
+        raise HTTPException(403, "Kein Zugriff auf diesen Einsatz")
+    if incident.status != "closed":
+        # Bereits aktiv – einfach zurück zum Board.
+        return RedirectResponse(f"/einsatz/{incident_id}", status_code=303)
+    reopen_incident(db, incident, user_id=user.id)
+    db.commit()
+    await manager.broadcast(incident_id, {"type": "incident_reopened"})
+    return RedirectResponse(f"/einsatz/{incident_id}", status_code=303)
+
+
 @router.post("/einsatz/{incident_id}/autoclose/keepopen")
 async def autoclose_keepopen(
     incident_id: int, request: Request, db: Session = Depends(get_db),
@@ -885,7 +914,7 @@ async def qr_print(incident_id: int, request: Request, db: Session = Depends(get
     img_b64 = base64.b64encode(buf.getvalue()).decode()
 
     org = db.get(FireDept, incident.primary_org_id) if incident.primary_org_id else None
-    logo_url = (org.logo_path if org and org.logo_path else None) or "/static/img/logo.png"
+    logo_url = (org.logo_path if org and org.logo_path else None) or "/static/img/Logo-rot.png"
     return templates.TemplateResponse(request, "incident/qr_print.html", {
         "incident": incident,
         "qr_img": img_b64, "qr_url": url,
