@@ -1,0 +1,90 @@
+{% extends "admin/_layout.html" %}
+{% from "_tooltip.html" import tip %}
+{% from "admin/_breadcrumb.html" import breadcrumb %}
+{% block title %}{{ dt.label }} – Gerätedetails{% endblock %}
+{% block admin_breadcrumb %}
+  {{ breadcrumb([{'label': 'Geräte-Login', 'url': '/admin/geraete-login'}, {'label': dt.label}]) }}
+{% endblock %}
+
+{% block admin_content %}
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h1>{{ dt.label }}</h1>
+      <p class="page-header__sub">
+        {% if dt.is_active %}<span class="badge-pill badge-pill--green">Aktiv</span>
+        {% else %}<span class="badge-pill badge-pill--gray">Widerrufen</span>{% endif %}
+        &nbsp;{{ dt.user.username if dt.user else '–' }}
+      </p>
+    </div>
+    <a href="/admin/geraete-login" class="btn btn--ghost">← Zurück</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div class="chart-box">
+      <h3 style="margin-bottom:10px;">Gerätedaten</h3>
+      <table style="width:100%;font-size:.9rem;border-collapse:collapse;">
+        <tr><td style="padding:4px 0;color:var(--color-text-muted);width:40%">Bezeichnung</td><td><strong>{{ dt.label }}</strong></td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-text-muted)">Login-User</td><td>{{ dt.user.username if dt.user else '–' }}</td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-text-muted)">Fahrzeug</td><td>{{ dt.vehicle.display_label if dt.vehicle else '–' }}</td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-text-muted)">Rollen</td><td>{{ dt.user.roles|map(attribute='label')|join(', ') if dt.user else '–' }}</td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-text-muted)">Erstellt</td><td>{{ (dt.created_at|local).strftime('%d.%m.%Y %H:%M') }}</td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-text-muted)">Zuletzt genutzt</td>
+            <td>{% if dt.last_used_at %}{{ (dt.last_used_at|local).strftime('%d.%m.%Y %H:%M') }}{% else %}<span class="text-muted">Nie</span>{% endif %}</td></tr>
+        <tr><td style="padding:4px 0;color:var(--color-text-muted)">Dienst aktiv</td>
+            <td>{% if dt.duty_active %}<span style="color:var(--color-success)">Ja</span>{% else %}Nein{% endif %}</td></tr>
+      </table>
+    </div>
+
+    <div class="chart-box">
+      <h3 style="margin-bottom:10px;">Letzter Standort</h3>
+      {% if dt.last_lat and dt.last_lng %}
+      <p style="font-size:.85rem;color:var(--color-text-muted);margin-bottom:8px;">
+        📍 <strong>{{ '%.6f'|format(dt.last_lat) }}, {{ '%.6f'|format(dt.last_lng) }}</strong>
+        &nbsp;·&nbsp;
+        {% if dt.last_location_at %}
+          {{ (dt.last_location_at|local).strftime('%d.%m.%Y %H:%M:%S') }}
+        {% endif %}
+      </p>
+      <div id="deviceMap" style="height:280px;border-radius:6px;border:1px solid var(--border);"></div>
+      {% else %}
+      <div style="height:200px;display:flex;align-items:center;justify-content:center;
+                  border:1px dashed var(--border);border-radius:6px;color:var(--color-text-muted);">
+        <div style="text-align:center;">
+          <div style="font-size:2rem;margin-bottom:6px;">📵</div>
+          <p>Noch kein Standort übermittelt.</p>
+          <small>Die App überträgt den Standort automatisch wenn Dienst aktiv ist.</small>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if dt.last_lat and dt.last_lng %}
+<link rel="stylesheet" href="/static/css/leaflet.min.css">
+<script src="/static/js/leaflet.min.js"></script>
+<script>
+(function() {
+  var lat = {{ dt.last_lat }};
+  var lng = {{ dt.last_lng }};
+  var ts  = "{% if dt.last_location_at %}{{ (dt.last_location_at|local).strftime('%d.%m.%Y %H:%M:%S') }}{% else %}unbekannt{% endif %}";
+
+  var map = L.map('deviceMap').setView([lat, lng], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19,
+  }).addTo(map);
+
+  var marker = L.marker([lat, lng]).addTo(map);
+  marker.bindPopup(
+    '<strong>{{ dt.label }}</strong><br>' +
+    lat.toFixed(6) + ', ' + lng.toFixed(6) + '<br>' +
+    '<small>Zuletzt: ' + ts + '</small>'
+  ).openPopup();
+})();
+</script>
+{% endif %}
+{% endblock %}

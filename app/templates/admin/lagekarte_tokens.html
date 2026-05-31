@@ -79,7 +79,7 @@
           <td>{{ t.last_used_at|local_datetime if t.last_used_at else '–' }}</td>
           <td>{{ (t.expires_at|local).strftime('%d.%m.%Y') if t.expires_at else '∞' }}</td>
           <td><span class="badge {% if t.is_active %}badge--active{% else %}badge--closed{% endif %}">{{ 'Aktiv' if t.is_active else 'Gesperrt' }}</span></td>
-          <td>
+          <td style="white-space:nowrap;">
             {% if t.is_active %}
             <form method="post" action="/admin/lagekarte-tokens/{{ t.id }}/sperren" style="display:inline">
               <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
@@ -87,6 +87,12 @@
                       onclick="return confirm('Token sperren?')">Sperren</button>
             </form>
             {% endif %}
+            <form method="post" action="/admin/lagekarte-tokens/{{ t.id }}/loeschen" style="display:inline">
+              <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+              <button type="submit" class="btn btn--xs btn--ghost"
+                      style="color:var(--color-danger)"
+                      onclick="return confirm('Token &quot;{{ t.label }}&quot; endg\xfcltig l\xf6schen?')">L&ouml;schen</button>
+            </form>
           </td>
         </tr>
         {% endfor %}

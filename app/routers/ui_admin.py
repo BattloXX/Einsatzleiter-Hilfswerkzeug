@@ -1821,6 +1821,25 @@ async def revoke_lagekarte_token(
     return RedirectResponse("/admin/lagekarte-tokens", status_code=303)
 
 
+@router.post("/lagekarte-tokens/{token_id}/loeschen")
+async def delete_lagekarte_token(
+    token_id: int, request: Request,
+    db: Session = Depends(get_db), _=Depends(require_role("admin")),
+):
+    from app.models.lagekarte import LagekarteToken
+    tok = db.get(LagekarteToken, token_id)
+    if not tok:
+        return RedirectResponse("/admin/lagekarte-tokens", status_code=303)
+    if not same_org_or_system_admin(request.state.user, tok.org_id):
+        raise HTTPException(403, "Keine Berechtigung")
+    write_audit(db, "admin.lagekarte_token.deleted", user_id=request.state.user.id,
+                entity_type="lagekarte_token", entity_id=token_id,
+                payload={"label": tok.label})
+    db.delete(tok)
+    db.commit()
+    return RedirectResponse("/admin/lagekarte-tokens", status_code=303)
+
+
 # ── Push-Nachrichten ──────────────────────────────────────────────────────────
 
 @router.get("/push-nachrichten", response_class=HTMLResponse)
@@ -1929,6 +1948,27 @@ async def device_tokens_list(
         "new_token": None,
         "new_label": None,
         "new_qr_b64": None,
+    })
+
+
+@router.get("/geraete-login/{token_id}", response_class=HTMLResponse)
+async def device_token_detail(
+    token_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    from sqlalchemy.orm import joinedload
+    dt = (
+        db.query(DeviceToken)
+        .options(joinedload(DeviceToken.user), joinedload(DeviceToken.vehicle))
+        .filter(DeviceToken.id == token_id)
+        .first()
+    )
+    _assert_device_token_access(dt, request.state.user)
+    return templates.TemplateResponse(request, "admin/device_token_detail.html", {
+        "user": request.state.user,
+        "dt": dt,
     })
 
 

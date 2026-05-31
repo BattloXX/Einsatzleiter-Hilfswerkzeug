@@ -69,7 +69,12 @@
         {% for dt in tokens %}
         <tr>
           <td>
-            <strong>{{ dt.label }}</strong>
+            <a href="/admin/geraete-login/{{ dt.id }}" class="link-sm"
+               style="font-weight:600;color:inherit;text-decoration:none;"
+               title="Gerätedetails &amp; letzten Standort anzeigen">{{ dt.label }}</a>
+            {% if dt.last_lat and dt.last_lng %}
+            <span style="font-size:.75rem;color:var(--color-success);" title="Letzter Standort vorhanden">📍</span>
+            {% endif %}
             <br><small class="text-muted" style="font-family:monospace;">{{ dt.user.username if dt.user else '—' }}</small>
           </td>
           <td>
