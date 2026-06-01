@@ -93,8 +93,9 @@ function initMapPicker(opts) {
     });
   }
 
-  // Fallback: nach kurzem Delay invalidieren (für HTMX-Modal)
+  // Fallback: mehrfach invalidieren für HTMX-Modals mit async Leaflet-Load
   setTimeout(() => map.invalidateSize(), 100);
+  setTimeout(() => map.invalidateSize(), 500);
 
   return map;
 }

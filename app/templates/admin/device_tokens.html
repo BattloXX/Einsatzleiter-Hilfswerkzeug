@@ -186,6 +186,7 @@
   </div>
   <div class="card-body">
     <form method="post" action="/admin/geraete-login/neu">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
       <div class="form-group">
         <label class="form-label">Bezeichnung <span style="color:var(--color-danger)">*</span></label>
         <input type="text" name="label" class="form-input" required maxlength="150"

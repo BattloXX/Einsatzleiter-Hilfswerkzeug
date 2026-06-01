@@ -1920,7 +1920,7 @@ async def device_tokens_list(
             db.query(DeviceToken).join(User, DeviceToken.user_id == User.id),
             user, User.org_id,
         )
-        .options(joinedload(DeviceToken.user))
+        .options(joinedload(DeviceToken.user).joinedload(User.user_roles).joinedload(UserRole.role))
         .order_by(DeviceToken.created_at.desc())
         .all()
     )
@@ -2046,7 +2046,7 @@ async def create_device_token(
             db.query(DeviceToken).join(User, DeviceToken.user_id == User.id),
             current_user, User.org_id,
         )
-        .options(_jl(DeviceToken.user))
+        .options(_jl(DeviceToken.user).joinedload(User.user_roles).joinedload(UserRole.role))
         .order_by(DeviceToken.created_at.desc())
         .all()
     )

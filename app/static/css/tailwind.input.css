@@ -903,6 +903,19 @@ kbd { background: var(--surface-high); border: 1px solid var(--border); border-r
 .board-tab.active { background: var(--primary, #2563eb); color: #fff; border-color: var(--primary, #2563eb); }
 body.dnd-active .board-tabs { box-shadow: 0 0 0 2px var(--primary, #2563eb); }
 
+/* ── Tablet-Nav (≤900px): Burger zeigen, Desktop-Links verbergen ── */
+@media (max-width: 900px) {
+  .topnav__links { display: none; }
+  .topnav__leader { display: none; }
+  .topnav__user .user-badge { display: none; }
+  .topnav__user .btn { display: none; }
+  .topnav__burger { display: inline-flex; }
+  .topnav { padding: 0 12px; gap: 10px; }
+  .topnav__title {
+    font-size: .9rem; max-width: 55vw; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+}
 @media (max-width: 760px) {
   .kanban-col { min-width: 100%; max-width: 100%; display: none; }
   .kanban-col[data-lane-active] { display: flex; flex: 1 1 auto; min-height: 0; }
@@ -925,22 +938,14 @@ body.dnd-active .board-tabs { box-shadow: 0 0 0 2px var(--primary, #2563eb); }
   .incident-header__actions { gap: 4px; }
   .incident-header__actions .btn--sm { padding: 5px 9px; font-size: .75rem; min-height: 30px; }
   .detail-grid { grid-template-columns: 1fr; }
-  .topnav__links { display: none; }
-  .topnav__leader { display: none; }
-  .topnav__user .user-badge { display: none; }
-  .topnav__user .btn { display: none; }
-  .topnav__burger { display: inline-flex; }
+  /* Mobile-spezifische Topnav-Anpassungen (überschreiben den 900px-Block) */
   :root { --topnav-h: 56px; }
   .topnav { padding: 0 10px; gap: 8px; }
   .topnav__logo { height: 28px; }
-  .topnav__title {
-    font-size: .9rem; max-width: 50vw; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
-  }
   .form-row { flex-direction: column; }
   .admin-main { padding: 16px; }
 }
-@media (min-width: 761px) {
+@media (min-width: 901px) {
   .mobile-menu, .mobile-menu-backdrop { display: none !important; }
 }
 
