@@ -124,8 +124,6 @@
   <a href="/einsatz/{{ incident.id }}" class="btn btn--ghost">← Board</a>
   <h2>Atemschutzüberwachung – {{ incident.alarm_type_code }} #{{ incident.id }}</h2>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-    <a href="/einsatz/{{ incident.id }}/screensaver" class="btn btn--ghost btn--sm"
-       title="Bildschirmschoner – Bildschirm bleibt aktiv">🖥 Screensaver</a>
     {% if can_edit is not defined or can_edit %}
     <button class="btn btn--primary" onclick="document.getElementById('newTroopModal').showModal()">+ Trupp anlegen</button>
     {% endif %}
@@ -411,9 +409,18 @@
           <label>Trupp-Bezeichnung</label>
           <input type="text" name="name" class="form-input" placeholder="Trupp 1" required>
         </div>
-        <div class="form-group">
+        <div class="form-group" x-data="{task:''}">
           <label>Auftrag</label>
-          <input type="text" name="task_text" class="form-input" placeholder="Innenangriff...">
+          <div style="display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;">
+            <button type="button" class="btn btn--ghost btn--sm"
+                    @click="task='Brandbekämpfung'; $nextTick(()=>$refs.taskInput.value=task)">Brandbekämpfung</button>
+            <button type="button" class="btn btn--ghost btn--sm"
+                    @click="task='Menschenrettung'; $nextTick(()=>$refs.taskInput.value=task)">Menschenrettung</button>
+            <button type="button" class="btn btn--ghost btn--sm"
+                    @click="task='Sicherheitstrupp'; $nextTick(()=>$refs.taskInput.value=task)">Sicherheitstrupp</button>
+          </div>
+          <input type="text" name="task_text" x-ref="taskInput" x-model="task"
+                 class="form-input" placeholder="Innenangriff...">
         </div>
         <div class="form-group">
           <label>Standort / Einsatzabschnitt</label>
@@ -843,6 +850,60 @@ function newTroopForm() {
   }
 
   connectWS();
+})();
+
+/* ── Bildschirm dauerhaft aktiv halten (WakeLock + silent video) ─────── */
+(function () {
+  // Silent 1×1 video loop – keeps screen on even without WakeLock API
+  var vid = document.createElement('video');
+  vid.setAttribute('loop', '');
+  vid.setAttribute('muted', '');
+  vid.setAttribute('playsinline', '');
+  vid.setAttribute('autoplay', '');
+  vid.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;left:-2px;top:-2px;';
+  var src = document.createElement('source');
+  src.src = 'data:video/webm;base64,GkXfowEAAAAAAAAfQoaBAUL3gQFC8oEEQvOBCEKChHdlYm1Ch4ECQoWBAhhTgGcBAAAAAAAUkhFNm3RALE27i1OrhBVJqWZTrIHfTbuMU6uEFlSua1OsggEuVaHmUa6BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmAQAAAAAAAEUq17GDD0JATYCNTGF2ZjU4LjEyLjEwMAA';
+  src.type = 'video/webm';
+  vid.appendChild(src);
+  document.body.appendChild(vid);
+  vid.play().catch(function () {
+    // Autoplay blocked until user interaction – retry on first touch
+    document.addEventListener('click', function once() {
+      vid.play().catch(function(){});
+      document.removeEventListener('click', once);
+    });
+  });
+
+  // Web Screen Wake Lock API
+  async function acquireWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try { await navigator.wakeLock.request('screen'); } catch (_) {}
+  }
+  acquireWakeLock();
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') acquireWakeLock();
+  });
+
+  // Native Capacitor bridge
+  if (window.ELNative && window.ELNative.keepAwake) window.ELNative.keepAwake(true);
+})();
+
+/* ── Auto-Screensaver nach 3 Minuten Inaktivität ─────────────────────── */
+(function () {
+  var TIMEOUT_MS = 3 * 60 * 1000;
+  var timer = null;
+  var SS_URL = '/einsatz/{{ incident.id }}/screensaver';
+
+  function resetTimer() {
+    clearTimeout(timer);
+    timer = setTimeout(function () { location.href = SS_URL; }, TIMEOUT_MS);
+  }
+
+  ['mousemove','mousedown','touchstart','keydown','scroll','click'].forEach(function (ev) {
+    document.addEventListener(ev, resetTimer, { passive: true });
+  });
+
+  resetTimer();
 })();
 </script>
 {% endblock %}
