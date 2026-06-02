@@ -19,6 +19,7 @@ from app.models.master import (
     DefaultMessageAlarm,
     FireDept,
     LageHint,
+    LageHintAlarm,
     Member,
     MemberQualification,
     MessageSuggestion,
@@ -1249,10 +1250,44 @@ async def delete_qualification(
 @router.get("/lage-hinweise", response_class=HTMLResponse)
 async def lage_hints_list(request: Request, db: Session = Depends(get_db),
                           _=Depends(require_role("admin", "org_admin"))):
-    hints = db.query(LageHint).order_by(LageHint.display_order).all()
-    saved = request.query_params.get("saved")
+    from sqlalchemy.orm import joinedload
+    alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
+    hints = (
+        db.query(LageHint)
+        .options(joinedload(LageHint.alarm_assignments))
+        .order_by(LageHint.display_order)
+        .all()
+    )
+    assignments_by_alarm: dict[str, list] = {at.code: [] for at in alarm_types}
+    for h in hints:
+        for a in h.alarm_assignments:
+            if a.alarm_type_code in assignments_by_alarm:
+                assignments_by_alarm[a.alarm_type_code].append(a)
+    for code in assignments_by_alarm:
+        assignments_by_alarm[code].sort(key=lambda a: a.display_order)
+
+    edit_id = request.query_params.get("edit")
+    edit_hint = None
+    edit_assigned_codes: list[str] = []
+    if edit_id:
+        try:
+            edit_hint = db.get(LageHint, int(edit_id))
+        except (ValueError, TypeError):
+            pass
+        if edit_hint:
+            edit_assigned_codes = [
+                a.alarm_type_code
+                for a in sorted(edit_hint.alarm_assignments, key=lambda x: x.display_order)
+            ]
     return templates.TemplateResponse(request, "admin/lage_hints.html", {
-        "user": request.state.user, "hints": hints, "saved": saved,
+        "user": request.state.user,
+        "alarm_types": alarm_types,
+        "hints": hints,
+        "assignments_by_alarm": assignments_by_alarm,
+        "edit_hint": edit_hint,
+        "edit_assigned_codes": edit_assigned_codes,
+        "saved": request.query_params.get("saved"),
+        "error": request.query_params.get("error"),
     })
 
 
@@ -1262,9 +1297,11 @@ async def create_lage_hint(
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
     max_order = db.query(LageHint).count()
-    db.add(LageHint(text=text, display_order=max_order))
+    h = LageHint(text=text, display_order=max_order)
+    db.add(h)
+    db.flush()
     db.commit()
-    return RedirectResponse("/admin/lage-hinweise?saved=1", status_code=303)
+    return RedirectResponse(f"/admin/lage-hinweise?saved=1&edit={h.id}", status_code=303)
 
 
 @router.post("/lage-hinweise/{hid}/edit")
@@ -1276,7 +1313,23 @@ async def edit_lage_hint(
     if h:
         h.text = text
         db.commit()
-    return RedirectResponse("/admin/lage-hinweise?saved=1", status_code=303)
+    return RedirectResponse(f"/admin/lage-hinweise?saved=1&edit={hid}", status_code=303)
+
+
+@router.post("/lage-hinweise/{hid}/alarms")
+async def save_lage_hint_alarms(
+    hid: int, request: Request,
+    alarm_type_codes: list[str] = Form([]),
+    db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
+):
+    h = db.get(LageHint, hid)
+    if not h:
+        return RedirectResponse("/admin/lage-hinweise", status_code=303)
+    db.query(LageHintAlarm).filter(LageHintAlarm.lage_hint_id == hid).delete()
+    for i, code in enumerate(alarm_type_codes):
+        db.add(LageHintAlarm(lage_hint_id=hid, alarm_type_code=code, display_order=i))
+    db.commit()
+    return RedirectResponse(f"/admin/lage-hinweise?saved=1&edit={hid}", status_code=303)
 
 
 @router.post("/lage-hinweise/{hid}/loeschen")
@@ -1637,7 +1690,17 @@ async def backup_json(request: Request, db: Session = Depends(get_db),
             }
             for s in db.query(MessageSuggestion).order_by(MessageSuggestion.id).all()
         ],
-        "lage_hints": [{"text": h.text, "display_order": h.display_order} for h in db.query(LageHint).all()],
+        "lage_hints": [
+            {
+                "text": h.text,
+                "display_order": h.display_order,
+                "alarms": [
+                    {"alarm_type_code": a.alarm_type_code, "display_order": a.display_order}
+                    for a in sorted(h.alarm_assignments, key=lambda x: x.display_order)
+                ],
+            }
+            for h in db.query(LageHint).order_by(LageHint.display_order).all()
+        ],
         "default_messages": [
             {
                 "text": m.text,
@@ -1757,8 +1820,17 @@ async def backup_restore(
         # LageHints – replace all
         if "lage_hints" in data:
             db.query(LageHint).delete()
-            for h in data["lage_hints"]:
-                db.add(LageHint(text=h["text"], display_order=h.get("display_order", 0)))
+            db.flush()
+            for item in data["lage_hints"]:
+                h = LageHint(text=item["text"], display_order=item.get("display_order", 0))
+                db.add(h)
+                db.flush()
+                for a in item.get("alarms", []):
+                    db.add(LageHintAlarm(
+                        lage_hint_id=h.id,
+                        alarm_type_code=a["alarm_type_code"],
+                        display_order=a.get("display_order", 0),
+                    ))
             lines.append(f"Lage-Hinweise: {len(data['lage_hints'])} importiert")
 
         # DefaultMessages – replace all

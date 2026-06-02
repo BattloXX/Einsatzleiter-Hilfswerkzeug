@@ -191,6 +191,25 @@ class LageHint(Base):
     text: Mapped[str] = mapped_column(String(500), nullable=False)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
+    alarm_assignments: Mapped[list[LageHintAlarm]] = relationship(
+        back_populates="hint", cascade="all, delete-orphan"
+    )
+
+
+class LageHintAlarm(Base):
+    __tablename__ = "lage_hint_alarm"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    lage_hint_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("lage_hint.id", ondelete="CASCADE"), nullable=False
+    )
+    alarm_type_code: Mapped[str] = mapped_column(
+        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    )
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    hint: Mapped[LageHint] = relationship(back_populates="alarm_assignments")
+
 
 class DefaultMessage(Base):
     __tablename__ = "default_message"

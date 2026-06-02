@@ -1,18 +1,47 @@
 {% extends "admin/_layout.html" %}
+{% from "_tooltip.html" import tip %}
+{% from "admin/_breadcrumb.html" import breadcrumb %}
 {% block title %}Lage-Hinweise – Admin{% endblock %}
+{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Lage-Hinweise'}]) }}{% endblock %}
+
 {% block admin_content %}
 <div class="page-content">
   <div class="page-header">
-    <div><h1>Lage-Hinweise</h1><p class="page-header__sub">Tipps die im Einsatz-Ticker rotieren</p></div>
+    <div>
+      <h1>Lage-Hinweise</h1>
+      <p class="page-header__sub">Hinweis anlegen, dann Alarmstichwörter zuweisen. Ohne Zuweisung erscheint ein Hinweis bei jedem Alarmstichwort.</p>
+    </div>
     <button class="btn btn--primary" onclick="document.getElementById('newHintModal').showModal()">+ Hinweis</button>
   </div>
+
   {% if saved %}<div class="alert alert--success">Gespeichert.</div>{% endif %}
-  <table class="table-admin">
-    <thead><tr><th>Text</th><th>Reihenf.</th><th>Aktionen</th></tr></thead>
+  {% if error == 'duplicate' %}<div class="alert alert--danger">Ein Hinweis mit diesem Text existiert bereits.</div>{% endif %}
+
+  <!-- ── Alle Hinweise ────────────────────────────────────────────── -->
+  <div class="admin-section-title">Alle Hinweise <small style="font-weight:400;color:var(--color-text-muted)">({{ hints|length }})</small></div>
+  <table class="table-admin" style="margin-bottom:24px;">
+    <thead>
+      <tr>
+        <th>Text</th>
+        <th>Alarmstichwörter</th>
+        <th>Reihenf.</th>
+        <th style="width:200px;">Aktionen</th>
+      </tr>
+    </thead>
     <tbody>
       {% for h in hints %}
-      <tr>
+      {% set codes = h.alarm_assignments | sort(attribute='display_order') | map(attribute='alarm_type_code') | list %}
+      <tr{% if edit_hint and edit_hint.id == h.id %} style="background:var(--color-bg-highlight,#f0f7ff);"{% endif %}>
         <td>{{ h.text }}</td>
+        <td>
+          {% if codes %}
+            {% for code in codes %}
+              <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;">{{ code }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="text-muted" title="Erscheint bei allen Alarmstichwörtern">global</span>
+          {% endif %}
+        </td>
         <td>
           <form method="post" action="/admin/lage-hinweise/{{ h.id }}/order/up" style="display:inline">
             <button class="btn btn--ghost btn--xs" type="submit">↑</button>
@@ -23,7 +52,10 @@
         </td>
         <td>
           <button class="btn btn--ghost btn--xs"
-                  onclick="openEditHint({{ h.id }}, '{{ h.text|replace("'","\\'")|e }}')">Bearbeiten</button>
+                  onclick="openEditHint({{ h.id }}, '{{ h.text|replace("'","\\'")|e }}')"
+                  {{ tip('Text bearbeiten') }}>Text</button>
+          <a href="/admin/lage-hinweise?edit={{ h.id }}" class="btn btn--ghost btn--xs"
+             {{ tip('Alarmstichwörter zuweisen') }}>Stichwörter</a>
           <form method="post" action="/admin/lage-hinweise/{{ h.id }}/loeschen" style="display:inline"
                 onsubmit="return confirm('Löschen?')">
             <button type="submit" class="btn btn--danger btn--xs">Löschen</button>
@@ -33,16 +65,133 @@
       {% endfor %}
     </tbody>
   </table>
+
+  {% if edit_hint %}
+  <!-- ── Stichwort-Zuweisung ──────────────────────────────────────── -->
+  <div id="hintEditSection" class="admin-section-title">
+    Stichwörter zuweisen: <em>{{ edit_hint.text[:70] }}{% if edit_hint.text|length > 70 %}…{% endif %}</em>
+  </div>
+  <p class="form-hint" style="margin-bottom:10px;">
+    Haken setzen = Hinweis erscheint bei diesem Stichwort. Ohne Haken erscheint der Hinweis bei <strong>jedem</strong> Stichwort (global).
+    Reihenfolge per Drag-Drop am ☰ ändern.
+  </p>
+  <form method="post" action="/admin/lage-hinweise/{{ edit_hint.id }}/alarms"
+        id="hintAlarmForm" style="max-width:620px;">
+    <table class="table-admin" id="hintAlarmTable">
+      <thead>
+        <tr>
+          <th style="width:40px;"></th>
+          <th style="width:50px;">Ein</th>
+          <th>Alarmstichwort</th>
+        </tr>
+      </thead>
+      <tbody id="hintAlarmTbody">
+        {% for code in edit_assigned_codes %}
+        {% for atype in alarm_types if atype.code == code %}
+        <tr data-code="{{ atype.code }}">
+          <td class="drag-handle" style="cursor:grab;font-size:1.2rem;color:#888;text-align:center;">☰</td>
+          <td><input type="checkbox" class="alarm-checkbox" checked></td>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<span class="text-muted"> – {{ atype.label }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+        {% for atype in alarm_types if atype.code not in edit_assigned_codes %}
+        <tr data-code="{{ atype.code }}">
+          <td class="drag-handle" style="cursor:grab;font-size:1.2rem;color:#888;text-align:center;">☰</td>
+          <td><input type="checkbox" class="alarm-checkbox"></td>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<span class="text-muted"> – {{ atype.label }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div id="hintHiddenInputs"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button type="submit" class="btn btn--primary" onclick="serializeHintAlarms()">Speichern</button>
+      <a href="/admin/lage-hinweise" class="btn btn--ghost">Schließen</a>
+    </div>
+  </form>
+
+  <script>
+  (function () {
+    function initHintEdit() {
+      const tbody = document.getElementById('hintAlarmTbody');
+      if (!tbody) return;
+      if (!window.Sortable) { setTimeout(initHintEdit, 50); return; }
+      Sortable.create(tbody, { handle: '.drag-handle', animation: 150, ghostClass: 'card--ghost' });
+      const section = document.getElementById('hintEditSection');
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initHintEdit);
+    } else {
+      initHintEdit();
+    }
+  })();
+  window.serializeHintAlarms = function () {
+    const hidden = document.getElementById('hintHiddenInputs');
+    hidden.replaceChildren();
+    document.querySelectorAll('#hintAlarmTbody tr').forEach(tr => {
+      const cb = tr.querySelector('.alarm-checkbox');
+      if (cb && cb.checked) {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'alarm_type_codes';
+        inp.value = tr.dataset.code;
+        hidden.appendChild(inp);
+      }
+    });
+  };
+  </script>
+  {% endif %}
+
+  <!-- ── Übersicht nach Alarmstichwort ───────────────────────────── -->
+  <div class="admin-section-title" style="margin-top:32px;">Übersicht nach Alarmstichwort</div>
+  <div style="overflow-x:auto; margin-bottom:24px;">
+    <table class="table-admin" style="min-width:500px;">
+      <thead>
+        <tr>
+          <th style="width:130px;">Alarmstichwort</th>
+          <th>Zugewiesene Hinweise</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for atype in alarm_types %}
+        {% set row = assignments_by_alarm.get(atype.code, []) %}
+        <tr>
+          <td><strong>{{ atype.code }}</strong>{% if atype.label %}<br><small class="text-muted">{{ atype.label }}</small>{% endif %}</td>
+          <td>
+            {% if row %}
+              {% for a in row[:5] %}
+                <span class="badge-pill badge-pill--gray" style="margin:2px;font-size:.75rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;">
+                  {{ a.hint.text[:50] }}{% if a.hint.text|length > 50 %}…{% endif %}
+                </span>
+              {% endfor %}
+              {% if row|length > 5 %}<small class="text-muted"> +{{ row|length - 5 }} weitere</small>{% endif %}
+            {% else %}
+              <span class="text-muted">–</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
+<!-- Neuer Hinweis -->
 <dialog class="modal" id="newHintModal">
   <div class="modal__content">
-    <div class="modal__header"><h3>Neuer Lage-Hinweis</h3>
-      <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button></div>
+    <div class="modal__header">
+      <h3>Neuer Lage-Hinweis</h3>
+      <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button>
+    </div>
     <form method="post" action="/admin/lage-hinweise/neu">
       <div class="modal__body">
-        <div class="form-group"><label class="form-label">Text</label>
-          <input type="text" name="text" class="form-input" required maxlength="500"></div>
+        <div class="form-group">
+          <label class="form-label">Text</label>
+          <input type="text" name="text" class="form-input" required maxlength="500"
+                 {{ tip('Nach dem Anlegen können Alarmstichwörter zugewiesen werden') }}>
+        </div>
       </div>
       <div class="modal__footer">
         <button type="button" onclick="this.closest('dialog').close()" class="btn btn--ghost">Abbrechen</button>
@@ -52,14 +201,19 @@
   </div>
 </dialog>
 
+<!-- Text bearbeiten -->
 <dialog class="modal" id="editHintModal">
   <div class="modal__content">
-    <div class="modal__header"><h3>Lage-Hinweis bearbeiten</h3>
-      <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button></div>
+    <div class="modal__header">
+      <h3>Lage-Hinweis bearbeiten</h3>
+      <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button>
+    </div>
     <form method="post" id="editHintForm">
       <div class="modal__body">
-        <div class="form-group"><label class="form-label">Text</label>
-          <input type="text" name="text" id="eh_text" class="form-input" required maxlength="500"></div>
+        <div class="form-group">
+          <label class="form-label">Text</label>
+          <input type="text" name="text" id="eh_text" class="form-input" required maxlength="500">
+        </div>
       </div>
       <div class="modal__footer">
         <button type="button" onclick="this.closest('dialog').close()" class="btn btn--ghost">Abbrechen</button>
@@ -69,6 +223,7 @@
   </div>
 </dialog>
 {% endblock %}
+
 {% block scripts %}
 <script>
 function openEditHint(id, text) {

@@ -33,6 +33,7 @@ from app.models.master import (
     AlarmType,
     FireDept,
     LageHint,
+    LageHintAlarm,
     Member,
     MemberQualification,
     MessageSuggestion,
@@ -167,7 +168,23 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
     incident = _incident_or_404(incident_id, db)
     db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons"])
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
-    lage_hints = db.query(LageHint).order_by(LageHint.display_order).all()
+    from sqlalchemy import exists as _exists
+    _has_any_alarm = _exists().where(LageHintAlarm.lage_hint_id == LageHint.id)
+    _has_matching = _exists().where(
+        (LageHintAlarm.lage_hint_id == LageHint.id)
+        & (LageHintAlarm.alarm_type_code == incident.alarm_type_code)
+    )
+    lage_hints = (
+        db.query(LageHint)
+        .filter(or_(~_has_any_alarm, _has_matching))
+        .order_by(LageHint.display_order)
+        .all()
+    ) if incident.alarm_type_code else (
+        db.query(LageHint)
+        .filter(~_has_any_alarm)
+        .order_by(LageHint.display_order)
+        .all()
+    )
     task_suggestions = (
         db.query(TaskSuggestion)
         .join(TaskSuggestionAlarm, TaskSuggestionAlarm.task_suggestion_id == TaskSuggestion.id)
@@ -258,7 +275,23 @@ async def incident_dashboard(
             person_stats[p.status].append(p)
 
     started_at_iso = incident.started_at.strftime("%Y-%m-%dT%H:%M:%SZ")
-    lage_hints = db.query(LageHint).order_by(LageHint.display_order).all()
+    from sqlalchemy import exists as _exists2
+    _has_any2 = _exists2().where(LageHintAlarm.lage_hint_id == LageHint.id)
+    _has_match2 = _exists2().where(
+        (LageHintAlarm.lage_hint_id == LageHint.id)
+        & (LageHintAlarm.alarm_type_code == incident.alarm_type_code)
+    )
+    lage_hints = (
+        db.query(LageHint)
+        .filter(or_(~_has_any2, _has_match2))
+        .order_by(LageHint.display_order)
+        .all()
+    ) if incident.alarm_type_code else (
+        db.query(LageHint)
+        .filter(~_has_any2)
+        .order_by(LageHint.display_order)
+        .all()
+    )
 
     breathing_troops = (
         db.query(BreathingTroop)
