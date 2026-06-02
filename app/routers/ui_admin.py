@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.audit import write_audit
@@ -46,7 +45,7 @@ def _org_filter(q, user, col):
 def _admin_check(request: Request):
     user = getattr(request.state, "user", None)
     if not user:
-        raise RedirectResponse("/login", status_code=302)
+        raise RedirectResponse("/login", status_code=302)  # type: ignore[misc]
     return user
 
 
@@ -88,7 +87,9 @@ async def create_user(
             return RedirectResponse(
                 "/admin/benutzer?error=email_exists", status_code=303,
             )
-    target_org_id = (org_id if has_role(current_user, "system_admin") and org_id and org_id != 0 else current_user.org_id)
+    target_org_id = (
+        org_id if has_role(current_user, "system_admin") and org_id and org_id != 0 else current_user.org_id
+    )
     new_user = User(
         username=username,
         display_name=display_name or username,
@@ -117,7 +118,7 @@ async def delete_user(
     _=Depends(require_role("admin")),
 ):
     u = db.get(User, user_id)
-    if u and not same_org_or_system_admin(request.state.user, u.org_id):
+    if u and not same_org_or_system_admin(request.state.user, u.org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Keine Berechtigung")
     if u and u.id != request.state.user.id:
         u.active = False
@@ -182,7 +183,11 @@ async def revoke_api_key(
 @router.get("/mitglieder", response_class=HTMLResponse)
 async def members_list(request: Request, db: Session = Depends(get_db),
                        _=Depends(require_role("admin"))):
-    members = _org_filter(db.query(Member), request.state.user, Member.org_id).order_by(Member.lastname, Member.firstname).all()
+    members = (
+        _org_filter(db.query(Member), request.state.user, Member.org_id)
+        .order_by(Member.lastname, Member.firstname)
+        .all()
+    )
     qualifications = db.query(Qualification).all()
     return templates.TemplateResponse(request, "admin/members.html", {
         "user": request.state.user,
@@ -224,7 +229,7 @@ async def audit_log(request: Request, db: Session = Depends(get_db),
         org_user_ids = db.query(User.id).filter(User.org_id == user.org_id).subquery()
         entries = (
             db.query(AuditLog)
-            .filter(AuditLog.user_id.in_(org_user_ids))
+            .filter(AuditLog.user_id.in_(org_user_ids))  # type: ignore[arg-type]
             .order_by(AuditLog.created_at.desc())
             .limit(500)
             .all()
@@ -290,7 +295,7 @@ async def edit_member(
     db: Session = Depends(get_db), _=Depends(require_role("admin")),
 ):
     m = db.get(Member, member_id)
-    if m and not same_org_or_system_admin(request.state.user, m.org_id):
+    if m and not same_org_or_system_admin(request.state.user, m.org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Keine Berechtigung")
     if m:
         m.lastname = lastname
@@ -309,7 +314,7 @@ async def toggle_member(
     _=Depends(require_role("admin")),
 ):
     m = db.get(Member, member_id)
-    if m and not same_org_or_system_admin(request.state.user, m.org_id):
+    if m and not same_org_or_system_admin(request.state.user, m.org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Keine Berechtigung")
     if m:
         m.active = not m.active
@@ -328,8 +333,11 @@ async def bulk_delete_members(
 ):
     import logging
     import urllib.parse
-    from app.models.incident import Incident as _Incident, IncidentVehicle as _IV
-    from app.models.breathing import TroopMember as _TM, PressureLog as _PL
+
+    from app.models.breathing import PressureLog as _PL
+    from app.models.breathing import TroopMember as _TM
+    from app.models.incident import Incident as _Incident
+    from app.models.incident import IncidentVehicle as _IV
 
     logger = logging.getLogger(__name__)
     user = request.state.user
@@ -386,7 +394,7 @@ async def update_member_quali(
     m = db.get(Member, member_id)
     if not m:
         return RedirectResponse("/admin/mitglieder", status_code=303)
-    if not same_org_or_system_admin(request.state.user, m.org_id):
+    if not same_org_or_system_admin(request.state.user, m.org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Keine Berechtigung")
     # Remove all existing, then re-add
     db.query(MemberQualification).filter(MemberQualification.member_id == member_id).delete()
@@ -399,7 +407,7 @@ async def update_member_quali(
             if valid_until_str:
                 from datetime import date
                 try:
-                    valid_until = date.fromisoformat(valid_until_str)
+                    valid_until = date.fromisoformat(valid_until_str)  # type: ignore[arg-type]
                 except ValueError:
                     pass
             db.add(MemberQualification(member_id=member_id, qualification_id=q.id, valid_until=valid_until))
@@ -517,9 +525,12 @@ async def import_members_excel(
                 skipped += 1
                 sp.commit()
                 continue
-            phone = str(row[col_map["phone"]] if "phone" in col_map and col_map["phone"] < len(row) and row[col_map["phone"]] else "").strip() or None
-            email = str(row[col_map["email"]] if "email" in col_map and col_map["email"] < len(row) and row[col_map["email"]] else "").strip().lower() or None
-            role_raw = str(row[col_map["role"]] if "role" in col_map and col_map["role"] < len(row) and row[col_map["role"]] else "").strip().lower()
+            _ph = "phone" in col_map and col_map["phone"] < len(row) and row[col_map["phone"]]
+            phone = str(row[col_map["phone"]] if _ph else "").strip() or None
+            _em = "email" in col_map and col_map["email"] < len(row) and row[col_map["email"]]
+            email = str(row[col_map["email"]] if _em else "").strip().lower() or None
+            _ro = "role" in col_map and col_map["role"] < len(row) and row[col_map["role"]]
+            role_raw = str(row[col_map["role"]] if _ro else "").strip().lower()
             # Match existing (same name in same org) → update; else create
             existing = db.query(Member).filter(
                 Member.org_id == user.org_id,
@@ -581,7 +592,7 @@ async def edit_user(
     u = db.get(User, user_id)
     if not u:
         return RedirectResponse("/admin/benutzer", status_code=303)
-    if not same_org_or_system_admin(current_user, u.org_id):
+    if not same_org_or_system_admin(current_user, u.org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Keine Berechtigung")
     email_clean = (email or "").strip().lower() or None
     if email_clean and email_clean != u.email:
@@ -617,7 +628,7 @@ async def send_user_reset_mail(
     u = db.get(User, user_id)
     if not u or not u.email:
         return RedirectResponse("/admin/benutzer?error=no_email", status_code=303)
-    if not same_org_or_system_admin(request.state.user, u.org_id):
+    if not same_org_or_system_admin(request.state.user, u.org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Keine Berechtigung")
 
     # Alte Tokens entwerten
@@ -661,7 +672,7 @@ async def update_user_roles(
     u = db.get(User, user_id)
     if not u:
         return RedirectResponse("/admin/benutzer", status_code=303)
-    if not same_org_or_system_admin(request.state.user, u.org_id):
+    if not same_org_or_system_admin(request.state.user, u.org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Keine Berechtigung")
     db.query(UserRole).filter(UserRole.user_id == user_id).delete()
     for code in role_codes:
@@ -683,7 +694,7 @@ async def reset_user_password(
     u = db.get(User, user_id)
     if not u:
         return RedirectResponse("/admin/benutzer", status_code=303)
-    if not same_org_or_system_admin(request.state.user, u.org_id):
+    if not same_org_or_system_admin(request.state.user, u.org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Keine Berechtigung")
     new_pw = sec.token_urlsafe(12)
     u.password_hash = hash_password(new_pw)
@@ -1102,12 +1113,10 @@ async def dispatch_order_list(request: Request, db: Session = Depends(get_db),
                               _=Depends(require_role("admin", "org_admin"))):
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
     home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
-    vehicles = (
-        db.query(VehicleMaster)
-        .filter(VehicleMaster.dept_id == home.id if home else True, VehicleMaster.active == True)  # noqa: E712
-        .order_by(VehicleMaster.display_order)
-        .all()
-    )
+    _vehicle_query = db.query(VehicleMaster).filter(VehicleMaster.active == True)  # noqa: E712
+    if home:
+        _vehicle_query = _vehicle_query.filter(VehicleMaster.dept_id == home.id)
+    vehicles = _vehicle_query.order_by(VehicleMaster.display_order).all()
     dispatch_entries = db.query(AlarmDispatchVehicle).order_by(
         AlarmDispatchVehicle.alarm_type_code, AlarmDispatchVehicle.display_order
     ).all()
@@ -1176,8 +1185,8 @@ async def qualifications_list(request: Request, db: Session = Depends(get_db),
                               _=Depends(require_role("admin"))):
     qualifications = db.query(Qualification).order_by(Qualification.code).all()
     from sqlalchemy import func as sqlfunc
-    usage = dict(
-        db.query(MemberQualification.qualification_id, sqlfunc.count(MemberQualification.member_id))
+    usage: dict[int, int] = dict(
+        db.query(MemberQualification.qualification_id, sqlfunc.count(MemberQualification.member_id))  # type: ignore[arg-type]
         .group_by(MemberQualification.qualification_id)
         .all()
     )
@@ -1394,7 +1403,7 @@ async def save_default_message_alarms(
     for i, code in enumerate(alarm_type_codes):
         due_min = form.get(f"due_min_{code}", "5")
         try:
-            due_after_sec = max(60, int(due_min) * 60)
+            due_after_sec = max(60, int(due_min) * 60)  # type: ignore[arg-type]
         except (ValueError, TypeError):
             due_after_sec = 300
         db.add(DefaultMessageAlarm(
@@ -1456,7 +1465,7 @@ async def save_system_settings(
         if val is not None:
             existing = db.get(SystemSettings, key)
             if existing:
-                existing.value = val
+                existing.value = val  # type: ignore[assignment]
                 existing.updated_at = datetime.now(UTC)
                 existing.updated_by_user_id = request.state.user.id
             else:
@@ -1468,7 +1477,7 @@ async def save_system_settings(
         if s.key not in known_keys:
             val = form.get(f"k_{s.key}")
             if val is not None:
-                s.value = val
+                s.value = val  # type: ignore[assignment]
     # New custom key
     if new_key.strip():
         existing = db.get(SystemSettings, new_key.strip())
@@ -1551,6 +1560,7 @@ async def server_log_raw(
     _=Depends(require_role("system_admin")),
 ):
     from fastapi.responses import PlainTextResponse
+
     from app.log_buffer import get_text
     level = level.upper()
     if level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
@@ -1638,8 +1648,14 @@ async def backup_json(request: Request, db: Session = Depends(get_db),
             for m in db.query(DefaultMessage).order_by(DefaultMessage.id).all()
         ],
         "alarm_dispatch": [
-            {"alarm_type_code": e.alarm_type_code, "vehicle_master_id": e.vehicle_master_id, "display_order": e.display_order}
-            for e in db.query(AlarmDispatchVehicle).order_by(AlarmDispatchVehicle.alarm_type_code, AlarmDispatchVehicle.display_order).all()
+            {
+                "alarm_type_code": e.alarm_type_code,
+                "vehicle_master_id": e.vehicle_master_id,
+                "display_order": e.display_order,
+            }
+            for e in db.query(AlarmDispatchVehicle)
+            .order_by(AlarmDispatchVehicle.alarm_type_code, AlarmDispatchVehicle.display_order)
+            .all()
         ],
     }
     from fastapi.responses import Response as FR
@@ -1678,7 +1694,7 @@ async def backup_restore(
 
         # AlarmTypes
         for at in data.get("alarm_types", []):
-            obj = db.get(AlarmType, at["code"])
+            obj = db.get(AlarmType, at["code"])  # type: ignore[assignment]
             if not obj:
                 db.add(AlarmType(**at))
             else:
@@ -1691,9 +1707,11 @@ async def backup_restore(
         for v in data.get("vehicles", []):
             dept = dept_map.get(v.get("dept_slug"))
             if not dept:
-                lines.append(f"  Warnung: Wehr '{v.get('dept_slug')}' nicht gefunden, Fahrzeug '{v.get('code')}' übersprungen")
+                lines.append(
+                    f"  Warnung: Wehr '{v.get('dept_slug')}' nicht gefunden, Fahrzeug '{v.get('code')}' übersprungen"
+                )
                 continue
-            obj = db.query(VehicleMaster).filter(VehicleMaster.code == v["code"]).first()
+            obj = db.query(VehicleMaster).filter(VehicleMaster.code == v["code"]).first()  # type: ignore[assignment]
             if not obj:
                 db.add(VehicleMaster(
                     dept_id=dept.id, code=v["code"], name=v["name"],
@@ -1701,9 +1719,10 @@ async def backup_restore(
                     display_order=v.get("display_order", 0),
                 ))
             else:
-                obj.name = v["name"]; obj.type = v.get("type", obj.type)
-                obj.is_first_train = v.get("is_first_train", obj.is_first_train)
-                obj.display_order = v.get("display_order", obj.display_order)
+                obj.name = v["name"]  # type: ignore[attr-defined]
+                obj.type = v.get("type", obj.type)  # type: ignore[attr-defined]
+                obj.is_first_train = v.get("is_first_train", obj.is_first_train)  # type: ignore[attr-defined]
+                obj.display_order = v.get("display_order", obj.display_order)  # type: ignore[attr-defined]
         db.flush()
         lines.append(f"Fahrzeuge: {len(data.get('vehicles', []))} verarbeitet")
 
@@ -1713,7 +1732,8 @@ async def backup_restore(
             db.flush()
             for item in data["task_suggestions"]:
                 s = TaskSuggestion(text=item["text"])
-                db.add(s); db.flush()
+                db.add(s)
+                db.flush()
                 for a in item.get("alarms", []):
                     db.add(TaskSuggestionAlarm(task_suggestion_id=s.id,
                                                alarm_type_code=a["alarm_type_code"],
@@ -1725,8 +1745,9 @@ async def backup_restore(
             db.query(MessageSuggestion).delete()
             db.flush()
             for item in data["message_suggestions"]:
-                s = MessageSuggestion(text=item["text"])
-                db.add(s); db.flush()
+                s = MessageSuggestion(text=item["text"])  # type: ignore[assignment]
+                db.add(s)
+                db.flush()
                 for a in item.get("alarms", []):
                     db.add(MessageSuggestionAlarm(message_suggestion_id=s.id,
                                                   alarm_type_code=a["alarm_type_code"],
@@ -1746,7 +1767,8 @@ async def backup_restore(
             db.flush()
             for item in data["default_messages"]:
                 m = DefaultMessage(text=item["text"])
-                db.add(m); db.flush()
+                db.add(m)
+                db.flush()
                 for a in item.get("alarms", []):
                     db.add(DefaultMessageAlarm(default_message_id=m.id,
                                                alarm_type_code=a["alarm_type_code"],
@@ -1787,9 +1809,9 @@ async def lagekarte_tokens(
     request: Request, db: Session = Depends(get_db),
     _=Depends(require_role("admin")),
 ):
-    from app.models.lagekarte import LagekarteToken
-    from app.models.incident import Incident as _Incident
     from app.core.permissions import has_role
+    from app.models.incident import Incident as _Incident
+    from app.models.lagekarte import LagekarteToken
     user = request.state.user
     is_sysadmin = has_role(user, "system_admin")
     if is_sysadmin:
@@ -1816,10 +1838,11 @@ async def create_lagekarte_token(
     db: Session = Depends(get_db),
     _=Depends(require_role("admin")),
 ):
-    import hashlib, secrets as _sec
+    import hashlib
+    import secrets as _sec
     from datetime import datetime as _dt
+
     from app.models.lagekarte import LagekarteToken
-    from app.models.incident import Incident as _Incident
 
     user = request.state.user
     raw = "lkw_" + _sec.token_urlsafe(32)
@@ -1910,8 +1933,9 @@ async def push_notifications_page(
     _=Depends(require_role("admin")),
 ):
     user = request.state.user
-    from app.services.push_service import _push_cfg
     from sqlalchemy.orm import joinedload
+
+    from app.services.push_service import _push_cfg
     cfg = _push_cfg(db)
     sub_count = db.query(PushSubscription).count()
     users_with_subs = (
@@ -2129,6 +2153,7 @@ async def create_device_token(
     try:
         import base64
         import io
+
         import qrcode  # type: ignore
         qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=6, border=4)
         qr.add_data(login_url)
@@ -2175,16 +2200,22 @@ async def delete_device_token(
 ):
     dt = db.get(DeviceToken, token_id)
     _assert_device_token_access(dt, request.state.user)
+    assert dt is not None
     device_user = dt.user
     write_audit(db, "admin.device_token.deleted", user_id=request.state.user.id,
                 entity_type="device_token", entity_id=token_id,
                 payload={"label": dt.label})
     db.flush()  # Audit-Log zuerst schreiben
     if device_user and device_user.is_device:
-        from app.models.incident import (
-            Incident, IncidentChange, IncidentLog, IncidentOrg, IncidentToken, Task,
-        )
         from app.models.breathing import PressureLog
+        from app.models.incident import (
+            Incident,
+            IncidentChange,
+            IncidentLog,
+            IncidentOrg,
+            IncidentToken,
+            Task,
+        )
         uid = device_user.id
         # Alle FK-Verweise ohne ON DELETE SET NULL manuell nullen/löschen
         db.query(AuditLog).filter(AuditLog.user_id == uid).update({"user_id": None})
@@ -2218,6 +2249,7 @@ async def revoke_device_token(
 ):
     dt = db.get(DeviceToken, token_id)
     _assert_device_token_access(dt, request.state.user)
+    assert dt is not None
     dt.revoked_at = datetime.now(UTC)
     if dt.user:
         dt.user.active = False
@@ -2237,6 +2269,7 @@ async def reactivate_device_token(
 ):
     dt = db.get(DeviceToken, token_id)
     _assert_device_token_access(dt, request.state.user)
+    assert dt is not None
     dt.revoked_at = None
     if dt.user:
         dt.user.active = True
@@ -2257,6 +2290,7 @@ async def assign_device_vehicle(
 ):
     dt = db.get(DeviceToken, token_id)
     _assert_device_token_access(dt, request.state.user)
+    assert dt is not None
     current_user = request.state.user
     safe_vehicle_id: int | None = None
     if vehicle_master_id:

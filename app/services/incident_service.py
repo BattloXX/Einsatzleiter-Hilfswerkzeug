@@ -71,6 +71,7 @@ def create_incident(
 ) -> Incident:
     import hashlib
     import secrets as _secrets
+
     from app.models.lagekarte import LagekarteToken
 
     alarm = db.get(AlarmType, alarm_type_code)
@@ -663,7 +664,7 @@ def move_card(
         )
         for i, sib in enumerate(siblings):
             sib.display_order = i if i < position else i + 1
-        vehicle.column_id = column_id
+        vehicle.column_id = column_id  # type: ignore[assignment]
         vehicle.display_order = position
         # Bidirektionaler Sync Spalte ↔ Unit-Status
         if col.code == "active" and vehicle.unit_status != "Am Einsatzort":
@@ -703,7 +704,7 @@ def move_card(
         elif column_id:
             # Drop on a column — reorder siblings first
             siblings = (
-                db.query(Task)
+                db.query(Task)  # type: ignore[assignment]
                 .filter(
                     Task.incident_id == incident_id,
                     Task.column_id == column_id,
@@ -748,7 +749,7 @@ def move_card(
         elif column_id:
             # Drop on a column — reorder siblings first
             siblings = (
-                db.query(Message)
+                db.query(Message)  # type: ignore[assignment]
                 .filter(
                     Message.incident_id == incident_id,
                     Message.column_id == column_id,

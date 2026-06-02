@@ -335,6 +335,8 @@ def get_incident(incident_id: int, db: Session = Depends(get_db), api_key: ApiKe
         "alarm_type_code": incident.alarm_type_code,
         "status": incident.status,
         "started_at": incident.started_at,
-        "address": f"{incident.address_street or ''} {incident.address_no or ''}, {incident.address_city or ''}".strip(", "),
+        "address": (
+            f"{incident.address_street or ''} {incident.address_no or ''}, {incident.address_city or ''}".strip(", ")
+        ),
         "is_exercise": incident.is_exercise,
     }

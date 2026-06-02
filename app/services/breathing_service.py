@@ -259,6 +259,7 @@ def check_troop_warnings(troop: BreathingTroop) -> list[str]:
 async def _breathing_watchdog_loop() -> None:
     """Prüft alle 5 Sekunden alle laufenden Trupps und broadcastet Warnungen."""
     import asyncio
+
     from app.db import SessionLocal
     from app.models.incident import Incident
     from app.services.broadcast import manager
@@ -282,7 +283,7 @@ async def _breathing_watchdog_loop() -> None:
                         active_warnings = set(check_troop_warnings(troop))
                         prev_warnings = _sent.get(troop.id, set())
                         new_warnings = active_warnings - prev_warnings
-                        cleared = prev_warnings - active_warnings
+                        _ = prev_warnings - active_warnings
                         for kind in new_warnings:
                             await manager.broadcast(incident.id, {
                                 "type": "troop_warning",

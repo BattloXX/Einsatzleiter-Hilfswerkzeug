@@ -56,8 +56,8 @@ from app.services.incident_service import (
     move_card,
     move_vehicle_to_column,
     quick_create_commander,
-    reopen_incident,
     quick_create_el,
+    reopen_incident,
     set_commander,
     set_message_status,
     set_task_status,
@@ -190,11 +190,11 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
         .join(UserRole, User.id == UserRole.user_id)
         .join(Role, UserRole.role_id == Role.id)
         .filter(
-            User.active == True,
+            User.active,
             or_(
                 Role.code == "system_admin",
                 User.org_id == incident.primary_org_id,
-            ) if incident.primary_org_id else True,
+            ) if incident.primary_org_id else True,  # type: ignore[arg-type]
             Role.code.in_(leader_roles),
         )
         .distinct()
@@ -202,9 +202,9 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
         .all()
     )
     org_ids = [incident.primary_org_id] if incident.primary_org_id else []
-    for io in (incident.collaborating_orgs or []):
-        if io.org_id not in org_ids:
-            org_ids.append(io.org_id)
+    for _io in (incident.collaborating_orgs or []):
+        if _io.org_id not in org_ids:
+            org_ids.append(_io.org_id)
     el_member_candidates = list_el_candidates(db, org_ids)
     gk_member_candidates = list_commander_candidates(db, org_ids)
     return templates.TemplateResponse(request, "incident/board.html", {
@@ -544,8 +544,8 @@ async def vehicle_suggestions(
     org_ids = set()
     if incident.primary_org_id:
         org_ids.add(incident.primary_org_id)
-    for io in (incident.collaborating_orgs or []):
-        org_ids.add(io.org_id)
+    for _io in (incident.collaborating_orgs or []):
+        org_ids.add(_io.org_id)
 
     already_master_ids = {
         v.vehicle_master_id for v in incident.vehicles if v.removed_at is None
@@ -673,7 +673,7 @@ async def create_section(
     _=Depends(require_role("incident_leader", "admin")),
 ):
     incident = _incident_or_404(incident_id, db)
-    col = add_section_column(db, incident, title, user_id=request.state.user.id)
+    add_section_column(db, incident, title, user_id=request.state.user.id)
     db.commit()
     await manager.broadcast(incident_id, {"type": "column_created", "reload_board": True})
     return Response(status_code=204)
@@ -691,7 +691,7 @@ async def create_message(
     db: Session = Depends(get_db),
     _=Depends(require_role("incident_leader", "admin", "recorder")),
 ):
-    from app.models.incident import TRAFFIC_LIGHT_VALUES, _TRAFFIC_LIGHT_LEGACY
+    from app.models.incident import _TRAFFIC_LIGHT_LEGACY, TRAFFIC_LIGHT_VALUES
     status = _TRAFFIC_LIGHT_LEGACY.get(status, status)
     if status not in TRAFFIC_LIGHT_VALUES:
         status = "meldung"
@@ -1594,6 +1594,7 @@ async def standalone_geocode(
 ):
     """Geocodiert eine Adresse ohne Incident-Kontext — für das Neuer-Einsatz-Formular."""
     from fastapi.responses import JSONResponse as _JSONResponse
+
     from app.services.geocoding import geocode_address
     result = await geocode_address(
         address_street.strip() or None,
@@ -1638,6 +1639,7 @@ async def address_geocode(
 ):
     """Geocodiert die angegebene Adresse via Nominatim und gibt lat/lng als JSON zurück."""
     from fastapi.responses import JSONResponse as _JSONResponse
+
     from app.services.geocoding import geocode_address
     result = await geocode_address(
         address_street.strip() or None,

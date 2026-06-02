@@ -1,10 +1,16 @@
 """Passwort-Reset-Tokens (Self-Service-Reset per E-Mail)."""
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class PasswordResetToken(Base):

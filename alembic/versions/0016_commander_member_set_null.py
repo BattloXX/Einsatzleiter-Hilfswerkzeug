@@ -15,22 +15,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # SQLite does not support ALTER COLUMN, so we use batch_alter_table which
-    # recreates the table with the updated FK definition.
-    with op.batch_alter_table("incident_vehicle", recreate="always") as batch:
-        batch.alter_column(
-            "commander_member_id",
-            existing_type=sa.BigInteger(),
-            nullable=True,
-        )
+    op.alter_column(
+        "incident_vehicle",
+        "commander_member_id",
+        existing_type=sa.BigInteger(),
+        nullable=True,
+    )
 
 
 def downgrade() -> None:
-    # The ondelete behaviour is not stored in a way batch can undo selectively;
-    # recreating without it is sufficient for a downgrade path.
-    with op.batch_alter_table("incident_vehicle", recreate="always") as batch:
-        batch.alter_column(
-            "commander_member_id",
-            existing_type=sa.BigInteger(),
-            nullable=True,
-        )
+    op.alter_column(
+        "incident_vehicle",
+        "commander_member_id",
+        existing_type=sa.BigInteger(),
+        nullable=True,
+    )

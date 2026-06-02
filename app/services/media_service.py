@@ -108,14 +108,14 @@ def _process_image(data: bytes, dest_dir: Path) -> tuple[Path, Path, int, int, s
     Returns: (storage_path, thumb_path, width, height, mime_type)."""
     from PIL import Image, ImageOps
 
-    img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)
+    img = Image.open(io.BytesIO(data))  # type: ignore[assignment]
+    img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
     if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")
+        img = img.convert("RGB")  # type: ignore[assignment]
 
     img.thumbnail(
         (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
-        Image.LANCZOS,
+        Image.Resampling.LANCZOS,
     )
 
     uid = uuid.uuid4().hex
@@ -125,7 +125,7 @@ def _process_image(data: bytes, dest_dir: Path) -> tuple[Path, Path, int, int, s
     img.save(main_path, "JPEG", quality=85, optimize=True, progressive=True)
 
     thumb = img.copy()
-    thumb.thumbnail((settings.MEDIA_THUMB_SIZE, settings.MEDIA_THUMB_SIZE), Image.LANCZOS)
+    thumb.thumbnail((settings.MEDIA_THUMB_SIZE, settings.MEDIA_THUMB_SIZE), Image.Resampling.LANCZOS)
     thumb.save(thumb_path, "JPEG", quality=80, optimize=True)
 
     return main_path, thumb_path, img.width, img.height, "image/jpeg"
@@ -266,7 +266,7 @@ async def store_upload(
             width=w, height=h,
         )
     elif kind == "pdf":
-        main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")
+        main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")  # type: ignore[assignment]
         media = TaskMedia(
             task_id=task.id, incident_id=task.incident_id,
             uploaded_by_user_id=user.id,
@@ -278,7 +278,7 @@ async def store_upload(
             pages=pages,
         )
     else:  # video
-        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)
+        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)  # type: ignore[assignment]
         media = TaskMedia(
             task_id=task.id, incident_id=task.incident_id,
             uploaded_by_user_id=user.id,
@@ -326,7 +326,7 @@ async def store_upload_for_message(
             mime_type=out_mime, bytes=main_p.stat().st_size, width=w, height=h,
         )
     elif kind == "pdf":
-        main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")
+        main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")  # type: ignore[assignment]
         media = MessageMedia(
             message_id=message.id, incident_id=message.incident_id,
             uploaded_by_user_id=user.id, kind="pdf",
@@ -336,7 +336,7 @@ async def store_upload_for_message(
             mime_type="application/pdf", bytes=main_p.stat().st_size, pages=pages,
         )
     else:
-        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)
+        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)  # type: ignore[assignment]
         media = MessageMedia(
             message_id=message.id, incident_id=message.incident_id,
             uploaded_by_user_id=user.id, kind="video",
@@ -379,7 +379,7 @@ async def store_upload_for_person(
             mime_type=out_mime, bytes=main_p.stat().st_size, width=w, height=h,
         )
     elif kind == "pdf":
-        main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")
+        main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")  # type: ignore[assignment]
         media = PersonMedia(
             person_id=person.id, incident_id=person.incident_id,
             uploaded_by_user_id=user.id, kind="pdf",
@@ -389,7 +389,7 @@ async def store_upload_for_person(
             mime_type="application/pdf", bytes=main_p.stat().st_size, pages=pages,
         )
     else:
-        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)
+        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)  # type: ignore[assignment]
         media = PersonMedia(
             person_id=person.id, incident_id=person.incident_id,
             uploaded_by_user_id=user.id, kind="video",

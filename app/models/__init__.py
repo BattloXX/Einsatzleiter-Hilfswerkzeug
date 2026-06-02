@@ -10,6 +10,7 @@ from app.models.incident import (
     RescuedPerson,
     Task,
 )
+from app.models.lagekarte import LagekarteToken
 from app.models.master import (
     AlarmType,
     DefaultMessage,
@@ -25,7 +26,6 @@ from app.models.master import (
     TaskSuggestionAlarm,
     VehicleMaster,
 )
-from app.models.lagekarte import LagekarteToken
 from app.models.password_reset import PasswordResetToken
 from app.models.user import ApiKey, AuditLog, DeviceToken, FcmToken, PushLog, PushSubscription, Role, User, UserRole
 

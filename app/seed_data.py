@@ -27,17 +27,28 @@ ROLES = [
 ]
 
 ALARM_TYPES = [
-    {"code": "F1",  "category": "F", "label": "Brand Klein",         "default_first_train_only": True,  "notify_neighbors": False},
-    {"code": "F2",  "category": "F", "label": "Brand Mittel",        "default_first_train_only": True,  "notify_neighbors": False},
-    {"code": "F3",  "category": "F", "label": "Brand Groß",          "default_first_train_only": False, "notify_neighbors": False},
-    {"code": "F4",  "category": "F", "label": "Brand Katastrophe",   "default_first_train_only": False, "notify_neighbors": True},
-    {"code": "F14", "category": "F", "label": "Fahrzeugbrand",       "default_first_train_only": True,  "notify_neighbors": False},
-    {"code": "T1",  "category": "T", "label": "Technisch Klein",     "default_first_train_only": True,  "notify_neighbors": False},
-    {"code": "T2",  "category": "T", "label": "Technisch Mittel",    "default_first_train_only": True,  "notify_neighbors": False},
-    {"code": "T3",  "category": "T", "label": "Technisch Groß",      "default_first_train_only": False, "notify_neighbors": True},
-    {"code": "T4",  "category": "T", "label": "Technisch Komplex",   "default_first_train_only": False, "notify_neighbors": False},
-    {"code": "T6",  "category": "T", "label": "Wasserrettung",       "default_first_train_only": False, "notify_neighbors": True},
-    {"code": "T7",  "category": "T", "label": "Technisch Speziell",  "default_first_train_only": False, "notify_neighbors": True},
+    {"code": "F1",  "category": "F", "label": "Brand Klein",
+     "default_first_train_only": True,  "notify_neighbors": False},
+    {"code": "F2",  "category": "F", "label": "Brand Mittel",
+     "default_first_train_only": True,  "notify_neighbors": False},
+    {"code": "F3",  "category": "F", "label": "Brand Groß",
+     "default_first_train_only": False, "notify_neighbors": False},
+    {"code": "F4",  "category": "F", "label": "Brand Katastrophe",
+     "default_first_train_only": False, "notify_neighbors": True},
+    {"code": "F14", "category": "F", "label": "Fahrzeugbrand",
+     "default_first_train_only": True,  "notify_neighbors": False},
+    {"code": "T1",  "category": "T", "label": "Technisch Klein",
+     "default_first_train_only": True,  "notify_neighbors": False},
+    {"code": "T2",  "category": "T", "label": "Technisch Mittel",
+     "default_first_train_only": True,  "notify_neighbors": False},
+    {"code": "T3",  "category": "T", "label": "Technisch Groß",
+     "default_first_train_only": False, "notify_neighbors": True},
+    {"code": "T4",  "category": "T", "label": "Technisch Komplex",
+     "default_first_train_only": False, "notify_neighbors": False},
+    {"code": "T6",  "category": "T", "label": "Wasserrettung",
+     "default_first_train_only": False, "notify_neighbors": True},
+    {"code": "T7",  "category": "T", "label": "Technisch Speziell",
+     "default_first_train_only": False, "notify_neighbors": True},
 ]
 
 FIRE_DEPTS = [
@@ -50,15 +61,24 @@ FIRE_DEPTS = [
 ]
 
 WOLFURT_VEHICLES = [
-    {"code": "KDOF",  "name": "KDOF",  "type": "Kommandofunk / Kommandofahrzeug", "is_first_train": True,  "display_order": 0},
-    {"code": "RLF",   "name": "RLF",   "type": "Rüstlöschfahrzeug",               "is_first_train": True,  "display_order": 1},
-    {"code": "TMB",   "name": "TMB",   "type": "Teleskopmastbühne",               "is_first_train": True,  "display_order": 2},
-    {"code": "LFB-C", "name": "LFB-C", "type": "Löschfahrzeug Berge C",           "is_first_train": True,  "display_order": 3},
-    {"code": "Tank",  "name": "Tank",  "type": "Tanklöschfahrzeug",               "is_first_train": True,  "display_order": 4},
-    {"code": "LF",    "name": "LF",    "type": "Löschfahrzeug",                   "is_first_train": False, "display_order": 5},
-    {"code": "VF",    "name": "VF",    "type": "Versorgungsfahrzeug",             "is_first_train": False, "display_order": 6},
-    {"code": "MTF",   "name": "MTF",   "type": "Mannschaftstransportfahrzeug",    "is_first_train": False, "display_order": 7},
-    {"code": "MTF-2", "name": "MTF-2", "type": "Mannschaftstransportfahrzeug 2",  "is_first_train": False, "display_order": 8},
+    {"code": "KDOF",  "name": "KDOF",  "type": "Kommandofunk / Kommandofahrzeug",
+     "is_first_train": True,  "display_order": 0},
+    {"code": "RLF",   "name": "RLF",   "type": "Rüstlöschfahrzeug",
+     "is_first_train": True,  "display_order": 1},
+    {"code": "TMB",   "name": "TMB",   "type": "Teleskopmastbühne",
+     "is_first_train": True,  "display_order": 2},
+    {"code": "LFB-C", "name": "LFB-C", "type": "Löschfahrzeug Berge C",
+     "is_first_train": True,  "display_order": 3},
+    {"code": "Tank",  "name": "Tank",  "type": "Tanklöschfahrzeug",
+     "is_first_train": True,  "display_order": 4},
+    {"code": "LF",    "name": "LF",    "type": "Löschfahrzeug",
+     "is_first_train": False, "display_order": 5},
+    {"code": "VF",    "name": "VF",    "type": "Versorgungsfahrzeug",
+     "is_first_train": False, "display_order": 6},
+    {"code": "MTF",   "name": "MTF",   "type": "Mannschaftstransportfahrzeug",
+     "is_first_train": False, "display_order": 7},
+    {"code": "MTF-2", "name": "MTF-2", "type": "Mannschaftstransportfahrzeug 2",
+     "is_first_train": False, "display_order": 8},
 ]
 
 NEIGHBOR_VEHICLES = {

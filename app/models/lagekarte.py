@@ -20,8 +20,12 @@ class LagekarteToken(Base):
     label: Mapped[str] = mapped_column(String(150), nullable=False)
     org_id: Mapped[int] = mapped_column(Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), nullable=False)
     # Optional: Token gilt nur für diesen Einsatz (striktere Einschränkung)
-    einsatz_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("incident.id", ondelete="SET NULL"), nullable=True)
-    created_by_user_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    einsatz_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("incident.id", ondelete="SET NULL"), nullable=True
+    )
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

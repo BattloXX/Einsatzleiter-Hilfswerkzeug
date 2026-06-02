@@ -83,17 +83,17 @@ async def create_breathing_troop(
             break
         mid = form_data.get(key_id)
         members_data.append({
-            "member_id": int(mid) if mid and str(mid).isdigit() else None,
+            "member_id": int(mid) if mid and str(mid).isdigit() else None,  # type: ignore[arg-type]
             "free_text_name": form_data.get(key_name) or None,
             "role": form_data.get(key_role, "truppmann"),
-            "start_press": float(form_data[key_press]) if form_data.get(key_press) else None,
+            "start_press": float(form_data[key_press]) if form_data.get(key_press) else None,  # type: ignore[arg-type]
         })
         i += 1
 
     # Validierung: mindestens 2 Mitglieder ausgefüllt (Member-ID ODER Freitext-Name)
     filled = [
         m for m in members_data
-        if m["member_id"] or (m["free_text_name"] and m["free_text_name"].strip())
+        if m["member_id"] or (m["free_text_name"] and m["free_text_name"].strip())  # type: ignore[union-attr]
     ]
     if len(filled) < 2:
         return RedirectResponse(
@@ -101,7 +101,7 @@ async def create_breathing_troop(
             status_code=303,
         )
 
-    troop = create_troop(
+    create_troop(
         db, incident_id=incident_id, name=name,
         members_data=members_data, task_text=task_text or None,
         vehicle_id=vehicle_id, unit_name=unit_name.strip() or None,
@@ -167,6 +167,7 @@ async def log_pressure_view(
                  recorded_by_user_id=request.state.user.id)
     db.commit()
     updated_troop = db.get(BreathingTroop, troop_id)
+    assert updated_troop is not None
     warning = get_warning_level(updated_troop)
     time_warn = get_time_warning(updated_troop)
     lowest = updated_troop.lowest_current_pressure or pressure_bar
@@ -274,7 +275,7 @@ async def troop_pdf(
 
     from app.services.pdf_service import render_troop_pdf
     base_url = str(request.base_url).rstrip("/")
-    pdf_bytes = render_troop_pdf(troop, incident, base_url=base_url)
+    pdf_bytes = render_troop_pdf(troop, incident, base_url=base_url)  # type: ignore[arg-type]
 
     safe_name = troop.name.replace(" ", "_").replace("/", "-")
     filename = f"AS-Protokoll_{safe_name}.pdf"

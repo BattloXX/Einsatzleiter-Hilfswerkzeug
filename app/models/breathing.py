@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+
+if TYPE_CHECKING:
+    from app.models.master import Member
 
 TROOP_STATUSES = ["bereit", "im_einsatz", "rueckzug", "zurueck", "erholt"]
 TROOP_STATUS_LABELS = {
@@ -104,7 +110,9 @@ class TroopMember(Base):
     __tablename__ = "troop_member"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    troop_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("breathing_troop.id", ondelete="CASCADE"), nullable=False)
+    troop_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("breathing_troop.id", ondelete="CASCADE"), nullable=False
+    )
     member_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("member.id"), nullable=True)
     free_text_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     role: Mapped[str] = mapped_column(String(30), nullable=False, default="truppmann")
@@ -126,7 +134,9 @@ class PressureLog(Base):
     __tablename__ = "pressure_log"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    troop_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("breathing_troop.id", ondelete="CASCADE"), nullable=False)
+    troop_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("breathing_troop.id", ondelete="CASCADE"), nullable=False
+    )
     ts: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     member_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("member.id"), nullable=True)
     pressure_bar: Mapped[float] = mapped_column(Float, nullable=False)

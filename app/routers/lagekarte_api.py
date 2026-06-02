@@ -11,12 +11,10 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.db import get_db
-from app.models.incident import Incident, IncidentOrg
+from app.models.incident import Incident
 from app.models.lagekarte import LagekarteToken
 from app.services.lagekarte import vehicle_features
 

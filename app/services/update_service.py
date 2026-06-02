@@ -196,7 +196,7 @@ def _reload_server() -> bool:
     if pidfile.exists():
         try:
             pid = int(pidfile.read_text().strip())
-            os.kill(pid, signal.SIGHUP)
+            os.kill(pid, signal.SIGHUP)  # type: ignore[attr-defined]
             return True
         except (ValueError, ProcessLookupError, PermissionError):
             pass

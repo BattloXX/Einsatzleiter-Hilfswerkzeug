@@ -22,10 +22,9 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-from app.core.rate_limit import limiter as _limiter
-
 from app.config import settings
 from app.core.audit import write_audit
+from app.core.rate_limit import limiter as _limiter
 from app.core.security import hash_password
 from app.core.templating import templates
 from app.db import get_db
@@ -97,7 +96,7 @@ async def forgot_submit(
     reset_url = f"{base}/passwort-zuruecksetzen?token={raw_token}"
     try:
         await send_password_reset(
-            to=user.email,
+            to=user.email,  # type: ignore[arg-type]
             reset_url=reset_url,
             user_display_name=user.full_name or user.display_name or user.username,
             db=db,

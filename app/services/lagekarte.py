@@ -1,9 +1,11 @@
 """Lagekarte.info Hilfsfunktionen: URL-Erzeugung, GeoJSON-Feature-Bau, Koordinaten-Jitter."""
 import math
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
     from app.models.incident import Incident
 
 # Wolfurt als letzter Fallback (wird nur verwendet, wenn weder Einsatz- noch Org-Koordinaten gesetzt)
@@ -18,7 +20,7 @@ def build_einsatz_url(lat: float, lng: float) -> str:
     return f"https://www.lagekarte.info/?einsatz={lat},{lng}"
 
 
-def resolve_lagekarte_url(incident: "Incident") -> str | None:
+def resolve_lagekarte_url(incident: Incident) -> str | None:
     """Gibt die URL zurück, die im Lagekarte.info-Button verwendet wird.
 
     Priorität: gespeicherter SHASH/beliebiger Link > generierter Einsatz-Link > None.
@@ -46,14 +48,15 @@ def scatter_coords(base_lat: float, base_lng: float, index: int, count: int) -> 
 
 
 def _live_position(
-    db: "Session", vehicle_master_id: int, min_ts: "datetime | None" = None
-) -> "tuple[float, float] | None":
+    db: Session, vehicle_master_id: int, min_ts: datetime | None = None
+) -> tuple[float, float] | None:
     """Gibt die zuletzt gemeldete GPS-Position zurück, wenn sie frisch genug ist.
 
     Frisch = jünger als 5 Minuten UND jünger als `min_ts` (i.d.R. Alarmzeit des Einsatzes).
     Ältere Positionen werden ignoriert, damit veraltete Standortdaten nicht auftauchen.
     """
     from datetime import UTC, datetime, timedelta
+
     from app.models.user import DeviceToken
     freshness = datetime.now(UTC) - timedelta(minutes=5)
     # Daten müssen sowohl innerhalb der letzten 5 min als auch nach der Alarmzeit liegen
@@ -78,7 +81,7 @@ def _live_position(
     return None
 
 
-def vehicle_features(db: "Session", incident: "Incident") -> list[dict]:
+def vehicle_features(db: Session, incident: Incident) -> list[dict]:
     """Baut GeoJSON-Features nur für Fahrzeuge mit live GPS-Position.
 
     Nur Fahrzeuge, deren Gerät nach der Alarmzeit des Einsatzes eine Position

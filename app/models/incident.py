@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+
+if TYPE_CHECKING:
+    from app.models.master import Member, VehicleMaster
+    from app.models.user import User
 
 # Fixed column codes (always present)
 FIXED_COLUMNS = ["dispatched", "active", "tasks", "messages", "neighbor", "rescued"]
@@ -62,9 +69,15 @@ class Incident(Base):
     columns: Mapped[list[IncidentColumn]] = relationship(
         back_populates="incident", order_by="IncidentColumn.display_order", cascade="all, delete-orphan"
     )
-    vehicles: Mapped[list[IncidentVehicle]] = relationship(back_populates="incident", order_by="IncidentVehicle.display_order", cascade="all, delete-orphan")
-    tasks: Mapped[list[Task]] = relationship(back_populates="incident", order_by="Task.display_order", cascade="all, delete-orphan")
-    messages: Mapped[list[Message]] = relationship(back_populates="incident", order_by="Message.display_order", cascade="all, delete-orphan")
+    vehicles: Mapped[list[IncidentVehicle]] = relationship(
+        back_populates="incident", order_by="IncidentVehicle.display_order", cascade="all, delete-orphan"
+    )
+    tasks: Mapped[list[Task]] = relationship(
+        back_populates="incident", order_by="Task.display_order", cascade="all, delete-orphan"
+    )
+    messages: Mapped[list[Message]] = relationship(
+        back_populates="incident", order_by="Message.display_order", cascade="all, delete-orphan"
+    )
     rescued_persons: Mapped[list[RescuedPerson]] = relationship(back_populates="incident", cascade="all, delete-orphan")
     log_entries: Mapped[list[IncidentLog]] = relationship(
         back_populates="incident", order_by="IncidentLog.ts", cascade="all, delete-orphan"
@@ -72,9 +85,13 @@ class Incident(Base):
     changes: Mapped[list[IncidentChange]] = relationship(
         back_populates="incident", order_by="IncidentChange.ts", cascade="all, delete-orphan"
     )
-    breathing_troops: Mapped[list[BreathingTroop]] = relationship(back_populates="incident", cascade="all, delete-orphan")
+    breathing_troops: Mapped[list[BreathingTroop]] = relationship(
+        back_populates="incident", cascade="all, delete-orphan"
+    )
     tokens: Mapped[list[IncidentToken]] = relationship(back_populates="incident", cascade="all, delete-orphan")
-    collaborating_orgs: Mapped[list[IncidentOrg]] = relationship(back_populates="incident", cascade="all, delete-orphan")
+    collaborating_orgs: Mapped[list[IncidentOrg]] = relationship(
+        back_populates="incident", cascade="all, delete-orphan"
+    )
     leader: Mapped[User | None] = relationship(
         "User", foreign_keys=[incident_leader_user_id], lazy="joined"
     )
@@ -126,7 +143,9 @@ class IncidentVehicle(Base):
     incident_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("incident.id", ondelete="CASCADE"), nullable=False)
     column_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("incident_column.id"), nullable=False)
     vehicle_master_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("vehicle_master.id"), nullable=False)
-    commander_member_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("member.id", ondelete="SET NULL"), nullable=True)
+    commander_member_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("member.id", ondelete="SET NULL"), nullable=True
+    )
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     org_color_override: Mapped[str | None] = mapped_column(String(7), nullable=True)
@@ -301,8 +320,12 @@ class Message(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     incident_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("incident.id", ondelete="CASCADE"), nullable=False)
-    column_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("incident_column.id", ondelete="SET NULL"), nullable=True)
-    vehicle_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("incident_vehicle.id", ondelete="SET NULL"), nullable=True)
+    column_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("incident_column.id", ondelete="SET NULL"), nullable=True
+    )
+    vehicle_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("incident_vehicle.id", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_after_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)

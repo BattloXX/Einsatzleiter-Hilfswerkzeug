@@ -175,4 +175,5 @@ templates.env.globals["ordered_col_items"] = _ordered_col_items
 
 # Lagekarte.info URL-Hilfsfunktion für Templates
 from app.services.lagekarte import resolve_lagekarte_url  # noqa: E402
+
 templates.env.globals["lagekarte_url"] = resolve_lagekarte_url

@@ -83,7 +83,7 @@ async def test_push(request: Request, db: Session = Depends(get_db)):
         return JSONResponse({"ok": False, "error": "VAPID E-Mail fehlt"})
 
     try:
-        from pywebpush import WebPushException, webpush
+        from pywebpush import webpush
         payload = json.dumps({
             "title": "Test-Push",
             "body": "Wenn du das siehst, funktioniert Web Push!",
@@ -108,9 +108,14 @@ async def test_push(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass
         log.exception("Test-Push fehlgeschlagen für User %s Subscription %s", user.id, sub.id)
+        if status in (403, 404, 410):
+            # Subscription ist ungültig (VAPID-Key-Wechsel oder Ablauf) – aus DB entfernen
+            try:
+                db.delete(sub)
+                db.commit()
+            except Exception:
+                db.rollback()
         # Nur Statuscode + Exception-Typ zurückgeben – keine str(exc)-Details im Response
-        # (pywebpush-Fehlermeldungen können interne Infos enthalten).
-        # Der vollständige Traceback ist im Server-Log via log.exception() oben.
         err_type = type(exc).__name__
         if status:
             detail = f"HTTP {status} vom Push-Server ({err_type}) – Details im Server-Log"

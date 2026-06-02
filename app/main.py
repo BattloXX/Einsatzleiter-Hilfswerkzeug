@@ -37,6 +37,7 @@ logger = logging.getLogger("einsatzleiter")
 
 # In-Memory-Log-Buffer so früh wie möglich registrieren, damit auch Startup-Logs erfasst werden
 from app import log_buffer as _log_buffer  # noqa: E402
+
 _log_buffer.setup()
 
 
@@ -198,7 +199,7 @@ async def session_middleware(request: Request, call_next):
                             user = None  # Incident closed or token revoked → logged out
                         else:
                             recorder = db.query(Role).filter(Role.code == "recorder").first()
-                            user = _QrUser(user, recorder)
+                            user = _QrUser(user, recorder)  # type: ignore[assignment]
                 elif user and not is_device:
                     # Regular session: refresh token to slide the inactivity window.
                     _refresh_user_id = user_id
@@ -308,12 +309,16 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == 401 and not request.url.path.startswith("/api/"):
         return RedirectResponse("/login", status_code=302)
     if exc.status_code == 403:
+        _body_style = (
+            "display:flex;flex-direction:column;align-items:center;"
+            "justify-content:center;min-height:100vh;gap:1rem"
+        )
         return HTMLResponse(
             f"""<!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Nicht erlaubt</title>
 <link rel="stylesheet" href="/static/css/app.css">
-</head><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:1rem">
+</head><body style="{_body_style}">
 <h2 style="color:var(--color-warn,#f6ad55)">&#9888; Nicht erlaubt</h2>
 <p>{exc.detail}</p>
 <a href="javascript:history.back()" class="btn btn--ghost">&#8592; Zurück</a>
@@ -361,4 +366,4 @@ def _custom_openapi():
     return schema
 
 
-app.openapi = _custom_openapi
+app.openapi = _custom_openapi  # type: ignore[method-assign]

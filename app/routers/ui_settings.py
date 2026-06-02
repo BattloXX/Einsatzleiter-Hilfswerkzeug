@@ -59,9 +59,11 @@ def settings_page(request: Request, db=Depends(get_db), user: User = Depends(req
     if is_sysadmin and org_id:
         effective_org_id = org_id
     else:
-        effective_org_id = user.org_id
+        effective_org_id = user.org_id  # type: ignore[assignment]
     org = db.query(FireDept).filter(FireDept.id == effective_org_id).first() if effective_org_id else None
-    org_settings = db.query(OrgSettings).filter(OrgSettings.org_id == effective_org_id).first() if effective_org_id else None
+    org_settings = (
+        db.query(OrgSettings).filter(OrgSettings.org_id == effective_org_id).first() if effective_org_id else None
+    )
     version = get_current_version()
     is_sysadmin = has_role(user, "system_admin")
     all_orgs = db.query(FireDept).order_by(FireDept.name).all() if is_sysadmin else []
