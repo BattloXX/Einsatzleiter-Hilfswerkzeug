@@ -63,7 +63,11 @@ async def test_push(request: Request, db: Session = Depends(get_db)):
     if not endpoint:
         return JSONResponse({"ok": False, "error": "Kein Endpoint übermittelt"})
 
-    sub = db.query(PushSubscription).filter(PushSubscription.endpoint == endpoint).first()
+    sub = (
+        db.query(PushSubscription)
+        .filter(PushSubscription.endpoint == endpoint, PushSubscription.user_id == user.id)
+        .first()
+    )
     if not sub:
         return JSONResponse({"ok": False, "error": "Subscription nicht in Datenbank gefunden"})
 
