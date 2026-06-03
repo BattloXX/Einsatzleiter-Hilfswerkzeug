@@ -79,6 +79,19 @@ def _incident_or_404(incident_id: int, db: Session):
     return inc
 
 
+def _entity_logs(db: Session, incident_id: int, entity_type: str, entity_id: int) -> list:
+    return (
+        db.query(IncidentLog)
+        .filter(
+            IncidentLog.incident_id == incident_id,
+            IncidentLog.entity_type == entity_type,
+            IncidentLog.entity_id == entity_id,
+        )
+        .order_by(IncidentLog.ts)
+        .all()
+    )
+
+
 # ── Dashboard / Index ──────────────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)
@@ -562,8 +575,10 @@ async def assign_task(
     await manager.broadcast(incident_id, {"type": "task_assigned", "reload_board": True})
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    task_logs = _entity_logs(db, incident_id, "task", task_id)
     return templates.TemplateResponse(request, "incident/_task_modal.html", {
         "user": request.state.user, "incident": incident, "task": task, "can_edit": can_edit,
+        "entity_logs": task_logs,
     })
 
 
@@ -890,10 +905,17 @@ async def autoclose_keepopen(
 async def add_log(
     incident_id: int, request: Request,
     text: str = Form(...),
+    entity_type: str = Form(""),
+    entity_id: int | None = Form(None),
     db: Session = Depends(get_db),
     _=Depends(require_role("incident_leader", "admin", "recorder")),
 ):
-    entry = IncidentLog(incident_id=incident_id, text=text, user_id=request.state.user.id)
+    etype = entity_type.strip() or None
+    entry = IncidentLog(
+        incident_id=incident_id, text=text, user_id=request.state.user.id,
+        entity_type=etype,
+        entity_id=entity_id if etype else None,
+    )
     db.add(entry)
     db.commit()
     await manager.broadcast(incident_id, {"type": "log_updated"})
@@ -1204,11 +1226,12 @@ async def vehicle_detail(
         .all()
     )
     can_edit = has_role(user, "incident_leader", "admin", "recorder")
+    vehicle_logs = _entity_logs(db, incident_id, "vehicle", vehicle_id)
     return templates.TemplateResponse(request, "incident/_vehicle_modal.html", {
         "user": user, "incident": incident, "vehicle": vehicle,
         "members": commander_candidates, "recent_changes": recent_changes,
         "can_edit": can_edit, "unit_status_values": UNIT_STATUS_VALUES,
-        "bos_values": BOS_VALUES,
+        "bos_values": BOS_VALUES, "entity_logs": vehicle_logs,
     })
 
 
@@ -1277,8 +1300,10 @@ async def task_detail(
         return Response("Nicht gefunden", status_code=404)
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(user, "incident_leader", "admin", "recorder")
+    task_logs = _entity_logs(db, incident_id, "task", task_id)
     return templates.TemplateResponse(request, "incident/_task_modal.html", {
         "user": user, "incident": incident, "task": task, "can_edit": can_edit,
+        "entity_logs": task_logs,
     })
 
 
@@ -1336,9 +1361,10 @@ async def person_detail(
         return Response("Nicht gefunden", status_code=404)
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(user, "incident_leader", "admin", "recorder")
+    person_logs = _entity_logs(db, incident_id, "person", person_id)
     return templates.TemplateResponse(request, "incident/_person_modal.html", {
         "user": user, "incident": incident, "person": person, "can_edit": can_edit,
-        "person_status_values": PERSON_STATUS_VALUES,
+        "person_status_values": PERSON_STATUS_VALUES, "entity_logs": person_logs,
     })
 
 
@@ -1364,9 +1390,10 @@ async def update_person_endpoint(
     await manager.broadcast(incident_id, {"type": "person_updated", "reload_board": True})
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    person_logs = _entity_logs(db, incident_id, "person", person_id)
     return templates.TemplateResponse(request, "incident/_person_modal.html", {
         "user": request.state.user, "incident": incident, "person": person, "can_edit": can_edit,
-        "person_status_values": PERSON_STATUS_VALUES,
+        "person_status_values": PERSON_STATUS_VALUES, "entity_logs": person_logs,
     })
 
 
@@ -1418,8 +1445,10 @@ async def update_task_endpoint(
     await manager.broadcast(incident_id, {"type": "task_updated", "reload_board": True})
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    task_logs = _entity_logs(db, incident_id, "task", task_id)
     return templates.TemplateResponse(request, "incident/_task_modal.html", {
         "user": request.state.user, "incident": incident, "task": task, "can_edit": can_edit,
+        "entity_logs": task_logs,
     })
 
 
@@ -1578,8 +1607,10 @@ async def upload_person_media(
     db.refresh(person, ["media"])
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    person_logs = _entity_logs(db, incident_id, "person", person_id)
     return templates.TemplateResponse(request, "incident/_person_modal.html", {
         "user": request.state.user, "incident": incident, "person": person, "can_edit": can_edit,
+        "entity_logs": person_logs,
     })
 
 
@@ -1599,8 +1630,10 @@ async def delete_person_media(
     db.refresh(person, ["media"])
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    person_logs = _entity_logs(db, incident_id, "person", person_id)
     return templates.TemplateResponse(request, "incident/_person_modal.html", {
         "user": request.state.user, "incident": incident, "person": person, "can_edit": can_edit,
+        "entity_logs": person_logs,
     })
 
 

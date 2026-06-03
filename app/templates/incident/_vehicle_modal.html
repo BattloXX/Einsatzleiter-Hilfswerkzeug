@@ -117,31 +117,32 @@
     {% endif %}
   </div>
 
-  <!-- Journal -->
+  <!-- Notizen -->
   <div class="detail-section">
-    <div class="detail-section__title" style="display:flex; justify-content:space-between; align-items:center;">
-      JOURNAL
-      <a href="/einsatz/{{ incident.id }}/" class="link-sm" style="font-size:.7rem;" title="Zum Board – vollständiges Journal in der Seitenleiste">Board →</a>
-    </div>
-    <div style="max-height:160px; overflow-y:auto; margin-bottom:6px;">
-      {% for entry in incident.log_entries[-15:]|reverse %}
-      <div style="display:flex; gap:8px; padding:2px 0; font-size:.78rem; border-bottom:1px solid rgba(255,255,255,.04);">
-        <span style="color:var(--text-muted);white-space:nowrap;flex-shrink:0;">{{ entry.ts|local_time }}</span>
-        <span>{{ entry.text }}</span>
-      </div>
-      {% else %}
-      <p style="font-size:.8rem; color:var(--text-muted);">Noch keine Einträge.</p>
-      {% endfor %}
-    </div>
+    <div class="detail-section__title">NOTIZEN</div>
     {% if can_edit %}
     <form hx-post="/einsatz/{{ incident.id }}/log"
           hx-swap="none"
           hx-on::after-request="if(event.detail.successful){this.reset();htmx.ajax('GET','/einsatz/{{ incident.id }}/fahrzeug/{{ vehicle.id }}/detail',{target:'#cardDetailBody',swap:'innerHTML'})}"
-          style="display:flex; gap:6px;">
+          style="display:flex; gap:6px; margin-bottom:8px;">
+      <input type="hidden" name="entity_type" value="vehicle">
+      <input type="hidden" name="entity_id" value="{{ vehicle.id }}">
       <input type="text" name="text" class="form-input form-input--sm" placeholder="Notiz eintragen ..." required style="flex:1; font-size:.85rem;">
       <button type="submit" class="btn btn--ghost btn--sm">+</button>
     </form>
     {% endif %}
+    <div style="max-height:160px; overflow-y:auto;">
+      {% if entity_logs %}
+      {% for entry in entity_logs|reverse %}
+      <div style="display:flex; gap:8px; padding:2px 0; font-size:.78rem; border-bottom:1px solid rgba(255,255,255,.04);">
+        <span style="color:var(--text-muted);white-space:nowrap;flex-shrink:0;">{{ entry.ts|local_time }}</span>
+        <span>{{ entry.text }}</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p style="font-size:.8rem; color:var(--text-muted);">Noch keine Notizen.</p>
+      {% endif %}
+    </div>
   </div>
 
 </div>
