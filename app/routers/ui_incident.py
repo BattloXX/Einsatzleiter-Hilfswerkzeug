@@ -542,21 +542,29 @@ async def set_task_ampel(
     return Response(status_code=204)
 
 
-@router.post("/einsatz/{incident_id}/aufgabe/{task_id}/zuweisen")
+@router.post("/einsatz/{incident_id}/aufgabe/{task_id}/zuweisen", response_class=HTMLResponse)
 async def assign_task(
     incident_id: int, task_id: int, request: Request,
-    vehicle_id: int = Form(...),
+    vehicle_id: int | None = Form(None),
     db: Session = Depends(get_db),
     _=Depends(require_role("incident_leader", "admin", "recorder")),
 ):
     task = db.get(Task, task_id)
-    vehicle = db.get(IncidentVehicle, vehicle_id)
-    if not task or not vehicle:
+    if not task:
         return Response(status_code=404)
-    assign_task_to_vehicle(db, task, vehicle, user_id=request.state.user.id)
+    if vehicle_id:
+        vehicle = db.get(IncidentVehicle, vehicle_id)
+        if vehicle:
+            assign_task_to_vehicle(db, task, vehicle, user_id=request.state.user.id)
+    else:
+        task.vehicle_id = None
     db.commit()
     await manager.broadcast(incident_id, {"type": "task_assigned", "reload_board": True})
-    return Response(status_code=204)
+    incident = _incident_or_404(incident_id, db)
+    can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    return templates.TemplateResponse(request, "incident/_task_modal.html", {
+        "user": request.state.user, "incident": incident, "task": task, "can_edit": can_edit,
+    })
 
 
 # ── Fahrzeug hinzufügen (Inline-Wizard) ───────────────────────────────────────
