@@ -22,6 +22,7 @@
 </div>
 {% endif %}
 {% if saved %}<div class="alert alert--success">Gespeichert.{% if mail_sent %} Eine Reset-Mail wurde versendet.{% endif %}</div>{% endif %}
+{% if deleted %}<div class="alert alert--success">Benutzer gelöscht.</div>{% endif %}
 {% if error == 'email_exists' %}
 <div class="alert alert--error">Diese E-Mail-Adresse ist bereits einem anderen Benutzer zugeordnet.</div>
 {% elif error == 'no_email' %}
@@ -30,9 +31,18 @@
 <div class="alert alert--error">Die Reset-Mail konnte nicht versendet werden. Bitte SMTP-Konfiguration prüfen.</div>
 {% endif %}
 
+<form method="post" action="/admin/benutzer/bulk-loeschen" id="bulkUserForm"
+      onsubmit="return checkBulkUsers()">
+<div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+  <button type="button" class="btn btn--ghost btn--xs" onclick="toggleAllUsers()">Alle wählen</button>
+  <button type="submit" class="btn btn--danger btn--xs">Markierte löschen</button>
+  <small class="text-muted">Endgültig — kann nicht rückgängig gemacht werden.</small>
+</div>
+
 <table class="table-admin">
   <thead>
     <tr>
+      <th style="width:32px;"></th>
       <th>Benutzername</th>
       <th>Echter Name</th>
       <th>E-Mail</th>
@@ -47,6 +57,11 @@
   <tbody>
     {% for u in users %}
     <tr>
+      <td>
+        {% if u.id != user.id %}
+        <input type="checkbox" name="user_ids" value="{{ u.id }}" class="user-bulk-cb">
+        {% endif %}
+      </td>
       <td><strong>{{ u.username }}</strong><br><small class="text-muted">{{ u.display_name }}</small></td>
       <td>{{ u.full_name or '—' }}</td>
       <td>{{ u.email or '—' }}</td>
@@ -90,10 +105,17 @@
         </form>
         {% if u.id != user.id %}
         <form method="post" action="/admin/benutzer/{{ u.id }}/loeschen" style="display:inline">
-          <button type="submit" class="btn btn--danger btn--xs"
+          <button type="submit" class="btn btn--ghost btn--xs"
                   onclick="return confirm('Benutzer {{ 'aktivieren' if not u.active else 'deaktivieren' }}?')"
                   {{ tip('Account aktivieren/deaktivieren – keine Datenlöschung') }}>
             {% if u.active %}Deaktivieren{% else %}Aktivieren{% endif %}
+          </button>
+        </form>
+        <form method="post" action="/admin/benutzer/{{ u.id }}/endgueltig-loeschen" style="display:inline">
+          <button type="submit" class="btn btn--danger btn--xs"
+                  onclick="return confirm('Benutzer {{ u.username }} endgültig löschen? Alle zugehörigen Daten werden entfernt. Dies kann nicht rückgängig gemacht werden!')"
+                  {{ tip('Account und alle zugehörigen Daten endgültig löschen') }}>
+            Löschen
           </button>
         </form>
         {% endif %}
@@ -102,6 +124,7 @@
     {% endfor %}
   </tbody>
 </table>
+</form>
 
 <!-- Neuer Benutzer -->
 <dialog class="modal" id="newUserModal">
@@ -214,6 +237,16 @@
 
 {% block scripts %}
 <script>
+function toggleAllUsers() {
+  const cbs = document.querySelectorAll('.user-bulk-cb');
+  const anyUnchecked = Array.from(cbs).some(cb => !cb.checked);
+  cbs.forEach(cb => cb.checked = anyUnchecked);
+}
+function checkBulkUsers() {
+  const checked = document.querySelectorAll('.user-bulk-cb:checked').length;
+  if (!checked) { alert('Keine Benutzer ausgewählt.'); return false; }
+  return confirm(checked + ' Benutzer endgültig löschen? Dies kann nicht rückgängig gemacht werden!');
+}
 function openEditUser(id, data) {
   document.getElementById('eu_display_name').value = data.display_name || '';
   document.getElementById('eu_full_name').value = data.full_name || '';

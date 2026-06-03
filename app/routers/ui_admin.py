@@ -66,8 +66,11 @@ async def users_list(request: Request, db: Session = Depends(get_db),
         "is_sysadmin": is_sysadmin,
         "all_orgs": all_orgs,
         "saved": request.query_params.get("saved"),
+        "deleted": request.query_params.get("deleted"),
         "mail_sent": request.query_params.get("mail"),
         "error": request.query_params.get("error"),
+        "new_password": request.query_params.get("new_password"),
+        "new_password_user": request.query_params.get("new_password_user"),
     })
 
 
@@ -127,6 +130,75 @@ async def delete_user(
                     entity_type="user", entity_id=user_id)
         db.commit()
     return RedirectResponse("/admin/benutzer", status_code=303)
+
+
+def _hard_delete_user(db: Session, u: User, acting_user_id: int) -> None:
+    """FK-sicheres Löschen eines Users — analog zu delete_device_token."""
+    from app.models.breathing import PressureLog
+    from app.models.incident import (
+        Incident,
+        IncidentChange,
+        IncidentLog,
+        IncidentOrg,
+        IncidentToken,
+        Task,
+    )
+    uid = u.id
+    write_audit(db, "admin.user.hard_deleted", user_id=acting_user_id,
+                entity_type="user", entity_id=uid, payload={"username": u.username})
+    db.flush()
+    db.query(AuditLog).filter(AuditLog.user_id == uid).update({"user_id": None})
+    db.query(SystemSettings).filter(SystemSettings.updated_by_user_id == uid).update({"updated_by_user_id": None})
+    db.query(Incident).filter(Incident.incident_leader_user_id == uid).update({"incident_leader_user_id": None})
+    db.query(IncidentOrg).filter(IncidentOrg.added_by_user_id == uid).update({"added_by_user_id": None})
+    db.query(Task).filter(Task.created_by_user_id == uid).update({"created_by_user_id": None})
+    db.query(IncidentLog).filter(IncidentLog.user_id == uid).update({"user_id": None})
+    db.query(IncidentChange).filter(IncidentChange.user_id == uid).update({"user_id": None})
+    db.query(IncidentToken).filter(IncidentToken.target_user_id == uid).update({"target_user_id": None})
+    db.query(IncidentToken).filter(IncidentToken.issued_by_user_id == uid).delete()
+    db.query(PressureLog).filter(PressureLog.recorded_by_user_id == uid).update({"recorded_by_user_id": None})
+    db.query(UserRole).filter(UserRole.user_id == uid).delete()
+    db.flush()
+    db.expire(u)
+    db.delete(u)
+
+
+@router.post("/benutzer/{user_id}/endgueltig-loeschen")
+async def hard_delete_user(
+    user_id: int, request: Request, db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    u = db.get(User, user_id)
+    if not u:
+        return RedirectResponse("/admin/benutzer", status_code=303)
+    if not same_org_or_system_admin(request.state.user, u.org_id):  # type: ignore[arg-type]
+        raise HTTPException(403, "Keine Berechtigung")
+    if u.id == request.state.user.id:
+        return RedirectResponse("/admin/benutzer?error=self_delete", status_code=303)
+    _hard_delete_user(db, u, request.state.user.id)
+    db.commit()
+    return RedirectResponse("/admin/benutzer?deleted=1", status_code=303)
+
+
+@router.post("/benutzer/bulk-loeschen")
+async def bulk_delete_users(
+    request: Request,
+    user_ids: list[int] = Form(default=[]),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    acting_id = request.state.user.id
+    for uid in user_ids:
+        if uid == acting_id:
+            continue
+        u = db.get(User, uid)
+        if not u:
+            continue
+        if not same_org_or_system_admin(request.state.user, u.org_id):  # type: ignore[arg-type]
+            continue
+        _hard_delete_user(db, u, acting_id)
+    db.commit()
+    return RedirectResponse("/admin/benutzer?deleted=1", status_code=303)
 
 
 # ── API-Keys ──────────────────────────────────────────────────────────────────
@@ -1992,6 +2064,27 @@ async def delete_lagekarte_token(
                 entity_type="lagekarte_token", entity_id=token_id,
                 payload={"label": tok.label})
     db.delete(tok)
+    db.commit()
+    return RedirectResponse("/admin/lagekarte-tokens", status_code=303)
+
+
+@router.post("/lagekarte-tokens/bulk-loeschen")
+async def bulk_delete_lagekarte_tokens(
+    request: Request,
+    token_ids: list[int] = Form(default=[]),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    from app.models.lagekarte import LagekarteToken
+    for tid in token_ids:
+        tok = db.get(LagekarteToken, tid)
+        if not tok:
+            continue
+        if not same_org_or_system_admin(request.state.user, tok.org_id):
+            continue
+        write_audit(db, "admin.lagekarte_token.deleted", user_id=request.state.user.id,
+                    entity_type="lagekarte_token", entity_id=tid, payload={"label": tok.label})
+        db.delete(tok)
     db.commit()
     return RedirectResponse("/admin/lagekarte-tokens", status_code=303)
 

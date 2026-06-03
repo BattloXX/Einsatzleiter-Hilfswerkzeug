@@ -53,12 +53,19 @@
 </div>
 {% endif %}
 
-<section class="card">
-  <div class="card-header"><h2>Aktive &amp; gesperrte Tokens</h2></div>
-  <div class="card-body" style="padding:0">
-    <table class="table">
+<section class=”card”>
+  <div class=”card-header”><h2>Aktive &amp; gesperrte Tokens</h2></div>
+  <div class=”card-body” style=”padding:0”>
+    <form method=”post” action=”/admin/lagekarte-tokens/bulk-loeschen” id=”bulkTokenForm”
+          onsubmit=”return checkBulkTokens()”>
+    <div style=”display:flex;gap:8px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);”>
+      <button type=”button” class=”btn btn--ghost btn--xs” onclick=”toggleAllTokens()”>Alle wählen</button>
+      <button type=”submit” class=”btn btn--danger btn--xs”>Markierte löschen</button>
+    </div>
+    <table class=”table”>
       <thead>
         <tr>
+          <th style=”width:32px;”></th>
           <th>Bezeichnung</th>
           <th>Org</th>
           <th>Einsatz</th>
@@ -72,38 +79,55 @@
       <tbody>
         {% for t in tokens %}
         <tr>
+          <td><input type=”checkbox” name=”token_ids” value=”{{ t.id }}” class=”token-bulk-cb”></td>
           <td>{{ t.label }}</td>
           <td>{{ t.org.name if t.org else '–' }}</td>
           <td>{% if t.einsatz_id %}#{{ t.einsatz_id }}{% else %}alle{% endif %}</td>
           <td>{{ (t.created_at|local).strftime('%d.%m.%Y') }}</td>
           <td>{{ t.last_used_at|local_datetime if t.last_used_at else '–' }}</td>
           <td>{{ (t.expires_at|local).strftime('%d.%m.%Y') if t.expires_at else '∞' }}</td>
-          <td><span class="badge {% if t.is_active %}badge--active{% else %}badge--closed{% endif %}">{{ 'Aktiv' if t.is_active else 'Gesperrt' }}</span></td>
-          <td style="white-space:nowrap;">
+          <td><span class=”badge {% if t.is_active %}badge--active{% else %}badge--closed{% endif %}”>{{ 'Aktiv' if t.is_active else 'Gesperrt' }}</span></td>
+          <td style=”white-space:nowrap;”>
             {% if t.is_active %}
-            <form method="post" action="/admin/lagekarte-tokens/{{ t.id }}/sperren" style="display:inline">
-              <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-              <button type="submit" class="btn btn--xs btn--danger"
-                      onclick="return confirm('Token sperren?')">Sperren</button>
+            <form method=”post” action=”/admin/lagekarte-tokens/{{ t.id }}/sperren” style=”display:inline”>
+              <input type=”hidden” name=”_csrf” value=”{{ request.state.csrf_token }}”>
+              <button type=”submit” class=”btn btn--xs btn--danger”
+                      onclick=”return confirm('Token sperren?')”>Sperren</button>
             </form>
             {% endif %}
-            <form method="post" action="/admin/lagekarte-tokens/{{ t.id }}/loeschen" style="display:inline">
-              <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-              <button type="submit" class="btn btn--xs btn--ghost"
-                      style="color:var(--color-danger)"
-                      data-label="{{ t.label | e }}"
-                      onclick="return confirm('Token „' + this.dataset.label + '“ endg\xfcltig l\xf6schen?')">L&ouml;schen</button>
+            <form method=”post” action=”/admin/lagekarte-tokens/{{ t.id }}/loeschen” style=”display:inline”>
+              <input type=”hidden” name=”_csrf” value=”{{ request.state.csrf_token }}”>
+              <button type=”submit” class=”btn btn--xs btn--ghost”
+                      style=”color:var(--color-danger)”
+                      data-label=”{{ t.label | e }}”
+                      onclick=”return confirm('Token „' + this.dataset.label + '” endg\xfcltig l\xf6schen?')”>L&ouml;schen</button>
             </form>
           </td>
         </tr>
         {% endfor %}
         {% if not tokens %}
-        <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:1.5rem">Noch keine Tokens angelegt.</td></tr>
+        <tr><td colspan=”9” style=”text-align:center;color:var(--text-muted);padding:1.5rem”>Noch keine Tokens angelegt.</td></tr>
         {% endif %}
       </tbody>
     </table>
+    </form>
   </div>
 </section>
+
+{% block scripts %}
+<script>
+function toggleAllTokens() {
+  const cbs = document.querySelectorAll('.token-bulk-cb');
+  const anyUnchecked = Array.from(cbs).some(cb => !cb.checked);
+  cbs.forEach(cb => cb.checked = anyUnchecked);
+}
+function checkBulkTokens() {
+  const checked = document.querySelectorAll('.token-bulk-cb:checked').length;
+  if (!checked) { alert('Keine Tokens ausgewählt.'); return false; }
+  return confirm(checked + ' Token(s) endgültig löschen?');
+}
+</script>
+{% endblock %}
 
 <section class="card mt-4">
   <div class="card-header"><h2>Verwendung in lagekarte.info</h2></div>

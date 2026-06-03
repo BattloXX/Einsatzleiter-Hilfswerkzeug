@@ -43,18 +43,16 @@
                 placeholder="Ergänzende Beschreibung, Lagehinweis, Auftragstext ...">{{ task.detail or '' }}</textarea>
     </div>
     <p class="form-hint">
-      Die Karte zeigt die Überschrift und darunter nur die Ergänzung.
-      Ausblenden bedeutet: Die Karte bleibt grau und durchgestrichen dokumentiert,
-      wird aber nicht mehr als aktiver Auftrag verwendet.
+      Überschrift erscheint auf der Karte, die Ergänzung darunter als Zusatzinfo.
     </p>
   </form>
 
-  <!-- Fahrzeug-Zuweisung aus Modal -->
-  <div id="vehicleAssignArea" style="display:none; margin-top:8px;">
+  <!-- Fahrzeug-Zuweisung -->
+  <div style="margin-top:8px;">
     <form method="post" action="/einsatz/{{ incident.id }}/aufgabe/{{ task.id }}/zuweisen">
-      <div style="display:flex; gap:8px;">
+      <div style="display:flex; gap:8px; align-items:center;">
         <select name="vehicle_id" class="form-select" style="flex:1">
-          <option value="">Fahrzeug wählen...</option>
+          <option value="">– keine Einheit –</option>
           {% for v in incident.vehicles %}
           {% if v.removed_at is none %}
           <option value="{{ v.id }}" {% if task.vehicle_id == v.id %}selected{% endif %}>
@@ -90,14 +88,10 @@
 {% if can_edit %}
 <div class="modal__footer">
   <button type="submit" form="taskEditForm" class="btn btn--primary">Speichern</button>
-  <button type="button" class="btn btn--ghost"
-          onclick="document.getElementById('vehicleAssignArea').style.display = document.getElementById('vehicleAssignArea').style.display === 'none' ? 'block' : 'none'">
-    Fahrzeug wählen
-  </button>
   <form method="post" action="/einsatz/{{ incident.id }}/aufgabe/{{ task.id }}/ausblenden" style="display:inline"
         onsubmit="document.getElementById('cardDetailModal').close()">
     <button type="submit" class="btn btn--danger">
-      {% if task.is_cancelled %}Wiederherstellen{% else %}Ausblenden / entfernen{% endif %}
+      {% if task.is_cancelled %}Wiederherstellen{% else %}Ausblenden{% endif %}
     </button>
   </form>
 </div>

@@ -102,20 +102,22 @@
 
 <script>
 (function() {
-  // Leaflet laden, falls noch nicht vorhanden
+  // Leaflet + map-picker.js laden, falls noch nicht vorhanden
   function ensureLeaflet(cb) {
-    if (typeof L !== 'undefined') { cb(); return; }
+    function loadMapPicker() {
+      if (typeof initMapPicker !== 'undefined') { cb(); return; }
+      const s2 = document.createElement('script');
+      s2.src = '/static/js/map-picker.js';
+      s2.onload = cb;
+      document.head.appendChild(s2);
+    }
+    if (typeof L !== 'undefined') { loadMapPicker(); return; }
     const link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = '/static/css/leaflet.min.css';
     document.head.appendChild(link);
     const s = document.createElement('script');
     s.src = '/static/js/leaflet.min.js';
-    s.onload = function() {
-      const s2 = document.createElement('script');
-      s2.src = '/static/js/map-picker.js';
-      s2.onload = cb;
-      document.head.appendChild(s2);
-    };
+    s.onload = loadMapPicker;
     document.head.appendChild(s);
   }
 
@@ -134,12 +136,7 @@
     });
   }
 
-  // Nach HTMX-Swap: Karte initialisieren
-  if (typeof L !== 'undefined' && typeof initMapPicker !== 'undefined') {
-    startMap();
-  } else {
-    ensureLeaflet(startMap);
-  }
+  ensureLeaflet(startMap);
 
   // Geocoding via fetch
   window.geocodeAddress = function(incidentId) {
