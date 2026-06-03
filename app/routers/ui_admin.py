@@ -69,8 +69,6 @@ async def users_list(request: Request, db: Session = Depends(get_db),
         "deleted": request.query_params.get("deleted"),
         "mail_sent": request.query_params.get("mail"),
         "error": request.query_params.get("error"),
-        "new_password": request.query_params.get("new_password"),
-        "new_password_user": request.query_params.get("new_password_user"),
     })
 
 
@@ -774,11 +772,15 @@ async def reset_user_password(
     write_audit(db, "admin.user.password_reset", user_id=request.state.user.id,
                 entity_type="user", entity_id=user_id)
     db.commit()
-    users = _org_filter(db.query(User), request.state.user, User.org_id).order_by(User.username).all()
+    acting = request.state.user
+    is_sysadmin = has_role(acting, "system_admin")
+    users = _org_filter(db.query(User), acting, User.org_id).order_by(User.username).all()
     roles = db.query(Role).all()
+    all_orgs = db.query(FireDept).order_by(FireDept.name).all() if is_sysadmin else []
     return templates.TemplateResponse(request, "admin/users.html", {
-        "user": request.state.user,
+        "user": acting,
         "users": users, "roles": roles,
+        "is_sysadmin": is_sysadmin, "all_orgs": all_orgs,
         "new_password": new_pw, "new_password_user": u.username,
     })
 

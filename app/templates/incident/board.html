@@ -462,11 +462,6 @@
       </div>
       {% endif %}
 
-      <div class="form-group" style="margin-bottom:8px;">
-        <label class="form-label" style="font-size:.75rem;">Notiz (optional — wird ins Journal eingetragen)</label>
-        <input type="text" class="form-input form-input--sm" x-model="noteText" placeholder="z. B. Befehlsübergabe erfolgt">
-      </div>
-
       <div x-show="suggestions.length > 0" class="suggestion-list">
         <template x-for="s in suggestions" :key="s.id">
           <form method="post" :action="`/einsatz/${incidentId}/fahrzeug-hinzufuegen`" style="display:block;">
@@ -485,6 +480,11 @@
         </template>
       </div>
       <p x-show="suggestions.length === 0" class="form-hint">Keine passenden Einheiten gefunden.</p>
+
+      <div class="form-group" style="margin-top:10px;">
+        <label class="form-label" style="font-size:.75rem;">Notiz (optional — wird ins Journal eingetragen)</label>
+        <input type="text" class="form-input form-input--sm" x-model="noteText" placeholder="z. B. Befehlsübergabe erfolgt">
+      </div>
 
       <hr style="margin: 16px 0; border:0; border-top:1px solid var(--border);">
 

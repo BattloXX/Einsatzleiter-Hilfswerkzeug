@@ -58,6 +58,7 @@
   <div class=”card-body” style=”padding:0”>
     <form method=”post” action=”/admin/lagekarte-tokens/bulk-loeschen” id=”bulkTokenForm”
           onsubmit=”return checkBulkTokens()”>
+    <input type=”hidden” name=”_csrf” value=”{{ request.state.csrf_token }}”>
     <div style=”display:flex;gap:8px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);”>
       <button type=”button” class=”btn btn--ghost btn--xs” onclick=”toggleAllTokens()”>Alle wählen</button>
       <button type=”submit” class=”btn btn--danger btn--xs”>Markierte löschen</button>

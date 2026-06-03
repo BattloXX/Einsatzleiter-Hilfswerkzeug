@@ -33,6 +33,7 @@
 
 <form method="post" action="/admin/benutzer/bulk-loeschen" id="bulkUserForm"
       onsubmit="return checkBulkUsers()">
+<input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
 <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
   <button type="button" class="btn btn--ghost btn--xs" onclick="toggleAllUsers()">Alle wählen</button>
   <button type="submit" class="btn btn--danger btn--xs">Markierte löschen</button>
@@ -112,8 +113,9 @@
           </button>
         </form>
         <form method="post" action="/admin/benutzer/{{ u.id }}/endgueltig-loeschen" style="display:inline">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
           <button type="submit" class="btn btn--danger btn--xs"
-                  onclick="return confirm('Benutzer {{ u.username }} endgültig löschen? Alle zugehörigen Daten werden entfernt. Dies kann nicht rückgängig gemacht werden!')"
+                  onclick="return confirm('Benutzer ' + {{ u.username | tojson }} + ' endgültig löschen? Alle zugehörigen Daten werden entfernt. Dies kann nicht rückgängig gemacht werden!')"
                   {{ tip('Account und alle zugehörigen Daten endgültig löschen') }}>
             Löschen
           </button>
