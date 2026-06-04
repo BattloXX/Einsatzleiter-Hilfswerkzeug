@@ -135,6 +135,8 @@ def collect_situation_context(incident_id: int, db: Session) -> dict[str, Any]:
 
     now = datetime.now(UTC)
     started = incident.started_at
+    if started and started.tzinfo is None:
+        started = started.replace(tzinfo=UTC)
     duration_min = int((now - started).total_seconds() / 60) if started else None
 
     col_by_id = {c.id: c for c in incident.columns}

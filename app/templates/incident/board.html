@@ -646,6 +646,9 @@ function openLagebild() {
 }
 
 function aiLagebild(incidentId) {
+  function _csrf() {
+    return document.cookie.match(/(?:^|;\s*)fwwo_csrf=([^;]+)/)?.[1] || '';
+  }
   return {
     incidentId,
     text: '',
@@ -656,7 +659,10 @@ function aiLagebild(incidentId) {
       this.error = '';
       this.text = '';
       try {
-        const r = await fetch(`/einsatz/${incidentId}/ki-lagebild`, {method: 'POST'});
+        const r = await fetch(`/einsatz/${incidentId}/ki-lagebild`, {
+          method: 'POST',
+          headers: {'X-CSRF-Token': _csrf()},
+        });
         const data = await r.json();
         if (!r.ok) { this.error = data.detail || 'Fehler beim Erzeugen'; return; }
         this.text = data.text;
@@ -674,7 +680,7 @@ function aiLagebild(incidentId) {
       try {
         const r = await fetch(`/einsatz/${incidentId}/ki-lagebild/journal`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _csrf()},
           body: JSON.stringify({text: this.text}),
         });
         if (!r.ok) { this.error = 'Fehler beim Speichern'; return; }
