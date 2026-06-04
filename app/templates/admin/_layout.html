@@ -311,33 +311,24 @@
     {% block admin_content %}{% endblock %}
   </section>
 </div>
-{% endblock %}
-
-{% block scripts %}
 <script>
 function adminNav(activeGroup) {
-  const STORE = 'admin_nav_groups';
-  let s = {};
+  var STORE = 'admin_nav_groups';
+  var s = {};
   try { s = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch(e) {}
-
-  const labels = { stammdaten: 'Stammdaten', verwaltung: 'Verwaltung', einstellungen: 'Einstellungen' };
-
+  var labels = { stammdaten: 'Stammdaten', verwaltung: 'Verwaltung', einstellungen: 'Einstellungen' };
   return {
     navOpen: false,
     sectionLabel: labels[activeGroup] || 'Administration',
     groups: {
-      stammdaten: activeGroup === 'stammdaten' ? true : (s.stammdaten ?? true),
-      verwaltung: activeGroup === 'verwaltung' ? true : (s.verwaltung ?? true),
-      einstellungen: activeGroup === 'einstellungen' ? true : (s.einstellungen ?? false),
+      stammdaten: activeGroup === 'stammdaten' ? true : (s.stammdaten !== undefined ? s.stammdaten : true),
+      verwaltung: activeGroup === 'verwaltung' ? true : (s.verwaltung !== undefined ? s.verwaltung : true),
+      einstellungen: activeGroup === 'einstellungen' ? true : (s.einstellungen !== undefined ? s.einstellungen : false),
     },
-    isMobile() {
-      return window.matchMedia('(max-width: 1100px)').matches;
-    },
-    toggle(group) {
+    isMobile: function() { return window.matchMedia('(max-width: 1100px)').matches; },
+    toggle: function(group) {
       this.groups[group] = !this.groups[group];
-      try {
-        localStorage.setItem(STORE, JSON.stringify(this.groups));
-      } catch(e) {}
+      try { localStorage.setItem(STORE, JSON.stringify(this.groups)); } catch(e) {}
     },
   };
 }
