@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json as _json
 import logging
+import re as _re
 from typing import Any
 
 from anthropic import APIError, AsyncAnthropic, AuthenticationError, RateLimitError
@@ -125,6 +126,52 @@ _REPORT_SYSTEM = (
     "Keine Erfindungen, keine Spekulation. "
     "Ausgabe: nur der Berichtstext, ohne Überschrift, ohne Formatierung."
 )
+
+
+_SUGGEST_SYSTEM = (
+    "Du bist ein taktischer Erstmaßnahmen-Assistent der Feuerwehr. "
+    "Analysiere die Alarmmeldung und die Einsatzart. "
+    "Schlage 3–5 konkrete Erstmaßnahmen als JSON-Array vor. "
+    "Jedes Element hat die Felder: 'titel' (max 60 Zeichen) und optionales 'detail' (max 120 Zeichen). "
+    "Ausgabe: NUR gültiges JSON-Array, keine Erklärungen, keine Umrahmung. "
+    'Beispiel: [{"titel":"Wasserversorgung aufbauen","detail":"Hydrant Hauptstraße nutzen"}]'
+)
+
+
+async def suggest_tasks(meldung: str, einsatzart: str) -> list[dict]:
+    """Return 3–5 first-response task suggestions for an incoming alarm.
+
+    Returns an empty list on any failure (never raises).
+    """
+    user_msg = f"Alarmmeldung: {meldung}\nEinsatzart: {einsatzart}"
+    try:
+        raw = await complete(_SUGGEST_SYSTEM, user_msg, fast=True, max_tokens=600)
+    except AIServiceError:
+        return []
+
+    # Extract the first JSON array from the response (model may wrap text around it)
+    match = _re.search(r"\[.*?\]", raw, _re.DOTALL)
+    if not match:
+        return []
+
+    try:
+        items = _json.loads(match.group())
+    except (ValueError, TypeError):
+        return []
+
+    if not isinstance(items, list):
+        return []
+
+    result: list[dict] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        titel = str(item.get("titel", "")).strip()[:60]
+        detail_raw = item.get("detail")
+        detail = str(detail_raw).strip()[:120] if detail_raw else None
+        if titel:
+            result.append({"titel": titel, "detail": detail})
+    return result
 
 
 async def generate_report_draft(incident_data: dict) -> str:

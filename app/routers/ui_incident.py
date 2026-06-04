@@ -1466,6 +1466,36 @@ async def cancel_task_endpoint(
     return Response(status_code=204)
 
 
+@router.post("/einsatz/{incident_id}/aufgabe/{task_id}/ki-annehmen")
+async def accept_ai_suggestion(
+    incident_id: int, task_id: int, request: Request, db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
+):
+    task = db.get(Task, task_id)
+    if not task or task.incident_id != incident_id or task.source != "ai_suggestion":
+        return Response(status_code=404)
+    task.source = "manual"
+    db.commit()
+    await manager.broadcast(incident_id, {"type": "task_updated", "reload_board": True})
+    return Response(status_code=204)
+
+
+@router.post("/einsatz/{incident_id}/aufgabe/{task_id}/ki-verwerfen")
+async def reject_ai_suggestion(
+    incident_id: int, task_id: int, request: Request, db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
+):
+    task = db.get(Task, task_id)
+    if not task or task.incident_id != incident_id or task.source != "ai_suggestion":
+        return Response(status_code=404)
+    from datetime import UTC, datetime
+    task.is_cancelled = True
+    task.cancelled_at = datetime.now(UTC)
+    db.commit()
+    await manager.broadcast(incident_id, {"type": "task_cancelled", "reload_board": True})
+    return Response(status_code=204)
+
+
 # ── Media-Upload / -Löschen ───────────────────────────────────────────────────
 
 @router.post("/einsatz/{incident_id}/aufgabe/{task_id}/medien", response_class=HTMLResponse)
