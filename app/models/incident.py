@@ -65,6 +65,8 @@ class Incident(Base):
     lagekarte_shash_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # Auto-generierter GeoJSON-Feed-Token (Plain-Text für Anzeige im Adress-Modal)
     auto_geojson_token: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # KI-generierter Verlaufsberichtsentwurf (Phase 1)
+    ai_report_draft: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     columns: Mapped[list[IncidentColumn]] = relationship(
         back_populates="incident", order_by="IncidentColumn.display_order", cascade="all, delete-orphan"

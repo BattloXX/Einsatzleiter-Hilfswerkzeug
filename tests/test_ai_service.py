@@ -9,7 +9,6 @@ import pytest
 from app.services import ai_service
 from app.services.ai_service import AIServiceError, _strip_persons, is_enabled
 
-
 # ── is_enabled ───────────────────────────────────────────────────────────────
 
 def test_is_enabled_false_when_flag_off(monkeypatch):
@@ -179,8 +178,8 @@ async def test_complete_timeout_raises_ai_service_error(ai_enabled):
 
 @pytest.mark.asyncio
 async def test_complete_api_error_raises_ai_service_error(ai_enabled):
-    from anthropic import APIConnectionError
     import httpx
+    from anthropic import APIConnectionError
 
     mock_request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
     mock_client = MagicMock()

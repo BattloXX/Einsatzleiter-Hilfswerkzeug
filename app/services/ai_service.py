@@ -7,11 +7,11 @@ escape this module.
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import logging
 from typing import Any
 
-from anthropic import AsyncAnthropic
-from anthropic import APIError, AuthenticationError, RateLimitError
+from anthropic import APIError, AsyncAnthropic, AuthenticationError, RateLimitError
 
 from app.config import settings
 
@@ -97,7 +97,7 @@ async def complete(
             ),
             timeout=float(settings.AI_TIMEOUT),
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("AI provider timeout after %ss (model=%s)", settings.AI_TIMEOUT, model)
         raise AIServiceError("KI-Dienst hat nicht rechtzeitig geantwortet (Timeout).")
     except AuthenticationError:
@@ -114,3 +114,21 @@ async def complete(
         raise AIServiceError("KI-Dienst hat eine leere Antwort geliefert.")
 
     return response.content[0].text
+
+
+_REPORT_SYSTEM = (
+    "Du bist ein sachlicher Berichtsassistent der Feuerwehr. "
+    "Erstelle aus den gelieferten Einsatzdaten einen strukturierten deutschen Verlaufsbericht "
+    "(3–8 Sätze Fließtext, de-AT, sachlich, unpersönlich). "
+    "Nutze ausschließlich die gelieferten Fakten. "
+    "Was unbekannt oder nicht dokumentiert ist, bezeichnest du als 'nicht dokumentiert'. "
+    "Keine Erfindungen, keine Spekulation. "
+    "Ausgabe: nur der Berichtstext, ohne Überschrift, ohne Formatierung."
+)
+
+
+async def generate_report_draft(incident_data: dict) -> str:
+    """Generate a German prose incident report draft from structured incident data."""
+    safe_data = _strip_persons(incident_data)
+    user_msg = f"Einsatzdaten (JSON):\n{_json.dumps(safe_data, ensure_ascii=False, indent=2)}"
+    return await complete(_REPORT_SYSTEM, user_msg)
