@@ -98,9 +98,14 @@
 (function() {
   let _map = null;
   let _marker = null;
+  let _loading = false;
+  let _pendingCbs = [];
 
   function ensureLeaflet(cb) {
     if (typeof L !== 'undefined' && typeof initMapPicker !== 'undefined') { cb(); return; }
+    _pendingCbs.push(cb);
+    if (_loading) return; // Lädt bereits – Callback wird nach dem Laden aufgerufen
+    _loading = true;
     const link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = '/static/css/leaflet.min.css';
     document.head.appendChild(link);
@@ -109,7 +114,10 @@
     s.onload = function() {
       const s2 = document.createElement('script');
       s2.src = '/static/js/map-picker.js';
-      s2.onload = cb;
+      s2.onload = function() {
+        const cbs = _pendingCbs.splice(0);
+        cbs.forEach(function(fn) { fn(); });
+      };
       document.head.appendChild(s2);
     };
     document.head.appendChild(s);
@@ -136,17 +144,11 @@
     });
   }
 
-  // Karte laden wenn Modal geöffnet wird
-  document.getElementById('newIncidentModal').addEventListener('toggle', function(e) {
-    if (e.newState === 'open') {
-      ensureLeaflet(function() { setTimeout(initNewIncidentMap, 50); });
-    }
-  });
-  // Fallback: click auf den Button
-  document.querySelector('button[\\@click*="newIncidentModal.showModal"]') &&
-    document.querySelector('button[\\@click*="newIncidentModal.showModal"]').addEventListener('click', function() {
-      ensureLeaflet(function() { setTimeout(initNewIncidentMap, 150); });
-    });
+  // MutationObserver: zuverlässiger als dialog „toggle"-Event (Safari-kompatibel)
+  const _modal = document.getElementById('newIncidentModal');
+  new MutationObserver(function() {
+    if (_modal.open) ensureLeaflet(function() { setTimeout(initNewIncidentMap, 50); });
+  }).observe(_modal, { attributes: true, attributeFilter: ['open'] });
 
   window.newIncidentGeocode = function() {
     const street = document.getElementById('newIncStreet').value;

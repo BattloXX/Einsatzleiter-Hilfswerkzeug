@@ -5,7 +5,7 @@ import io
 from datetime import UTC, datetime
 
 import qrcode
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -73,6 +73,46 @@ from app.services.incident_service import (
 router = APIRouter()
 
 
+async def _trigger_ai_task_suggestions(incident_id: int, meldung: str, einsatzart: str) -> None:
+    """Background: KI-Auftragsvorschläge generieren und an Board broadcasten."""
+    from app.db import SessionLocal
+    from app.services.ai_service import suggest_tasks
+
+    suggestions = await suggest_tasks(meldung, einsatzart)
+    if not suggestions:
+        return
+    db = SessionLocal()
+    try:
+        incident = db.get(Incident, incident_id)
+        if not incident:
+            return
+        # Alte offene KI-Vorschläge entfernen, damit keine Duplikate entstehen
+        for t in list(incident.tasks):
+            if t.source == "ai_suggestion" and not t.is_done and not t.is_cancelled:
+                db.delete(t)
+        db.flush()
+        tasks_col = next((c for c in incident.columns if c.code == "tasks"), None)
+        for i, s in enumerate(suggestions):
+            db.add(Task(
+                incident_id=incident_id,
+                column_id=tasks_col.id if tasks_col else None,
+                title=s["titel"],
+                detail=s.get("detail"),
+                source="ai_suggestion",
+                display_order=1000 + i,
+            ))
+        db.commit()
+        await manager.broadcast(incident_id, {
+            "type": "ai_suggestions_ready",
+            "reload_board": True,
+            "count": len(suggestions),
+        })
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+
 def _prepend_ai_hints(incident: Incident, master_hints: list) -> list:
     """Prepend AI-generated hints (stored as JSON on incident) to master hints list."""
     import json as _json
@@ -133,6 +173,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
 @router.post("/einsatz/neu")
 async def new_incident(
     request: Request,
+    background_tasks: BackgroundTasks,
     alarm_type_code: str = Form(...),
     address_street: str = Form(""),
     address_no: str = Form(""),
@@ -187,7 +228,38 @@ async def new_incident(
         "url": f"/einsatz/{incident.id}",
         "title": f"{'[ÜBUNG] ' if is_exercise else ''}Neuer Einsatz: {alarm_type_code}",
     })
+
+    if ai_is_enabled() and not is_exercise:
+        background_tasks.add_task(
+            _trigger_ai_task_suggestions,
+            incident.id,
+            report_text or "",
+            alarm_type_code,
+        )
+
     return RedirectResponse(f"/einsatz/{incident.id}", status_code=303)
+
+
+@router.post("/einsatz/{incident_id}/ki-aufgaben-vorschlaege")
+async def request_ai_task_suggestions(
+    incident_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
+):
+    """Manuell KI-Auftragsvorschläge für einen Einsatz anfordern."""
+    if not ai_is_enabled():
+        from fastapi import HTTPException
+        raise HTTPException(503, detail="KI ist nicht aktiviert.")
+    incident = _incident_or_404(incident_id, db)
+    background_tasks.add_task(
+        _trigger_ai_task_suggestions,
+        incident.id,
+        incident.report_text or "",
+        incident.alarm_type_code,
+    )
+    return Response(status_code=202)
 
 
 # ── Einsatz-Board ─────────────────────────────────────────────────────────────

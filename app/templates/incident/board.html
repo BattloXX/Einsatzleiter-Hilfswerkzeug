@@ -143,6 +143,9 @@
         <button class="dropdown-item" id="ki-hints-btn" @click="open=false; regenerateLageHinweise({{ incident.id }})">
           <span class="di-icon">📋</span> Hinweise neu laden
         </button>
+        <button class="dropdown-item" id="ki-tasks-btn" @click="open=false; requestAiTaskSuggestions({{ incident.id }})">
+          <span class="di-icon">✅</span> Auftragsvorschläge
+        </button>
       </div>
     </div>
     {% endif %}
@@ -717,6 +720,26 @@ function openLagebild() {
   const comp = Alpine.$data(dlg);
   if (comp && !comp.text) comp.generate();
   dlg.showModal();
+}
+
+async function requestAiTaskSuggestions(incidentId) {
+  const btn = document.getElementById('ki-tasks-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '✨ …'; }
+  try {
+    const csrf = document.cookie.match(/(?:^|;\s*)fwwo_csrf=([^;]+)/)?.[1] || '';
+    const fd = new FormData();
+    fd.append('_csrf', csrf);
+    const r = await fetch(`/einsatz/${incidentId}/ki-aufgaben-vorschlaege`, {method: 'POST', body: fd});
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.detail || 'Fehler beim Anfordern der Vorschläge');
+    }
+    // Board-Reload kommt via WebSocket-Broadcast
+  } catch (e) {
+    alert(e.message || 'Unbekannter Fehler');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="di-icon">✅</span> Auftragsvorschläge'; }
+  }
 }
 
 async function regenerateLageHinweise(incidentId) {
