@@ -493,6 +493,8 @@ body.mobile-menu-open { overflow: hidden; }
   font-family: 'JetBrains Mono', monospace; transition: var(--transition);
 }
 .suggestion-pill:hover { background: var(--red); color: #fff; border-color: var(--red); }
+.suggestion-pill--ai { background: rgba(139,92,246,.12); border-color: rgba(139,92,246,.4); color: var(--text); }
+.suggestion-pill--ai:hover { background: rgba(139,92,246,.85); color: #fff; border-color: rgba(139,92,246,.9); }
 .section-presets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .log-list { max-height: 180px; overflow-y: auto; font-size: .8rem; }
 .log-entry { padding: 3px 0; border-bottom: 1px solid var(--border); display: flex; gap: 8px; }

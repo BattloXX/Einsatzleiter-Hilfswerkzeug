@@ -258,10 +258,16 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
             org_ids.append(_io.org_id)
     el_member_candidates = list_el_candidates(db, org_ids)
     gk_member_candidates = list_commander_candidates(db, org_ids)
+    # Pending AI task suggestions (not yet adopted/rejected) override admin chips
+    ai_task_suggestions = [
+        t for t in incident.tasks
+        if t.source == "ai_suggestion" and not t.is_done and not t.is_cancelled
+    ]
     return templates.TemplateResponse(request, "incident/board.html", {
         "user": user, "incident": incident,
         "alarm_types": alarm_types, "lage_hints": lage_hints, "lage_hints_ai": lage_hints_ai,
         "task_suggestions": task_suggestions, "msg_suggestions": msg_suggestions,
+        "ai_task_suggestions": ai_task_suggestions,
         "can_edit": can_edit, "leader_candidates": leader_candidates,
         "el_member_candidates": el_member_candidates,
         "gk_member_candidates": gk_member_candidates,

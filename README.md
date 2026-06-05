@@ -40,6 +40,7 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | **In-App ZIP-Update** | Neue Version per Upload einspielen, kein SSH erforderlich |
 | **Statistik-Dashboard** | Einsatzauswertung nach Typ, Zeit, Fahrzeug |
 | **Stammdaten-Verwaltung** | Fahrzeuge, Mitglieder, Qualifikationen (AGT-Ablaufdaten), Alarmtypen |
+| **KI-Assistent (✨)** | Auftragsvorschläge, Lage-Ticker-Hinweise und Lagebild via Anthropic Claude; opt-in pro Instanz |
 
 ---
 
@@ -578,12 +579,62 @@ python -m app.cli create-api-key --label "Alarmierungssystem"
 
 | Rolle | Code | Bereich | Berechtigungen |
 |-------|------|---------|----------------|
-| **Systemadmin** | `system_admin` | Systemweit | Alles, alle Orgs |
+| **Systemadmin** | `system_admin` | Systemweit | Alles, alle Orgs; kann Einsätze endgültig löschen |
 | **Org-Admin** | `org_admin` / `admin` | Eigene Org | Vollzugriff innerhalb der Org |
 | **Einsatzleiter** | `incident_leader` | Einsatz | Board bearbeiten, Atemschutz steuern |
 | **AS-Überwacher** | `breathing_supervisor` | Atemschutz | Nur Atemschutzüberwachung |
 | **Schriftführer** | `recorder` | Einsatz | Journal, Meldungen, Media-Upload |
 | **Beobachter** | `readonly` | Einsatz | Nur Lesen |
+
+---
+
+## KI-Assistent (✨)
+
+Der optionale KI-Assistent nutzt die **Anthropic Claude API** und muss pro Instanz explizit aktiviert werden.
+
+### Aktivierung
+
+In den System-Einstellungen (`/admin/system-einstellungen`, nur `system_admin`):
+- `ai_enabled = true`
+- `ai_api_key = sk-ant-...`
+
+Default: **deaktiviert** (`AI_ENABLED=false`).
+
+### Funktionen
+
+| Funktion | Beschreibung |
+|----------|-------------|
+| **✨ Auftragsvorschläge** | Beim Alarmeingang (via REST-API) generiert die KI 3–5 Erstmaßnahmen als Kanban-Tasks mit `source="ai_suggestion"`. Der Einsatzleiter bestätigt (✓) oder verwirft (✗) jeden Vorschlag. |
+| **✨ Lage-Hinweise** | Taktische Ticker-Hinweise für das Board (Sidebar + Header). KI-Hinweise werden mit ✨ markiert; admin-gepflegte Hinweise dienen als Fallback wenn keine KI-Hinweise vorliegen. |
+| **✨ Lagebild** | Kompakte Lagebeschreibung aus Live-Einsatzdaten; kann ins Journal übernommen werden. |
+| **✨ Einsatzbericht** | KI-Entwurf für den Abschlussbericht (im Archiv). |
+
+### Auftragsvorschlags-Chips
+
+Im "Auftrag anlegen"-Dialog werden Vorschläge als Chips dargestellt:
+- **KI-Vorschläge vorhanden** → nur KI-Chips (✨) werden angezeigt
+- **Keine KI-Vorschläge** → admin-gepflegte Vorlagen als Fallback
+- Das ✨-Icon erscheint nur im Chip-Label — beim Übernehmen wird der reine Auftragstext ohne ✨ eingesetzt
+
+### Sicherheit & Datenschutz
+
+- **Keine Personendaten an die KI**: Alle Payloads durchlaufen `_strip_persons()` in `ai_service.py`
+- **KI ist Assistenz, nie Akteur**: Das LLM erzeugt nur Vorschläge — keine automatischen Statusänderungen
+- **Alarm-Anlage scheitert nie an KI-Fehler**: AI-Enrichment läuft als Background-Task, Fehler werden geloggt
+- Tests mocken den Provider: `ai_service.complete` via Monkeypatching in `conftest.py`
+
+---
+
+## Einsätze löschen (system_admin)
+
+System-Admins können Einsätze im Archiv endgültig löschen:
+
+1. Archiv-Detailseite des Einsatzes öffnen (`/archiv/{id}`)
+2. Button **🗑 Löschen** anklicken (nur für `system_admin` sichtbar)
+3. Doppelte Bestätigungsabfrage im Browser
+4. Alle abhängigen Daten (Aufgaben, Meldungen, Fahrzeuge, Atemschutz, Journal, Medien) werden gelöscht
+
+Die Aktion wird im Audit-Log protokolliert (`admin.incident.deleted`).
 
 ---
 
