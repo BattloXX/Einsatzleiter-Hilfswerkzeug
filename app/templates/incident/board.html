@@ -207,17 +207,8 @@
         </div>
         <input type="text" name="detail" placeholder="Zusatzinfo (optional)" class="form-input form-input--detail">
       </form>
-      <!-- Vorschläge (KI hat Priorität; admin-Vorlagen als Fallback) -->
-      {% if ai_task_suggestions %}
-      <div class="task-suggestions">
-        {% for ts in ai_task_suggestions %}
-        <button class="suggestion-pill suggestion-pill--ai"
-                hx-post="/einsatz/{{ incident.id }}/aufgabe"
-                hx-vals='{"title": "{{ ts.title }}"}'
-                hx-swap="none">✨ {{ ts.title }}</button>
-        {% endfor %}
-      </div>
-      {% elif task_suggestions %}
+      <!-- Admin-gepflegte Auftragsvorlagen als Schnellauswahl -->
+      {% if task_suggestions %}
       <div class="task-suggestions">
         {% for ts in task_suggestions %}
         <button class="suggestion-pill"
@@ -381,14 +372,7 @@
           @htmx:after-request="if(event.detail.successful){$el.reset();$el.closest('dialog').close();location.reload();}">
       <div class="modal__body">
         <input type="hidden" name="column_id" :value="colId">
-        {% if ai_task_suggestions %}
-        <div class="task-suggestions" style="margin-bottom:10px;">
-          {% for ts in ai_task_suggestions %}
-          <button type="button" class="suggestion-pill suggestion-pill--ai"
-                  onclick="this.closest('form').querySelector('[name=title]').value='{{ ts.title }}'">✨ {{ ts.title }}</button>
-          {% endfor %}
-        </div>
-        {% elif task_suggestions %}
+        {% if task_suggestions %}
         <div class="task-suggestions" style="margin-bottom:10px;">
           {% for ts in task_suggestions %}
           <button type="button" class="suggestion-pill"
