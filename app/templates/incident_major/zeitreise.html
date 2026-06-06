@@ -106,19 +106,28 @@
       <label><input type="checkbox" checked value="comm" onchange="applyFilter()"> Funkjournal</label>
       <label><input type="checkbox" checked value="journal" onchange="applyFilter()"> Journal</label>
     </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:.78rem;flex-wrap:wrap;">
+      <span style="color:var(--text-muted);">Von</span>
+      <input type="time" id="zt-from" class="form-input"
+             style="padding:2px 6px;font-size:.78rem;width:88px;" oninput="applyFilter()">
+      <span style="color:var(--text-muted);">Bis</span>
+      <input type="time" id="zt-to" class="form-input"
+             style="padding:2px 6px;font-size:.78rem;width:88px;" oninput="applyFilter()">
+      <button class="btn btn--ghost btn--sm" onclick="resetTimeFilter()" title="Zeitfilter zurücksetzen">×</button>
+    </div>
     <a href="/lage/{{ lage.id }}/protokoll.txt"
        class="btn btn--ghost btn--sm" style="margin-left:auto;" download>
       ⬇ Protokoll exportieren
     </a>
   </div>
 
-  <div class="zt-count">{{ timeline|length }} Einträge</div>
+  <div class="zt-count" id="zt-count">{{ timeline|length }} Einträge</div>
 
   {% if timeline %}
   <div class="tl" id="zt-timeline">
     {% for e in timeline %}
     {% if e.kind == 'site_log' %}
-    <div class="tl-entry" data-kind="site_log">
+    <div class="tl-entry" data-kind="site_log" data-ts="{{ e.ts.isoformat() }}Z">
       <div class="tl-dot tl-dot--{{ e.log_kind }}"></div>
       <div class="tl-time">{{ e.ts|local_time }}</div>
       <div class="tl-site">{{ e.site_bezeichnung }}</div>
@@ -126,7 +135,7 @@
       {% if e.author %}<div class="tl-author">{{ e.author }}</div>{% endif %}
     </div>
     {% elif e.kind == 'journal' %}
-    <div class="tl-entry" data-kind="journal">
+    <div class="tl-entry" data-kind="journal" data-ts="{{ e.ts.isoformat() }}Z">
       <div class="tl-dot tl-dot--journal-{{ e.category }}"></div>
       <div class="tl-time">{{ e.ts|local_time }}</div>
       <div class="tl-text">
@@ -138,7 +147,7 @@
       {% if e.author %}<div class="tl-author">{{ e.author }}</div>{% endif %}
     </div>
     {% else %}
-    <div class="tl-entry" data-kind="comm">
+    <div class="tl-entry" data-kind="comm" data-ts="{{ e.ts.isoformat() }}Z">
       <div class="tl-dot tl-dot--comm-{{ e.direction }}"></div>
       <div class="tl-time">{{ e.ts|local_time }}</div>
       <div class="tl-text">
@@ -161,12 +170,47 @@
 
 {% block scripts %}
 <script>
+var ZT_TOTAL = {{ timeline|length }};
+
+function parseHHMM(val) {
+  var p = val.split(':');
+  return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+}
+
 function applyFilter() {
-  var checks = document.querySelectorAll('#zt-filter input[type=checkbox]');
-  var active = Array.from(checks).filter(c => c.checked).map(c => c.value);
+  var checks  = document.querySelectorAll('#zt-filter input[type=checkbox]');
+  var active  = Array.from(checks).filter(function(c) { return c.checked; }).map(function(c) { return c.value; });
+  var fromVal = document.getElementById('zt-from').value;
+  var toVal   = document.getElementById('zt-to').value;
+  var fromMin = fromVal ? parseHHMM(fromVal) : -1;
+  var toMin   = toVal   ? parseHHMM(toVal)   : 1441;
+
+  var visible = 0;
   document.querySelectorAll('#zt-timeline .tl-entry').forEach(function(el) {
-    el.style.display = active.includes(el.dataset.kind) ? '' : 'none';
+    var inKind = active.includes(el.dataset.kind);
+    var inTime = true;
+    if (fromVal || toVal) {
+      var d    = new Date(el.dataset.ts);
+      var hhmm = d.getHours() * 60 + d.getMinutes();
+      inTime   = (hhmm >= fromMin && hhmm <= toMin);
+    }
+    var show = inKind && inTime;
+    el.style.display = show ? '' : 'none';
+    if (show) visible++;
   });
+
+  var countEl = document.getElementById('zt-count');
+  if (visible === ZT_TOTAL) {
+    countEl.textContent = ZT_TOTAL + ' Einträge';
+  } else {
+    countEl.textContent = visible + ' von ' + ZT_TOTAL + ' Einträgen';
+  }
+}
+
+function resetTimeFilter() {
+  document.getElementById('zt-from').value = '';
+  document.getElementById('zt-to').value   = '';
+  applyFilter();
 }
 </script>
 {% endblock %}
