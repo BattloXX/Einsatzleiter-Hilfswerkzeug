@@ -66,7 +66,7 @@
       </div>
       <div class="form-group">
         <label>Ort</label>
-        <input type="text" name="address_city" id="newIncCity" class="form-input" value="Wolfurt" onblur="newIncAutoGeocode()">
+        <input type="text" name="address_city" id="newIncCity" class="form-input" value="{{ default_city }}" onblur="newIncAutoGeocode()">
       </div>
       <div style="margin-bottom:.5rem;display:flex;align-items:center;gap:8px">
         <button type="button" class="btn btn--secondary btn--sm" id="newIncGeocodeBtn"
@@ -146,11 +146,55 @@
     setTimeout(function() { _map.invalidateSize(); }, 250);
   }
 
+  // Marker und Koordinaten von außen setzen (z.B. durch Autocomplete-Auswahl)
+  window.newIncSetMarker = function(lat, lng) {
+    document.getElementById('newIncLat').value = parseFloat(lat).toFixed(6);
+    document.getElementById('newIncLng').value = parseFloat(lng).toFixed(6);
+    if (_map && _marker) {
+      _marker.setLatLng([lat, lng]);
+      _map.setView([lat, lng], 16);
+    }
+  };
+
   // MutationObserver: zuverlässiger als dialog „toggle"-Event (Safari-kompatibel)
   const _modal = document.getElementById('newIncidentModal');
   new MutationObserver(function() {
     if (_modal.open) ensureLeaflet(function() { setTimeout(initNewIncidentMap, 100); });
   }).observe(_modal, { attributes: true, attributeFilter: ['open'] });
+
+  // ── Adress-Autocomplete laden und initialisieren ──────────────────────────
+  function initNewIncAC() {
+    function acOnSelect(item) {
+      if (item.lat != null && item.lng != null) {
+        window.newIncSetMarker(item.lat, item.lng);
+        document.getElementById('newIncGeocodeStatus').textContent = '✓ ' + item.label;
+        document.getElementById('newIncGeocodeStatus').style.color = 'var(--success,#18a957)';
+      }
+    }
+    initAddressAutocomplete({
+      inputId: 'newIncCity', field: 'city', onSelect: acOnSelect,
+    });
+    initAddressAutocomplete({
+      inputId: 'newIncStreet', field: 'street',
+      getCity: function() { return document.getElementById('newIncCity').value; },
+      onSelect: acOnSelect,
+    });
+    initAddressAutocomplete({
+      inputId: 'newIncNo', field: 'house',
+      getCity:   function() { return document.getElementById('newIncCity').value; },
+      getStreet: function() { return document.getElementById('newIncStreet').value; },
+      onSelect: acOnSelect,
+    });
+  }
+
+  if (typeof initAddressAutocomplete !== 'undefined') {
+    initNewIncAC();
+  } else {
+    const _acScript = document.createElement('script');
+    _acScript.src = '/static/js/address-autocomplete.js';
+    _acScript.onload = initNewIncAC;
+    document.head.appendChild(_acScript);
+  }
 
   let _autoGeoTimer = null;
   window.newIncAutoGeocode = function() {

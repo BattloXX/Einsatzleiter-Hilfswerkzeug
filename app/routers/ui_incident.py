@@ -45,6 +45,7 @@ from app.models.master import (
     VehicleMaster,
 )
 from app.models.user import Role, User, UserRole
+from app.config import settings
 from app.services.ai_service import is_enabled as ai_is_enabled
 from app.services.broadcast import manager
 from app.services.incident_service import (
@@ -162,9 +163,13 @@ async def index(request: Request, db: Session = Depends(get_db)):
                                   kontakt=request.query_params.get("kontakt"))
     active = db.query(Incident).filter(Incident.status == "active").order_by(Incident.started_at.desc()).all()
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
+    home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
+    default_city = (home.city if home and home.city else settings.DEFAULT_INCIDENT_CITY)
     return templates.TemplateResponse(request, "index.html", {
         "user": user,
-        "active_incidents": active, "alarm_types": alarm_types,
+        "active_incidents": active,
+        "alarm_types": alarm_types,
+        "default_city": default_city,
     })
 
 
@@ -177,7 +182,7 @@ async def new_incident(
     alarm_type_code: str = Form(...),
     address_street: str = Form(""),
     address_no: str = Form(""),
-    address_city: str = Form("Wolfurt"),
+    address_city: str = Form(""),
     report_text: str = Form(""),
     is_exercise: bool = Form(False),
     lat: str = Form(""),
@@ -188,6 +193,11 @@ async def new_incident(
     from app.services.geocoding import geocode_address as _geocode
 
     user = request.state.user
+
+    # Ort aus Org-Stammdaten wenn nicht angegeben
+    if not address_city.strip():
+        _home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
+        address_city = (_home.city if _home and _home.city else settings.DEFAULT_INCIDENT_CITY)
 
     lat_f: float | None = None
     lng_f: float | None = None
@@ -1898,6 +1908,41 @@ async def move_card_endpoint(
     return Response(status_code=204)
 
 
+# ── Adress-Autocomplete (Photon/Historie, GET, kein CSRF) ─────────────────────
+
+@router.get("/adresse/vorschlaege")
+async def address_suggestions(
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str = "",
+    field: str = "street",
+    city: str = "",
+    street: str = "",
+):
+    """Liefert Adress-Vorschläge via Photon/Historie für das Typeahead-Autocomplete."""
+    from dataclasses import asdict as _asdict
+    from fastapi.responses import JSONResponse as _JSONResponse
+    from app.services.address_autocomplete import suggest_addresses as _suggest
+
+    user = getattr(request.state, "user", None)
+    if not user:
+        return Response(status_code=401)
+    if not has_role(user, "incident_leader", "admin", "recorder"):
+        return Response(status_code=403)
+    if field not in ("street", "house", "city") or not q.strip():
+        return _JSONResponse({"items": []})
+    items = await _suggest(
+        db,
+        q=q.strip(),
+        field=field,
+        city=city.strip() or None,
+        street=street.strip() or None,
+        org_id=user.org_id,
+        limit=settings.PHOTON_SUGGEST_LIMIT,
+    )
+    return _JSONResponse({"items": [_asdict(s) for s in items]})
+
+
 # ── Standalone Geocoding (für Neuer-Einsatz-Dialog ohne Incident-ID) ──────────
 
 @router.post("/adresse/geocode")
@@ -1938,9 +1983,12 @@ async def address_edit_modal(
         from fastapi import HTTPException
         raise HTTPException(403, "Kein Zugriff auf diesen Einsatz")
     org = db.get(FireDept, incident.primary_org_id) if incident.primary_org_id else None
+    home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
+    default_city = (home.city if home and home.city else settings.DEFAULT_INCIDENT_CITY)
     return templates.TemplateResponse(request, "incident/_address_modal.html", {
         "user": user, "incident": incident, "org": org,
         "auto_token": incident.auto_geojson_token,
+        "default_city": default_city,
     })
 
 

@@ -1,11 +1,23 @@
+import os
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import BigInteger, create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.compiler import compiles
+
+# Test-Umgebungsvariablen VOR dem App-Import setzen
+os.environ.setdefault("SECRET_KEY", "test-secret-key-fuer-tests-mindestens-32-zeichen!")
+os.environ.setdefault("DEBUG", "true")
 
 from app.db import Base, get_db
 from app.main import app
 from app.seed_data import seed
+
+
+# SQLite unterstützt kein BigInteger-Autoincrement — BigInteger als INTEGER kompilieren
+@compiles(BigInteger, "sqlite")
+def _bigint_sqlite(element, compiler, **kw):
+    return "INTEGER"
 
 TEST_DB_URL = "sqlite:///./test.db"
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})

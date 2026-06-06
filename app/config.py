@@ -90,6 +90,13 @@ class Settings(BaseSettings):
     NOMINATIM_USER_AGENT: str = "Einsatzleiter-Hilfswerkzeug/2.x (contact: office@feuerwehr-wolfurt.at)"
     NOMINATIM_TIMEOUT_SECONDS: float = 5.0
 
+    # Photon Adress-Autocomplete (OSM/komoot – kein API-Key, über Backend geproxyt)
+    PHOTON_BASE_URL: str = "https://photon.komoot.io"
+    PHOTON_TIMEOUT_SECONDS: float = 4.0
+    PHOTON_CACHE_TTL_SECONDS: int = 300
+    PHOTON_SUGGEST_LIMIT: int = 8
+    DEFAULT_INCIDENT_CITY: str = "Wolfurt"   # Fallback wenn Home-Org kein city hat
+
     @property
     def effective_public_base_url(self) -> str:
         return self.PUBLIC_BASE_URL or self.APP_BASE_URL

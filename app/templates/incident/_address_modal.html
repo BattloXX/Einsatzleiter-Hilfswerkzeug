@@ -33,7 +33,7 @@
       <div class="form-group">
         <label class="form-label">Ort</label>
         <input type="text" name="address_city" id="addrCity"
-               value="{{ incident.address_city or '' }}" class="form-input" placeholder="Wolfurt">
+               value="{{ incident.address_city or default_city }}" class="form-input" placeholder="Wolfurt">
       </div>
     </div>
 
@@ -102,13 +102,20 @@
 
 <script>
 (function() {
-  // Leaflet + map-picker.js laden, falls noch nicht vorhanden
+  // Leaflet + map-picker.js + address-autocomplete.js laden
   function ensureLeaflet(cb) {
+    function loadAddressAC() {
+      if (typeof initAddressAutocomplete !== 'undefined') { cb(); return; }
+      const s3 = document.createElement('script');
+      s3.src = '/static/js/address-autocomplete.js';
+      s3.onload = cb;
+      document.head.appendChild(s3);
+    }
     function loadMapPicker() {
-      if (typeof initMapPicker !== 'undefined') { cb(); return; }
+      if (typeof initMapPicker !== 'undefined') { loadAddressAC(); return; }
       const s2 = document.createElement('script');
       s2.src = '/static/js/map-picker.js';
-      s2.onload = cb;
+      s2.onload = loadAddressAC;
       document.head.appendChild(s2);
     }
     if (typeof L !== 'undefined') { loadMapPicker(); return; }
@@ -134,6 +141,32 @@
       defaultLat: orgLat,
       defaultLng: orgLng,
     });
+
+    // Autocomplete für alle drei Adressfelder initialisieren
+    if (typeof initAddressAutocomplete !== 'undefined') {
+      function acOnSelect(item) {
+        if (item.lat != null && item.lng != null) {
+          document.getElementById('addrLat').value = parseFloat(item.lat).toFixed(6);
+          document.getElementById('addrLng').value = parseFloat(item.lng).toFixed(6);
+          // map-picker hört auf change-Event an addrLat
+          document.getElementById('addrLat').dispatchEvent(new Event('change'));
+        }
+      }
+      initAddressAutocomplete({
+        inputId: 'addrCity', field: 'city', onSelect: acOnSelect,
+      });
+      initAddressAutocomplete({
+        inputId: 'addrStreet', field: 'street',
+        getCity: function() { return document.getElementById('addrCity').value; },
+        onSelect: acOnSelect,
+      });
+      initAddressAutocomplete({
+        inputId: 'addrNo', field: 'house',
+        getCity:   function() { return document.getElementById('addrCity').value; },
+        getStreet: function() { return document.getElementById('addrStreet').value; },
+        onSelect: acOnSelect,
+      });
+    }
   }
 
   ensureLeaflet(startMap);
