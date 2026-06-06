@@ -1609,6 +1609,13 @@ async def lage_druck(
         .all()
     )
 
+    journal_entries = (
+        db.query(LageJournalEntry)
+        .filter(LageJournalEntry.major_incident_id == lage_id)
+        .order_by(LageJournalEntry.ts)
+        .all()
+    )
+
     return templates.TemplateResponse(request, "incident_major/druck.html", {
         "user": user,
         "lage": lage,
@@ -1621,6 +1628,8 @@ async def lage_druck(
         "prio_label": SITE_PRIORITY_LABEL,
         "prio_color": SITE_PRIORITY_COLOR,
         "comms": comms,
+        "journal_entries": journal_entries,
+        "journal_categories": JOURNAL_CATEGORIES,
         "now": datetime.now(UTC),
     })
 
@@ -1796,11 +1805,17 @@ async def lage_karte(
 
     sectors = sorted(lage.sectors, key=lambda s: s.id)
     sectors_by_id = {s.id: s for s in sectors}
+    sectors_json = json.dumps([{
+        "id": s.id,
+        "name": s.name,
+        "color": s.color or "#6b7280",
+    } for s in sectors])
 
     return templates.TemplateResponse(request, "incident_major/karte.html", {
         "user": user,
         "lage": lage,
         "map_sites_json": map_sites_json,
+        "sectors_json": sectors_json,
         "sectors": sectors,
         "sectors_by_id": sectors_by_id,
         "all_sites": active_sites,

@@ -31,6 +31,19 @@
 }
 .karte-controls label { display: flex; align-items: center; gap: 5px;
   font-size: .78rem; cursor: pointer; color: var(--text); white-space: nowrap; }
+.karte-controls__sep {
+  width: 1px; background: rgba(255,255,255,.15); align-self: stretch; margin: 0 2px;
+}
+
+/* Mode toggle button */
+.karte-mode-btn {
+  font-size: .72rem; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border);
+  background: rgba(255,255,255,.06); color: var(--text); cursor: pointer;
+  white-space: nowrap;
+}
+.karte-mode-btn.active {
+  background: rgba(147,197,253,.15); border-color: rgba(147,197,253,.4); color: #93c5fd;
+}
 
 #karte-map {
   position: fixed;
@@ -50,11 +63,27 @@
   color: var(--text-muted); backdrop-filter: blur(4px);
 }
 
+/* Sector legend */
+.karte-legend {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 1001;
+  background: rgba(17,24,39,.88); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 12px; backdrop-filter: blur(4px);
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  font-size: .72rem; color: var(--text);
+  max-width: 90vw;
+}
+.karte-legend__item { display: flex; align-items: center; gap: 5px; }
+.karte-legend__dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,.2);
+}
+
 /* Leaflet popup custom style */
 .lk-popup { min-width: 180px; }
 .lk-popup__title { font-weight: 700; font-size: .9rem; margin-bottom: 4px; }
 .lk-popup__phase { font-size: .72rem; color: #9ca3af; margin-bottom: 4px; }
 .lk-popup__res   { font-size: .75rem; margin-bottom: 6px; }
+.lk-popup__sector { font-size: .72rem; color: #a78bfa; margin-bottom: 4px; }
 .lk-popup__link  { display: inline-block; font-size: .75rem; color: #93c5fd;
   text-decoration: none; border: 1px solid rgba(147,197,253,.3);
   padding: 2px 8px; border-radius: 4px; }
@@ -98,9 +127,16 @@
 <div id="karte-map"></div>
 
 <div class="karte-controls" id="karte-controls">
+  <button class="karte-mode-btn active" id="btn-prio" onclick="setMode('priority')">
+    Priorität
+  </button>
+  <button class="karte-mode-btn" id="btn-sektor" onclick="setMode('sector')">
+    Abschnitt
+  </button>
+  <div class="karte-controls__sep"></div>
   {% for phase in ['eingegangen','erkundung','bewertet','disponiert','in_arbeit','erledigt'] %}
   <label>
-    <input type="checkbox" checked value="{{ phase }}" onchange="applyPhaseFilter()">
+    <input type="checkbox" checked value="{{ phase }}" onchange="applyFilter()">
     {{ {'eingegangen':'Eingegangen','erkundung':'Erkundung','bewertet':'Bewertet',
         'disponiert':'Disponiert','in_arbeit':'In Arbeit','erledigt':'Erledigt'}[phase] }}
   </label>
@@ -108,6 +144,9 @@
 </div>
 
 <div class="karte-badge" id="karte-badge"></div>
+
+{# Sector legend – initially hidden, shown when sector mode is active #}
+<div class="karte-legend" id="karte-legend" style="display:none;"></div>
 
 {% set no_coords = all_sites | selectattr('lat', 'none') | list %}
 {% if no_coords %}
@@ -127,8 +166,15 @@
 <script src="/static/js/leaflet.min.js"></script>
 <script>
 (function () {
-  var SITES = {{ map_sites_json | safe }};
-  var lageId = {{ lage.id }};
+  var SITES   = {{ map_sites_json | safe }};
+  var SECTORS = {{ sectors_json | safe }};
+  var lageId  = {{ lage.id }};
+
+  // Build sector lookup: id → {name, color}
+  var sectorMap = {};
+  SECTORS.forEach(function(s) { sectorMap[s.id] = s; });
+
+  var colorMode = 'priority';  // 'priority' | 'sector'
 
   var map = L.map('karte-map', { preferCanvas: true, zoomControl: true });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -137,21 +183,42 @@
 
   var markers = [];
 
+  function siteColor(s) {
+    if (colorMode === 'sector') {
+      var sec = s.sector_id != null ? sectorMap[s.sector_id] : null;
+      return sec ? sec.color : '#6b7280';
+    }
+    return s.color;  // priority-based from server
+  }
+
   function buildPopup(s) {
     var resText = s.active_res > 0 ? s.active_res + ' Ressource(n) aktiv' : 'Keine Ressourcen';
+    var secLine = '';
+    if (s.sector_id != null && sectorMap[s.sector_id]) {
+      secLine = '<div class="lk-popup__sector">Abschnitt: ' + sectorMap[s.sector_id].name + '</div>';
+    }
     return '<div class="lk-popup">' +
       '<div class="lk-popup__title">' + s.bezeichnung + '</div>' +
       '<div class="lk-popup__phase">' + s.phase_label +
         (s.priority_label ? ' · ' + s.priority_label : '') + '</div>' +
       (s.einsatzgrund ? '<div style="font-size:.78rem;margin-bottom:4px;">' + s.einsatzgrund + '</div>' : '') +
+      secLine +
       '<div class="lk-popup__res">' + resText + '</div>' +
       '<a class="lk-popup__link" href="/lage/' + lageId + '" target="_blank">→ Board</a>' +
       '</div>';
   }
 
+  function refreshMarkerColors() {
+    markers.forEach(function(obj) {
+      var c = siteColor(obj.site);
+      obj.marker.setStyle({ color: c, fillColor: c });
+      obj.marker.setPopupContent(buildPopup(obj.site));
+    });
+  }
+
   function renderMarkers() {
     var checks = document.querySelectorAll('#karte-controls input[type=checkbox]');
-    var active = Array.from(checks).filter(c => c.checked).map(c => c.value);
+    var active = Array.from(checks).filter(function(c) { return c.checked; }).map(function(c) { return c.value; });
     var visible = 0;
     markers.forEach(function(obj) {
       if (active.includes(obj.phase)) {
@@ -164,17 +231,49 @@
     document.getElementById('karte-badge').textContent = visible + ' / ' + SITES.length + ' Stellen sichtbar';
   }
 
-  window.applyPhaseFilter = renderMarkers;
+  function updateLegend() {
+    var legend = document.getElementById('karte-legend');
+    if (colorMode !== 'sector' || SECTORS.length === 0) {
+      legend.style.display = 'none';
+      return;
+    }
+    var html = '<span style="font-size:.68rem;color:var(--text-muted);margin-right:4px;">Abschnitt:</span>';
+    SECTORS.forEach(function(s) {
+      html += '<div class="karte-legend__item">' +
+        '<div class="karte-legend__dot" style="background:' + s.color + ';"></div>' +
+        '<span>' + s.name + '</span></div>';
+    });
+    // Sites without sector
+    var hasUnassigned = SITES.some(function(s) { return s.sector_id == null; });
+    if (hasUnassigned) {
+      html += '<div class="karte-legend__item">' +
+        '<div class="karte-legend__dot" style="background:#6b7280;"></div>' +
+        '<span>Kein Abschnitt</span></div>';
+    }
+    legend.innerHTML = html;
+    legend.style.display = 'flex';
+  }
+
+  window.applyFilter = renderMarkers;
+
+  window.setMode = function(mode) {
+    colorMode = mode;
+    document.getElementById('btn-prio').classList.toggle('active', mode === 'priority');
+    document.getElementById('btn-sektor').classList.toggle('active', mode === 'sector');
+    refreshMarkerColors();
+    updateLegend();
+  };
 
   if (SITES.length) {
     var bounds = [];
     SITES.forEach(function(s) {
+      var c = siteColor(s);
       var m = L.circleMarker([s.lat, s.lng], {
-        radius: 11, color: s.color, fillColor: s.color,
+        radius: 11, color: c, fillColor: c,
         fillOpacity: 0.85, weight: 2,
       });
       m.bindPopup(buildPopup(s), { maxWidth: 260 });
-      markers.push({ marker: m, phase: s.phase });
+      markers.push({ marker: m, phase: s.phase, site: s });
       bounds.push([s.lat, s.lng]);
     });
     renderMarkers();
@@ -182,6 +281,11 @@
   } else {
     map.setView([47.41, 9.74], 11);
     document.getElementById('karte-badge').textContent = '0 Stellen mit Koordinaten';
+  }
+
+  // Hide sector toggle if no sectors exist
+  if (SECTORS.length === 0) {
+    document.getElementById('btn-sektor').style.display = 'none';
   }
 
   // WebSocket: reload markers on board changes
