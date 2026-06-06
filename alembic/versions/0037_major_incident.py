@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.create_table(
         "major_incident",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("org_id", sa.Integer(), sa.ForeignKey("fire_dept.id"), nullable=False, index=True),
+        sa.Column("org_id", sa.BigInteger(), sa.ForeignKey("fire_dept.id"), nullable=False, index=True),
         sa.Column("name", sa.String(160), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("status", sa.String(10), nullable=False, server_default="active"),
@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column("public_token_expires_at", sa.DateTime(), nullable=True),
         sa.Column("started_at", sa.DateTime(), nullable=False),
         sa.Column("ended_at", sa.DateTime(), nullable=True),
-        sa.Column("started_by_user_id", sa.Integer(), sa.ForeignKey("user.id"), nullable=True),
+        sa.Column("started_by_user_id", sa.BigInteger(), sa.ForeignKey("user.id"), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
     )
@@ -61,8 +61,8 @@ def upgrade() -> None:
                   sa.ForeignKey("major_incident.id", ondelete="CASCADE"),
                   nullable=False, index=True),
         sa.Column("function", sa.String(20), nullable=False),
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("user.id"), nullable=True),
-        sa.Column("member_id", sa.Integer(), sa.ForeignKey("member.id"), nullable=True),
+        sa.Column("user_id", sa.BigInteger(), sa.ForeignKey("user.id"), nullable=True),
+        sa.Column("member_id", sa.BigInteger(), sa.ForeignKey("member.id"), nullable=True),
         sa.Column("label", sa.String(120), nullable=True),
         sa.Column("assigned_at", sa.DateTime(), nullable=False),
         sa.Column("released_at", sa.DateTime(), nullable=True),
@@ -75,7 +75,7 @@ def upgrade() -> None:
         sa.Column("major_incident_id", sa.Integer(),
                   sa.ForeignKey("major_incident.id", ondelete="CASCADE"),
                   nullable=False, index=True),
-        sa.Column("org_id", sa.Integer(), sa.ForeignKey("fire_dept.id"),
+        sa.Column("org_id", sa.BigInteger(), sa.ForeignKey("fire_dept.id"),
                   nullable=False, index=True),
         sa.Column("sector_id", sa.Integer(),
                   sa.ForeignKey("site_sector.id", ondelete="SET NULL"), nullable=True),
@@ -95,11 +95,11 @@ def upgrade() -> None:
         sa.Column("danger_score", sa.Integer(), nullable=True),
         sa.Column("urgency_score", sa.Integer(), nullable=True),
         sa.Column("sort_index", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("incident_id", sa.Integer(),
+        sa.Column("incident_id", sa.BigInteger(),
                   sa.ForeignKey("incident.id", ondelete="SET NULL"), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.Column("created_by", sa.Integer(), sa.ForeignKey("user.id"), nullable=True),
+        sa.Column("created_by", sa.BigInteger(), sa.ForeignKey("user.id"), nullable=True),
     )
 
     # ── site_resource_assignment ─────────────────────────────────────────────
@@ -110,9 +110,9 @@ def upgrade() -> None:
                   sa.ForeignKey("incident_site.id", ondelete="CASCADE"),
                   nullable=False, index=True),
         sa.Column("resource_type", sa.String(12), nullable=False),
-        sa.Column("vehicle_id", sa.Integer(),
+        sa.Column("vehicle_id", sa.BigInteger(),
                   sa.ForeignKey("vehicle_master.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("member_id", sa.Integer(),
+        sa.Column("member_id", sa.BigInteger(),
                   sa.ForeignKey("member.id", ondelete="SET NULL"), nullable=True),
         sa.Column("label", sa.String(120), nullable=True),
         sa.Column("assigned_at", sa.DateTime(), nullable=False),
@@ -128,7 +128,7 @@ def upgrade() -> None:
                   sa.ForeignKey("incident_site.id", ondelete="CASCADE"),
                   nullable=False, index=True),
         sa.Column("ts", sa.DateTime(), nullable=False),
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("user.id"), nullable=True),
+        sa.Column("user_id", sa.BigInteger(), sa.ForeignKey("user.id"), nullable=True),
         sa.Column("author_name", sa.String(120), nullable=True),
         sa.Column("kind", sa.String(16), nullable=False, server_default="note"),
         sa.Column("text", sa.Text(), nullable=False),
@@ -145,7 +145,7 @@ def upgrade() -> None:
         sa.Column("original_filename", sa.String(255), nullable=False),
         sa.Column("media_type", sa.String(12), nullable=False),
         sa.Column("uploaded_at", sa.DateTime(), nullable=False),
-        sa.Column("uploaded_by", sa.Integer(), sa.ForeignKey("user.id"), nullable=True),
+        sa.Column("uploaded_by", sa.BigInteger(), sa.ForeignKey("user.id"), nullable=True),
         sa.Column("author_name", sa.String(120), nullable=True),
     )
 
@@ -165,7 +165,7 @@ def upgrade() -> None:
         sa.Column("message", sa.Text(), nullable=False),
         sa.Column("is_request", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("handled", sa.Boolean(), nullable=False, server_default="0"),
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("user.id"), nullable=True),
+        sa.Column("user_id", sa.BigInteger(), sa.ForeignKey("user.id"), nullable=True),
         sa.Column("author_name", sa.String(120), nullable=True),
     )
 

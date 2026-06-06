@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("author_name", sa.String(120), nullable=True),
         sa.Column(
             "user_id",
-            sa.Integer(),
+            sa.BigInteger(),
             sa.ForeignKey("user.id"),
             nullable=True,
         ),

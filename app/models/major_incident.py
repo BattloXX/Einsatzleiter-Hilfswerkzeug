@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -71,7 +71,7 @@ class MajorIncident(Base):
     __tablename__ = "major_incident"
 
     id:            Mapped[int] = mapped_column(Integer, primary_key=True)
-    org_id:        Mapped[int] = mapped_column(Integer, ForeignKey("fire_dept.id"), index=True)
+    org_id:        Mapped[int] = mapped_column(BigInteger, ForeignKey("fire_dept.id"), index=True)
     name:          Mapped[str] = mapped_column(String(160))
     description:   Mapped[str | None] = mapped_column(Text, nullable=True)
     status:        Mapped[MajorIncidentStatus] = mapped_column(
@@ -84,7 +84,7 @@ class MajorIncident(Base):
     started_at:    Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     ended_at:      Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     started_by_user_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("user.id"), nullable=True)
+        BigInteger, ForeignKey("user.id"), nullable=True)
     created_at:    Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at:    Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC),
                                                     onupdate=lambda: datetime.now(UTC))
@@ -116,9 +116,9 @@ class StaffAssignment(Base):
         Integer, ForeignKey("major_incident.id", ondelete="CASCADE"), index=True)
     function:          Mapped[StaffFunction] = mapped_column(Enum(StaffFunction))
     user_id:           Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("user.id"), nullable=True)
+        BigInteger, ForeignKey("user.id"), nullable=True)
     member_id:         Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("member.id"), nullable=True)
+        BigInteger, ForeignKey("member.id"), nullable=True)
     label:             Mapped[str | None] = mapped_column(String(120), nullable=True)
     assigned_at:       Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     released_at:       Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -130,7 +130,7 @@ class IncidentSite(Base):
     id:                Mapped[int] = mapped_column(Integer, primary_key=True)
     major_incident_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("major_incident.id", ondelete="CASCADE"), index=True)
-    org_id:            Mapped[int] = mapped_column(Integer, ForeignKey("fire_dept.id"), index=True)
+    org_id:            Mapped[int] = mapped_column(BigInteger, ForeignKey("fire_dept.id"), index=True)
     sector_id:         Mapped[int | None] = mapped_column(
         Integer, ForeignKey("site_sector.id", ondelete="SET NULL"), nullable=True)
 
@@ -154,13 +154,13 @@ class IncidentSite(Base):
     sort_index:    Mapped[int] = mapped_column(Integer, default=0)
 
     incident_id:  Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("incident.id", ondelete="SET NULL"), nullable=True)
+        BigInteger, ForeignKey("incident.id", ondelete="SET NULL"), nullable=True)
 
     created_at:   Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at:   Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC),
                                                    onupdate=lambda: datetime.now(UTC))
     created_by:   Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("user.id"), nullable=True)
+        BigInteger, ForeignKey("user.id"), nullable=True)
 
     major_incident: Mapped[MajorIncident] = relationship(back_populates="sites")
     resources:   Mapped[list[SiteResourceAssignment]] = relationship(cascade="all, delete-orphan")
@@ -177,9 +177,9 @@ class SiteResourceAssignment(Base):
         Integer, ForeignKey("incident_site.id", ondelete="CASCADE"), index=True)
     resource_type:    Mapped[str] = mapped_column(String(12))  # vehicle|member|free_text
     vehicle_id:       Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("vehicle_master.id", ondelete="SET NULL"), nullable=True)
+        BigInteger, ForeignKey("vehicle_master.id", ondelete="SET NULL"), nullable=True)
     member_id:        Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("member.id", ondelete="SET NULL"), nullable=True)
+        BigInteger, ForeignKey("member.id", ondelete="SET NULL"), nullable=True)
     label:            Mapped[str | None] = mapped_column(String(120), nullable=True)
     assigned_at:      Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     committed_at:     Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -195,7 +195,7 @@ class SiteLogEntry(Base):
         Integer, ForeignKey("incident_site.id", ondelete="CASCADE"), index=True)
     ts:               Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     user_id:          Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("user.id"), nullable=True)
+        BigInteger, ForeignKey("user.id"), nullable=True)
     author_name:      Mapped[str | None] = mapped_column(String(120), nullable=True)
     kind:             Mapped[str] = mapped_column(String(16), default="note")
     text:             Mapped[str] = mapped_column(Text)
@@ -212,7 +212,7 @@ class SiteMedia(Base):
     media_type:        Mapped[str] = mapped_column(String(12))  # image|pdf|video
     uploaded_at:       Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     uploaded_by:       Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("user.id"), nullable=True)
+        BigInteger, ForeignKey("user.id"), nullable=True)
     author_name:       Mapped[str | None] = mapped_column(String(120), nullable=True)
 
 
@@ -232,7 +232,7 @@ class CommLogEntry(Base):
     is_request:        Mapped[bool] = mapped_column(Boolean, default=False)
     handled:           Mapped[bool] = mapped_column(Boolean, default=False)
     user_id:           Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("user.id"), nullable=True)
+        BigInteger, ForeignKey("user.id"), nullable=True)
     author_name:       Mapped[str | None] = mapped_column(String(120), nullable=True)
 
 
@@ -285,4 +285,4 @@ class LageJournalEntry(Base):
     text:              Mapped[str] = mapped_column(Text)
     author_name:       Mapped[str | None] = mapped_column(String(120), nullable=True)
     user_id:           Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("user.id"), nullable=True)
+        BigInteger, ForeignKey("user.id"), nullable=True)
