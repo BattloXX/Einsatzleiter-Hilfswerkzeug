@@ -247,6 +247,49 @@ async def new_incident(
             alarm_type_code,
         )
 
+    # Großschadenslage-Trigger: AlarmTyp-Flag prüfen
+    if user.org_id:
+        from app.models.master import AlarmType as _AlarmType, OrgSettings as _OrgSettings
+        from app.services.major_incident_service import (
+            handle_alarm_trigger as _handle_alarm_trigger,
+            get_active_lage as _get_active_lage,
+            adopt_incident_as_site as _adopt_incident_as_site,
+        )
+        at = db.get(_AlarmType, alarm_type_code)
+        if at and at.triggers_major_incident:
+            lage, _site, _created = _handle_alarm_trigger(
+                db, user.org_id, alarm_type_code, incident.id,
+                external_key=f"ui_{incident.id}",
+                is_exercise=is_exercise,
+                ort=address_city or None,
+                strasse=address_street or None,
+                hausnr=address_no or None,
+                lat=lat_f,
+                lng=lng_f,
+                einsatzgrund=report_text or None,
+            )
+            db.commit()
+            return RedirectResponse(f"/lage/{lage.id}", status_code=303)
+        else:
+            active_lage = _get_active_lage(db, user.org_id)
+            if active_lage:
+                org_settings = db.query(_OrgSettings).filter(_OrgSettings.org_id == user.org_id).first()
+                if not org_settings or org_settings.mi_auto_adopt:
+                    _adopt_incident_as_site(
+                        db, active_lage,
+                        incident_id=incident.id,
+                        external_key=f"ui_{incident.id}",
+                        alarm_type_code=alarm_type_code,
+                        org_id=user.org_id,
+                        ort=address_city or None,
+                        strasse=address_street or None,
+                        hausnr=address_no or None,
+                        lat=lat_f,
+                        lng=lng_f,
+                        einsatzgrund=report_text or None,
+                    )
+                    db.commit()
+
     return RedirectResponse(f"/einsatz/{incident.id}", status_code=303)
 
 

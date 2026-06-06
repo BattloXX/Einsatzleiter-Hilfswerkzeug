@@ -135,20 +135,34 @@ async def lage_overview(
 ):
     user = request.state.user
     org_id = getattr(user, "org_id", None)
-    if not org_id:
+    is_sysadmin = "system_admin" in {r.code for r in user.roles}
+
+    if not org_id and not is_sysadmin:
         raise HTTPException(status_code=403)
 
-    active = get_active_lage(db, org_id)
-    if active:
-        return RedirectResponse(f"/lage/{active.id}", status_code=302)
+    if org_id:
+        active = get_active_lage(db, org_id)
+        if active:
+            return RedirectResponse(f"/lage/{active.id}", status_code=302)
+        all_lage = (
+            db.query(MajorIncident)
+            .filter(MajorIncident.org_id == org_id)
+            .order_by(MajorIncident.started_at.desc())
+            .limit(20)
+            .all()
+        )
+    else:
+        # system_admin ohne Org: alle aktiven Lagen aller Orgs
+        all_lage = (
+            db.query(MajorIncident)
+            .order_by(MajorIncident.started_at.desc())
+            .limit(50)
+            .all()
+        )
+        active_all = [l for l in all_lage if l.status == MajorIncidentStatus.active]
+        if len(active_all) == 1:
+            return RedirectResponse(f"/lage/{active_all[0].id}", status_code=302)
 
-    all_lage = (
-        db.query(MajorIncident)
-        .filter(MajorIncident.org_id == org_id)
-        .order_by(MajorIncident.started_at.desc())
-        .limit(20)
-        .all()
-    )
     return templates.TemplateResponse(request, "incident_major/lage_overview.html", {
         "user": user,
         "lage_list": all_lage,
