@@ -197,6 +197,31 @@
     uploadForm(form, out);
   };
 
+  // Komprimiert Bilder im File-Input in-place (via DataTransfer), OHNE selbst zu submiten.
+  // Aufruf im onchange-Handler, bevor htmx das Form absendet.
+  window.compressFilesInPlace = async function (inputEl) {
+    const files = Array.from(inputEl.files || []);
+    if (!files.length) return;
+    const dt = new DataTransfer();
+    for (const f of files) {
+      if (f.type && f.type.startsWith('image/') && f.size > IMAGE_MAX_BYTES) {
+        try {
+          let compressed = await compressImage(f, IMAGE_MAX_DIM, IMAGE_QUALITY);
+          if (compressed.size > IMAGE_MAX_BYTES) {
+            compressed = await compressImage(f, 1920, 0.75);
+          }
+          dt.items.add(compressed);
+        } catch (e) {
+          console.warn('Komprimierung fehlgeschlagen, Original wird gesendet', e);
+          dt.items.add(f);
+        }
+      } else {
+        dt.items.add(f);
+      }
+    }
+    inputEl.files = dt.files;
+  };
+
   async function compressImage(file, maxDim, quality) {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));

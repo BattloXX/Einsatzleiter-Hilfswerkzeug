@@ -867,6 +867,7 @@ async def create_message(
     status: str = Form("meldung"),
     due_after_min: int = Form(0),
     vehicle_id: int | None = Form(None),
+    files: list[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     _=Depends(require_role("incident_leader", "admin", "recorder")),
 ):
@@ -892,6 +893,18 @@ async def create_message(
     )
     db.add(msg)
     db.commit()
+    # Optional: Dateien direkt beim Anlegen anhängen
+    if files:
+        from fastapi import HTTPException as _HE
+        from app.services.media_service import store_upload_for_message
+        for f in files:
+            if not f.filename:
+                continue
+            try:
+                await store_upload_for_message(f, msg, request.state.user, db)
+            except _HE:
+                pass
+        db.commit()
     await manager.broadcast(incident_id, {"type": "message_created", "reload_board": True})
     return Response(status_code=204)
 
@@ -1433,8 +1446,10 @@ async def message_detail(
         return Response("Nicht gefunden", status_code=404)
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(user, "incident_leader", "admin", "recorder")
+    entity_logs = _entity_logs(db, incident_id, "message", message_id)
     return templates.TemplateResponse(request, "incident/_message_modal.html", {
         "user": user, "incident": incident, "msg": msg, "can_edit": can_edit,
+        "entity_logs": entity_logs,
     })
 
 
@@ -1454,8 +1469,10 @@ async def update_message_endpoint(
     await manager.broadcast(incident_id, {"type": "message_updated", "reload_board": True})
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    entity_logs = _entity_logs(db, incident_id, "message", message_id)
     return templates.TemplateResponse(request, "incident/_message_modal.html", {
         "user": request.state.user, "incident": incident, "msg": msg, "can_edit": can_edit,
+        "entity_logs": entity_logs,
     })
 
 
@@ -1794,8 +1811,10 @@ async def upload_message_media(
     db.refresh(msg, ["media"])
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    entity_logs = _entity_logs(db, incident_id, "message", message_id)
     return templates.TemplateResponse(request, "incident/_message_modal.html", {
         "user": request.state.user, "incident": incident, "msg": msg, "can_edit": can_edit,
+        "entity_logs": entity_logs,
     })
 
 
@@ -1815,8 +1834,10 @@ async def delete_message_media(
     db.refresh(msg, ["media"])
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    entity_logs = _entity_logs(db, incident_id, "message", message_id)
     return templates.TemplateResponse(request, "incident/_message_modal.html", {
         "user": request.state.user, "incident": incident, "msg": msg, "can_edit": can_edit,
+        "entity_logs": entity_logs,
     })
 
 

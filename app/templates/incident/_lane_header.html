@@ -10,20 +10,28 @@
           {% if col.code in ('dispatched', 'active') %}
           <button class="kanban-col__add-btn" type="button"
                   onclick="document.getElementById('vehicleWizard').showModal()"
-                  title="Einheit zum Einsatz hinzufügen">+</button>
+                  title="Einheit zum Einsatz hinzufügen">
+            <span class="kanban-col__add-label">+ Einheit</span><span class="kanban-col__add-icon" aria-hidden="true">+</span>
+          </button>
           {% elif col.code == 'rescued' %}
-          <button class="kanban-col__add-btn" type="button"
+          <button class="kanban-col__add-btn kanban-col__add-btn--person" type="button"
                   onclick="document.getElementById('personWizard').showModal()"
-                  title="Gerettete Person erfassen">+</button>
+                  title="Gerettete Person erfassen">
+            <span class="kanban-col__add-label">+ Person</span><span class="kanban-col__add-icon" aria-hidden="true">+</span>
+          </button>
           {% elif col.code == 'messages' %}
           <button class="kanban-col__add-btn" type="button"
                   onclick="document.getElementById('quickAddMsgDialog').showModal()"
-                  title="Meldung anlegen">+</button>
+                  title="Meldung anlegen">
+            <span class="kanban-col__add-label">+ Meldung</span><span class="kanban-col__add-icon" aria-hidden="true">+</span>
+          </button>
           {% else %}
           {# tasks column and any custom section columns #}
           <button class="kanban-col__add-btn" type="button"
                   onclick="openQuickAddTask({{ col.id }})"
-                  title="Auftrag anlegen">+</button>
+                  title="Auftrag anlegen">
+            <span class="kanban-col__add-label">+ Auftrag</span><span class="kanban-col__add-icon" aria-hidden="true">+</span>
+          </button>
           {% endif %}
         {% endif %}
       </div>

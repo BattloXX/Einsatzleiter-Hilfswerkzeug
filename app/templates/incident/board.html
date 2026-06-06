@@ -418,7 +418,8 @@
       <button type="button" @click="$el.closest('dialog').close()" class="modal__close">×</button>
     </div>
     <form hx-post="/einsatz/{{ incident.id }}/meldung" hx-swap="none"
-          @htmx:after-request="if(event.detail.successful){$el.reset();$el.closest('dialog').close();location.reload();}">
+          hx-encoding="multipart/form-data"
+          @htmx:after-request="if(event.detail.successful){$el.reset();document.getElementById('newMsgPreview').innerHTML='';$el.closest('dialog').close();location.reload();}">
       <div class="modal__body">
         {% if msg_suggestions %}
         <div class="task-suggestions" style="margin-bottom:10px;">
@@ -455,6 +456,22 @@
         <div class="form-group">
           <label style="font-size:.82rem; color:var(--text-muted);">Erinnerung in Minuten (0 = keine)</label>
           <input type="number" name="due_after_min" class="form-input" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label style="font-size:.82rem; color:var(--text-muted);">Foto / Datei (optional)</label>
+          <input type="file" name="files" multiple
+                 accept="image/*,.pdf,video/mp4,video/quicktime"
+                 id="newMsgFiles"
+                 style="display:none"
+                 onchange="compressFilesInPlace(this).then(function(){var p=document.getElementById('newMsgPreview');p.innerHTML='';Array.from(this.files).forEach(function(f){var s=document.createElement('span');s.style.cssText='display:inline-block;font-size:.75rem;background:var(--surface-high);border-radius:4px;padding:2px 6px;margin:2px';s.textContent=f.name;p.appendChild(s);})}.bind(this))">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px;">
+            <button type="button" class="btn btn--secondary btn--sm"
+                    onclick="openCamera('newMsgFiles')">📷 Kamera</button>
+            <button type="button" class="btn btn--secondary btn--sm"
+                    onclick="openGallery('newMsgFiles')">🖼️ Galerie</button>
+          </div>
+          <div id="newMsgPreview" style="display:flex;flex-wrap:wrap;gap:2px;min-height:0;"></div>
+          <p class="form-hint">Bild max. 10 MB · wird automatisch verkleinert</p>
         </div>
       </div>
       <div class="modal__footer">
