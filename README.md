@@ -41,6 +41,7 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | **Statistik-Dashboard** | Einsatzauswertung nach Typ, Zeit, Fahrzeug |
 | **Stammdaten-Verwaltung** | Fahrzeuge, Mitglieder, Qualifikationen (AGT-Ablaufdaten), Alarmtypen |
 | **Großschadenslage** | Phasen-Kanban für Massenanfall-Ereignisse: Einsatzstellen, Abschnitte, Stabsfunktionen, Funkliste, Bürgermeldungen, Pressemeldung |
+| **SMS-Gateway-Anbindung** | Docker-Container verbindet sich ausgehend über WebSocket und versendet SMS via CoNiuGo-Modem (HTTP); Basis für Verifizierung, 2FA und Info-SMS |
 | **KI-Assistent (✨)** | Auftragsvorschläge, Lage-Ticker-Hinweise, Lagebild und automatische Priorisierung neuer Einsatzstellen via Anthropic Claude; opt-in pro Instanz |
 
 ---
@@ -369,6 +370,9 @@ python -m app.cli create-admin --username admin --password geheimpasswort
 # API-Key für Alarmierungssystem erstellen
 python -m app.cli create-api-key --label "Alarmierungssystem Leitstelle"
 
+# Connection-Token für SMS-Gateway-Container erstellen
+python -m app.cli create-sms-gateway-token --label "Modem Wolfurt" --org-id 1
+
 # VAPID-Schlüsselpaar für Web-Push generieren
 python -m app.cli generate-vapid
 ```
@@ -501,6 +505,7 @@ tests/
 │    pdf_service       – WeasyPrint PDF                  │
 │    push_service      – Web-Push VAPID                  │
 │    broadcast         – WS-Pub/Sub-Manager              │
+│    sms_service       – SMS-Versand via Gateway         │
 │    update_service    – ZIP-Update + Alembic            │
 └────────────────────────────┬────────────────────────────┘
                              │
@@ -734,6 +739,7 @@ app/
 │   ├── pdf_service.py       WeasyPrint PDF-Generierung
 │   ├── push_service.py      Web-Push (VAPID)
 │   ├── broadcast.py         WS-Pub/Sub-Manager
+│   ├── sms_service.py       SMS-Versand über Gateway-Container
 │   ├── mail_service.py      SMTP (Passwort-Reset)
 │   └── update_service.py    ZIP-Update + Alembic-Migration
 ├── static/

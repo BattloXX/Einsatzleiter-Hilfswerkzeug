@@ -28,6 +28,7 @@ Eine Python-Webapp (FastAPI + HTMX), die das bisherige Single-File-HTML-Tool abl
 | [Erst-Setup](Installation-Erst-Setup) | Admin-User, API-Key, Stammdaten prüfen |
 | [Backups](Installation-Backups) | Datenbank-Dumps, Audit-Log-Sicherung |
 | [Updates](Installation-Updates) | git pull, Migrationen, Neustart |
+| [SMS-Gateway](Installation-SMS-Gateway) | CoNiuGo-Modem-Container einrichten, Token anlegen |
 | [Troubleshooting](Installation-Troubleshooting) | Häufige Fehler und Lösungen |
 
 ### Anwender
