@@ -6,7 +6,8 @@
 {# Aktive Gruppe anhand des aktuellen Pfades bestimmen #}
 {% set _p = request.url.path %}
 {% if '/admin/geraete-login' in _p or '/admin/push' in _p or '/admin/benutzer' in _p
-     or '/admin/api-keys' in _p or '/admin/lagekarte-tokens' in _p or '/admin/audit' in _p %}
+     or '/admin/api-keys' in _p or '/admin/lagekarte-tokens' in _p or '/admin/audit' in _p
+     or '/admin/sms-test' in _p %}
   {% set active_group = 'verwaltung' %}
 {% elif '/admin/settings' in _p or '/admin/ki-prompts' in _p or '/admin/system' in _p
        or '/admin/seiten' in _p or '/admin/backup' in _p or '/admin/organisations' in _p %}
@@ -246,6 +247,11 @@
                class="admin-nav__item {% if '/admin/audit' in request.url.path %}is-active{% endif %}"
                {{ tip('Vollständiges Aktionsprotokoll') }}>
               <span class="admin-nav__icon">📜</span>Audit-Log
+            </a>
+            <a href="/admin/sms-test"
+               class="admin-nav__item {% if '/admin/sms-test' in request.url.path %}is-active{% endif %}"
+               {{ tip('SMS-Versand über Gateway testen') }}>
+              <span class="admin-nav__icon">💬</span>SMS-Test
             </a>
           </div>
         </div>
