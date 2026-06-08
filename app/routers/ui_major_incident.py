@@ -36,7 +36,7 @@ from app.models.major_incident import (
 )
 from app.models.master import FireDept, Member, VehicleMaster
 from app.services.ai_service import is_enabled as ai_is_enabled
-from app.services.broadcast import broadcast_lage
+from app.services.broadcast import broadcast_lage, manager
 from app.services.major_incident_service import (
     close_lage,
     create_lage,
@@ -793,10 +793,34 @@ async def lage_beenden(
         return RedirectResponse(f"/lage/{lage_id}", status_code=303)
 
     close_lage(db, lage, closed_by_user_id=user.id)
+
+    from app.models.incident import Incident as _Incident
+    from app.services.incident_service import close_incident as _close_incident
+
+    linked_incident_ids = [
+        site.incident_id for site in lage.sites if site.incident_id is not None
+    ]
+    closed_incident_ids: list[int] = []
+    if linked_incident_ids:
+        active_incidents = (
+            db.query(_Incident)
+            .filter(
+                _Incident.id.in_(linked_incident_ids),
+                _Incident.status == "active",
+            )
+            .all()
+        )
+        for inc in active_incidents:
+            _close_incident(db, inc, user_id=user.id)
+            closed_incident_ids.append(inc.id)
+
     write_audit(db, "major_incident.closed", user_id=user.id,
-                payload={"lage_id": lage_id, "name": lage.name})
+                payload={"lage_id": lage_id, "name": lage.name,
+                         "closed_incidents": len(closed_incident_ids)})
     db.commit()
     await broadcast_lage(lage_id, {"type": "lage_closed", "reload_board": True})
+    for iid in closed_incident_ids:
+        await manager.broadcast(iid, {"type": "incident_closed"})
     return RedirectResponse(f"/lage/{lage_id}", status_code=303)
 
 

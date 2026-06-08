@@ -2494,6 +2494,25 @@ async def sms_test_page(request: Request, _=Depends(require_role("admin"))):
     })
 
 
+@router.get("/sms-gateway/status", response_class=HTMLResponse)
+async def sms_gateway_status(request: Request, _=Depends(require_role("admin"))):
+    """HTMX-Partial: aktueller Gateway-Verbindungsstatus (wird alle 10 s gepolt)."""
+    from app.routers.ws import _sms_gateways
+    user = request.state.user
+    connected = bool(user.org_id and _sms_gateways.get(user.org_id))
+    if connected:
+        return HTMLResponse(
+            '<span class="badge-pill badge-pill--green" style="font-size:.85rem;">Verbunden</span>'
+            '<span style="color:var(--color-text-muted);font-size:.9rem;margin-left:10px;">'
+            "SMS-Gateway ist aktiv und bereit.</span>"
+        )
+    return HTMLResponse(
+        '<span class="badge-pill badge-pill--red" style="font-size:.85rem;">Getrennt</span>'
+        '<span style="color:var(--color-text-muted);font-size:.9rem;margin-left:10px;">'
+        "Kein Gateway verbunden.</span>"
+    )
+
+
 @router.post("/sms-test/senden")
 async def sms_test_send(
     request: Request,

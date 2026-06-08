@@ -69,28 +69,27 @@
     <div style="display:flex;flex-direction:column;gap:16px;">
       <div class="chart-box">
         <h3 style="margin-bottom:12px;">Gateway-Status</h3>
-        {% if gateway_connected %}
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div id="sms-gateway-status"
+             hx-get="/admin/sms-gateway/status"
+             hx-trigger="load, every 10s"
+             hx-swap="innerHTML"
+             style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:28px;">
+          {% if gateway_connected %}
           <span class="badge-pill badge-pill--green" style="font-size:.85rem;">Verbunden</span>
-          <span style="color:var(--color-text-muted);font-size:.9rem;">
-            SMS-Gateway ist aktiv und bereit.
-          </span>
-        </div>
-        {% else %}
-        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="color:var(--color-text-muted);font-size:.9rem;">SMS-Gateway ist aktiv und bereit.</span>
+          {% else %}
           <span class="badge-pill badge-pill--red" style="font-size:.85rem;">Getrennt</span>
-          <span style="color:var(--color-text-muted);font-size:.9rem;">
-            Kein Gateway verbunden.
-          </span>
+          <span style="color:var(--color-text-muted);font-size:.9rem;">Kein Gateway verbunden.</span>
+          {% endif %}
         </div>
+        {% if not gateway_connected %}
         <p style="margin-top:10px;font-size:.85rem;color:var(--color-text-muted);">
           Den Docker-Container auf dem Gateway-Host starten:<br>
           <code style="font-size:.8rem;">docker compose up -d</code>
         </p>
         {% endif %}
         <p style="margin-top:12px;font-size:.8rem;color:var(--color-text-muted);">
-          Status wird beim Laden der Seite aktualisiert.
-          <a href="/admin/sms-test" style="color:inherit;text-decoration:underline;">Neu laden</a>
+          Status wird automatisch alle 10 s aktualisiert.
         </p>
       </div>
 
