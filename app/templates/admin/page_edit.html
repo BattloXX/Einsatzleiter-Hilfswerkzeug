@@ -174,7 +174,7 @@
       toolbar.style.opacity = '0.45';
       toolbar.style.pointerEvents = 'none';
       if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; btn.classList.add('ql-active'); }
-      source.style.display = '';
+      source.style.display = 'block';
       source.focus();
     } else {
       quill.clipboard.dangerouslyPasteHTML(source.value);
