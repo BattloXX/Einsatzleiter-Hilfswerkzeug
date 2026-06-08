@@ -687,6 +687,82 @@ async def site_edit(
     return Response(status_code=204)
 
 
+# ── Koordinaten per Pin setzen ───────────────────────────────────────────────
+
+@router.get("/lage/{lage_id}/stellen/{site_id}/pin", response_class=HTMLResponse)
+async def site_pin_form(
+    request: Request,
+    lage_id: int,
+    site_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    site = db.get(IncidentSite, site_id)
+    if not site or site.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+    from app.models.master import FireDept as _FD
+    org = db.get(_FD, lage.org_id) if lage.org_id else None
+    return templates.TemplateResponse(request, "incident_major/_site_pin.html", {
+        "user": user,
+        "lage": lage,
+        "site": site,
+        "org": org,
+    })
+
+
+@router.post("/lage/{lage_id}/stellen/{site_id}/pin", response_class=HTMLResponse)
+async def site_pin_save(
+    request: Request,
+    lage_id: int,
+    site_id: int,
+    lat: float = Form(...),
+    lng: float = Form(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    site = db.get(IncidentSite, site_id)
+    if not site or site.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+
+    site.lat = lat
+    site.lng = lng
+    db.add(SiteLogEntry(
+        incident_site_id=site_id,
+        kind="status",
+        text=f"Koordinaten manuell gesetzt: {lat:.5f}, {lng:.5f}",
+        user_id=user.id,
+        author_name=get_author_name(request),
+    ))
+    db.commit()
+    await broadcast_lage(lage_id, {"type": "site_updated", "site_id": site_id, "reload_board": True})
+
+    vehicles = (
+        db.query(VehicleMaster)
+        .filter(VehicleMaster.dept_id == lage.org_id, VehicleMaster.active == True)  # noqa: E712
+        .order_by(VehicleMaster.display_order, VehicleMaster.code)
+        .all()
+    )
+    sectors = sorted(lage.sectors, key=lambda s: s.id)
+    return templates.TemplateResponse(request, "incident_major/_site_detail.html", {
+        "user": user,
+        "lage": lage,
+        "site": site,
+        "phase_labels": PHASE_LABELS,
+        "prio_label": SITE_PRIORITY_LABEL,
+        "prio_color": SITE_PRIORITY_COLOR,
+        "can_edit": _can_edit(user),
+        "vehicles": vehicles,
+        "sectors": sectors,
+        "now": datetime.now(UTC),
+    })
+
+
 # ── Foto hochladen ───────────────────────────────────────────────────────────
 
 @router.post("/lage/{lage_id}/stellen/{site_id}/medien")

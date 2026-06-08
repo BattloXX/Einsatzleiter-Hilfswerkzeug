@@ -1,0 +1,139 @@
+<div class="modal__header">
+  <div>
+    <div class="modal__title">Koordinaten per Pin setzen</div>
+    <div class="modal__subtitle" style="font-size:.8rem;color:var(--text-muted);">{{ site.bezeichnung }}</div>
+  </div>
+  <button type="button"
+          hx-get="/lage/{{ lage.id }}/stellen/{{ site.id }}"
+          hx-target="#siteDetailContent"
+          hx-swap="innerHTML"
+          class="modal__close">×</button>
+</div>
+
+<div class="modal__body">
+  <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
+    Klicke auf die Karte um den Standort zu markieren. Mit dem Suchen-Button kann eine Adresse gesucht werden.
+  </p>
+
+  <div style="margin-bottom:8px;display:flex;gap:6px;">
+    <input type="text" id="pinSearchInput" placeholder="Adresse suchen…"
+           class="form-input" style="flex:1;font-size:.82rem;"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();pinSearch();}">
+    <button type="button" class="btn btn--ghost btn--sm" onclick="pinSearch()">Suchen</button>
+  </div>
+
+  <div id="pinMap" style="height:300px;border-radius:6px;border:1px solid var(--border);margin-bottom:8px;"></div>
+  <div id="pinCoords" style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px;min-height:1.2em;">
+    {% if site.lat and site.lng %}
+    Aktuell: {{ '%.5f'|format(site.lat) }}, {{ '%.5f'|format(site.lng) }} – auf Karte klicken zum Ändern.
+    {% else %}
+    Noch kein Standort gesetzt – auf Karte klicken.
+    {% endif %}
+  </div>
+
+  <form id="pinForm"
+        hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/pin"
+        hx-target="#siteDetailContent"
+        hx-swap="innerHTML"
+        hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'>
+    <input type="hidden" name="lat" id="pinLat" value="{{ '%.6f'|format(site.lat) if site.lat else '' }}">
+    <input type="hidden" name="lng" id="pinLng" value="{{ '%.6f'|format(site.lng) if site.lng else '' }}">
+    <div class="modal__footer" style="padding:0;">
+      <button type="button"
+              hx-get="/lage/{{ lage.id }}/stellen/{{ site.id }}"
+              hx-target="#siteDetailContent"
+              hx-swap="innerHTML"
+              class="btn btn--ghost">Abbrechen</button>
+      <button type="submit" id="pinSaveBtn" class="btn btn--primary"
+              {% if not site.lat %}disabled{% endif %}>Speichern</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function() {
+  {% if org and org.fallback_lat %}
+  var defLat = {{ org.fallback_lat }}, defLng = {{ org.fallback_lng }};
+  {% else %}
+  var defLat = 47.4664, defLng = 9.7416;
+  {% endif %}
+  {% if site.lat and site.lng %}
+  var initLat = {{ site.lat }}, initLng = {{ site.lng }};
+  {% else %}
+  var initLat = null, initLng = null;
+  {% endif %}
+
+  var _map = null, _marker = null;
+
+  function initPinMap() {
+    if (typeof L === 'undefined' || _map) return;
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconUrl: '/static/img/leaflet/marker-icon.png',
+      iconRetinaUrl: '/static/img/leaflet/marker-icon-2x.png',
+      shadowUrl: '/static/img/leaflet/marker-shadow.png',
+    });
+
+    var startLat = initLat !== null ? initLat : defLat;
+    var startLng = initLng !== null ? initLng : defLng;
+    var startZoom = initLat !== null ? 17 : 14;
+
+    _map = L.map('pinMap').setView([startLat, startLng], startZoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', subdomains: 'abc', maxZoom: 19,
+    }).addTo(_map);
+
+    if (initLat !== null) {
+      _marker = L.marker([initLat, initLng]).addTo(_map);
+    }
+
+    _map.on('click', function(e) {
+      setPin(e.latlng.lat, e.latlng.lng);
+    });
+
+    setTimeout(function() { _map.invalidateSize(); }, 100);
+    setTimeout(function() { _map.invalidateSize(); }, 400);
+  }
+
+  function setPin(lat, lng) {
+    if (_marker) _map.removeLayer(_marker);
+    _marker = L.marker([lat, lng]).addTo(_map);
+    document.getElementById('pinLat').value = lat.toFixed(6);
+    document.getElementById('pinLng').value = lng.toFixed(6);
+    document.getElementById('pinCoords').textContent =
+      'Gesetzt: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+    document.getElementById('pinSaveBtn').disabled = false;
+  }
+
+  window.pinSearch = function() {
+    var q = document.getElementById('pinSearchInput').value.trim();
+    if (!q) return;
+    fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d && d[0]) {
+          var lat = parseFloat(d[0].lat), lng = parseFloat(d[0].lon);
+          _map.setView([lat, lng], 17);
+          setPin(lat, lng);
+        } else {
+          document.getElementById('pinCoords').textContent = 'Adresse nicht gefunden.';
+        }
+      })
+      .catch(function() {
+        document.getElementById('pinCoords').textContent = 'Suche fehlgeschlagen.';
+      });
+  };
+
+  if (typeof L !== 'undefined') {
+    initPinMap();
+  } else {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet'; link.href = '/static/css/leaflet.min.css';
+    document.head.appendChild(link);
+    var s = document.createElement('script');
+    s.src = '/static/js/leaflet.min.js';
+    s.onload = initPinMap;
+    document.head.appendChild(s);
+  }
+})();
+</script>

@@ -387,11 +387,36 @@ async def analyze_site_reconnaissance(erkundungstext: str, site_info: dict) -> d
     return result
 
 
+_BEZEICHNUNG_SYSTEM = (
+    "Du bist ein Einsatzassistent der österreichischen Feuerwehr. "
+    "Erstelle aus der Alarmmeldung eine kurze, prägnante Bezeichnung für die Einsatzstelle "
+    "(max. 60 Zeichen). Sachlich, auf Deutsch, kein Satzzeichen am Ende. "
+    "Ausgabe: NUR die Bezeichnung, kein erklärender Text."
+)
+
 _PRESSE_SYSTEM = """Du bist Pressesprecher der Freiwilligen Feuerwehr.
 Erstelle aus den folgenden Einsatzdaten einer Großschadenslage einen sachlichen,
 informativen Pressetext für die Öffentlichkeit (3–5 Absätze, max. 350 Wörter).
 Keine Personendaten, keine Spekulationen. Verfasse den Text auf Deutsch.
 Beginne direkt mit dem Text ohne Überschrift oder Anrede."""
+
+
+async def generate_site_bezeichnung(meldung: str, einsatzgrund: str | None = None) -> str | None:
+    """Generate a short site designation from alarm text. Returns None on any failure (never raises)."""
+    text = (meldung or "").strip()
+    if not text:
+        text = (einsatzgrund or "").strip()
+    if not text:
+        return None
+    user_msg = f"Meldung: {text[:500]}"
+    if einsatzgrund and einsatzgrund.strip() and einsatzgrund.strip() != meldung.strip():
+        user_msg += f"\nEinsatzgrund: {einsatzgrund[:200]}"
+    try:
+        result = await complete(_BEZEICHNUNG_SYSTEM, user_msg, fast=True, max_tokens=80)
+        bezeichnung = result.strip()[:60]
+        return bezeichnung if bezeichnung else None
+    except AIServiceError:
+        return None
 
 
 async def generate_pressemeldung(context: dict) -> str:

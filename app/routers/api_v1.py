@@ -63,6 +63,8 @@ class AlarmPayload(BaseModel):
     Strasse: str | None = Field(None, description="Straße.")
     HausNr: str | None = Field(None, description="Hausnummer.")
     Uebung: bool = Field(False, description="Übungsalarm (kein echter Einsatz).")
+    Name: str | None = Field(None, description="Name des Anrufers/Melders.")
+    Telefon: str | None = Field(None, description="Telefonnummer des Anrufers/Melders.")
     Zeitzone: str | None = Field(
         None,
         description=(
@@ -471,9 +473,17 @@ async def create_incident_api(
             alarm_type_code,
             address,
         )
-        # Set AI priority on major incident site (only if einsatzgrund present and no priority yet)
-        if _mi_site and _mi_site.id:
-            background_tasks.add_task(_apply_ai_prio_to_site, _mi_site.id)
+
+    # Site-Anreicherung: KI-Bezeichnung, Priorität, Anrufer-Notiz (immer, unabhängig von AI)
+    if _mi_site and _mi_site.id:
+        background_tasks.add_task(
+            _enrich_site_from_alarm,
+            _mi_site.id,
+            payload.Meldung,
+            payload.Einsatzgrund,
+            payload.Name,
+            payload.Telefon,
+        )
 
     return {
         "id": incident.id,
@@ -515,6 +525,8 @@ class LageAlarmPayload(BaseModel):
     HausNr: str | None = Field(None, description="Hausnummer.")
     Lat: float | None = Field(None, description="Breitengrad (WGS 84).")
     Lng: float | None = Field(None, description="Längengrad (WGS 84).")
+    Name: str | None = Field(None, description="Name des Anrufers/Melders.")
+    Telefon: str | None = Field(None, description="Telefonnummer des Anrufers/Melders.")
 
 
 class LageSiteCreatedResponse(BaseModel):
@@ -558,6 +570,99 @@ async def _site_post_create_tasks(site_id: int) -> None:
                 pass
         if changed:
             db.commit()
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+
+async def _enrich_site_from_alarm(
+    site_id: int,
+    meldung: str | None = None,
+    einsatzgrund: str | None = None,
+    name: str | None = None,
+    telefon: str | None = None,
+) -> None:
+    """Background: geocode, AI-generate short bezeichnung, AI priority, name/telefon notes."""
+    from app.db import SessionLocal
+    from app.models.major_incident import IncidentSite, SiteLogEntry, SitePriority
+    from app.services.geocoding import geocode_address
+    from app.services.ai_service import (
+        analyze_site_reconnaissance,
+        generate_site_bezeichnung,
+        is_enabled,
+    )
+
+    db = SessionLocal()
+    try:
+        site = db.get(IncidentSite, site_id)
+        if not site:
+            return
+
+        changed = False
+
+        # Geocoding (only if not already set)
+        if not (site.lat and site.lng) and (site.strasse or site.ort):
+            try:
+                geo = await geocode_address(site.strasse, site.hausnr, site.ort)
+                if geo:
+                    site.lat, site.lng = geo.lat, geo.lng
+                    changed = True
+            except Exception:
+                pass
+
+        # AI: short bezeichnung from alarm text
+        ai_text = (meldung or einsatzgrund or "").strip()
+        if is_enabled() and ai_text:
+            try:
+                bezeichnung = await generate_site_bezeichnung(meldung or "", einsatzgrund)
+                if bezeichnung:
+                    site.bezeichnung = bezeichnung
+                    changed = True
+            except Exception:
+                pass
+
+        # AI: priority (only if not yet set)
+        prio_text = einsatzgrund or site.einsatzgrund or site.bezeichnung
+        if is_enabled() and prio_text and not site.priority:
+            try:
+                result = await analyze_site_reconnaissance(
+                    prio_text,
+                    {"bezeichnung": site.bezeichnung, "ort": site.ort or "", "strasse": site.strasse or ""},
+                )
+                if result and result.get("prio_vorschlag"):
+                    site.priority = SitePriority(result["prio_vorschlag"])
+                    site.danger_score = result.get("danger_score")
+                    site.urgency_score = result.get("urgency_score")
+                    changed = True
+            except Exception:
+                pass
+
+        # Name/Telefon → log note (always, regardless of AI)
+        if name or telefon:
+            parts: list[str] = []
+            if name:
+                parts.append(f"Anrufer: {name.strip()}")
+            if telefon:
+                parts.append(f"Tel.: {telefon.strip()}")
+            db.add(SiteLogEntry(
+                incident_site_id=site_id,
+                kind="note",
+                text=" · ".join(parts),
+            ))
+            changed = True
+
+        if changed:
+            db.commit()
+            try:
+                from app.services.broadcast import broadcast_lage as _bl
+                await _bl(site.major_incident_id, {
+                    "type": "site_updated",
+                    "site_id": site_id,
+                    "reload_board": True,
+                })
+            except Exception:
+                pass
     except Exception:
         pass
     finally:
@@ -639,7 +744,14 @@ async def lage_alarm(
     background_tasks.add_task(
         broadcast_lage, lage.id, {"type": "site_created", "reload_board": True}
     )
-    background_tasks.add_task(_site_post_create_tasks, site.id)
+    background_tasks.add_task(
+        _enrich_site_from_alarm,
+        site.id,
+        payload.Meldung,
+        payload.Art,
+        payload.Name,
+        payload.Telefon,
+    )
     return LageSiteCreatedResponse(lage_id=lage.id, site_id=site.id, created=True)
 
 

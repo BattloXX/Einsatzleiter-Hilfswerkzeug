@@ -99,12 +99,19 @@
          style="height:180px;border-radius:6px;border:1px solid var(--border);z-index:0;cursor:pointer;"
          title="Klicken zum Öffnen in OpenStreetMap"
          onclick="window.open('https://www.openstreetmap.org/?mlat={{ site.lat }}&mlon={{ site.lng }}&zoom=18','_blank')"></div>
-    <div style="margin-top:4px;display:flex;gap:10px;align-items:center;font-size:.72rem;">
+    <div style="margin-top:4px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.72rem;">
       <span style="color:var(--text-muted);">{{ '%.5f'|format(site.lat) }}, {{ '%.5f'|format(site.lng) }}</span>
       <a href="https://www.openstreetmap.org/?mlat={{ site.lat }}&mlon={{ site.lng }}&zoom=17"
          target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:none;">↗ OSM</a>
       <a href="https://maps.google.com/?q={{ site.lat }},{{ site.lng }}"
          target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:none;">↗ Google Maps</a>
+      {% if can_edit %}
+      <button type="button"
+              hx-get="/lage/{{ lage.id }}/stellen/{{ site.id }}/pin"
+              hx-target="#siteDetailContent"
+              hx-swap="innerHTML"
+              class="btn btn--xs btn--ghost" style="font-size:.7rem;padding:1px 6px;">📍 Pin korrigieren</button>
+      {% endif %}
     </div>
   </div>
   <script>
@@ -140,11 +147,20 @@
     }
   })();
   </script>
-  {% elif site.strasse or site.ort %}
-  <div style="margin-top:6px;margin-bottom:4px;">
+  {% else %}
+  <div style="margin-top:6px;margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    {% if site.strasse or site.ort %}
     <a href="https://maps.google.com/?q={{ site.strasse or '' }} {{ site.hausnr or '' }}, {{ site.ort or '' }}"
        target="_blank" rel="noopener"
        style="font-size:.78rem;color:#93c5fd;text-decoration:none;">🗺 Adresse auf Karte ↗</a>
+    {% endif %}
+    {% if can_edit %}
+    <button type="button"
+            hx-get="/lage/{{ lage.id }}/stellen/{{ site.id }}/pin"
+            hx-target="#siteDetailContent"
+            hx-swap="innerHTML"
+            class="btn btn--xs btn--ghost">📍 Koordinaten per Pin setzen</button>
+    {% endif %}
   </div>
   {% endif %}
 
