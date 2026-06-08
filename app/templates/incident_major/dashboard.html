@@ -274,6 +274,7 @@
     // Default: Vorarlberg
     map.setView([47.41, 9.74], 11);
   }
+  setTimeout(function() { map.invalidateSize(); }, 200);
 })();
 </script>
 {% endblock %}

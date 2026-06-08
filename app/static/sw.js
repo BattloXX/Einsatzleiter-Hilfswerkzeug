@@ -1,5 +1,5 @@
 /* Service Worker – PWA Offline Cache */
-const CACHE = 'fwwo-v4';
+const CACHE = 'fwwo-v5';
 const BOARD_CACHE = 'fwwo-board-v1';
 const PRECACHE = [
   '/',
@@ -30,6 +30,8 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Never intercept WebSocket or API calls
   if (url.pathname.startsWith('/ws/') || url.pathname.startsWith('/api/')) return;
+  // Cross-origin requests (OSM tiles, etc.) — let the browser handle directly
+  if (url.origin !== location.origin) return;
 
   // Block mutating requests offline — return 503 with X-Offline header
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(e.request.method)) {

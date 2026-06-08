@@ -328,6 +328,7 @@
   } else {
     map.setView([47.41, 9.74], 11);
   }
+  setTimeout(function() { map.invalidateSize(); }, 200);
 
   // Hide sector toggle if no sectors exist
   if (SECTORS.length === 0) {

@@ -60,7 +60,7 @@
   .map-wrap h2 { font-size: 9.5pt; font-weight: 700; text-transform: uppercase;
                  letter-spacing: .04em; border-bottom: 1.5px solid #111;
                  margin-bottom: 6px; padding-bottom: 3px; }
-  #printMap { width: 100%; height: 140mm; border: 1px solid #ccc; border-radius: 3px; }
+  #printMap { width: 100%; height: 130mm; border: 1px solid #ccc; border-radius: 3px; }
   .map-coords { font-size: 7.5pt; color: #9ca3af; margin-top: 3px; }
 
   /* ── Verlauf ── */
@@ -85,7 +85,6 @@
   @media print {
     .page { max-width: 100%; margin: 0; }
     body { font-size: 10pt; }
-    #printMap { height: 130mm; }
   }
 </style>
 </head>
@@ -218,16 +217,18 @@
   setTimeout(function() { map.invalidateSize(); }, 50);
   setTimeout(function() { map.invalidateSize(); }, 300);
 
-  // Auto-print after tiles load; fallback after 5 seconds
+  // Vor dem Drucken nochmals invalidateSize, damit Leaflet die korrekte Größe hat
+  window.addEventListener('beforeprint', function() { map.invalidateSize(); });
+
+  // Auto-print after tiles load; fallback after 8 seconds
   var printed = false;
   function autoPrint() {
     if (printed) return;
     printed = true;
-    map.invalidateSize();
-    setTimeout(function() { window.print(); }, 700);
+    setTimeout(function() { window.print(); }, 800);
   }
   tiles.on('load', autoPrint);
-  setTimeout(autoPrint, 5000);
+  setTimeout(autoPrint, 8000);
 })();
 </script>
 {% else %}
