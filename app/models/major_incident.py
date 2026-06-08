@@ -23,8 +23,6 @@ class _SitePriorityColType(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
-        if isinstance(value, int):
-            return value
         return int(value)
 
     def process_result_value(self, value, dialect):
