@@ -54,7 +54,9 @@
   <div class="detail-section">
     <div class="detail-section__title">GRUPPENKOMMANDANT</div>
 
-    <form method="post" action="/einsatz/{{ incident.id }}/fahrzeug/{{ vehicle.id }}/kommandant"
+    <form hx-post="/einsatz/{{ incident.id }}/fahrzeug/{{ vehicle.id }}/kommandant"
+          hx-target="#cardDetailBody"
+          hx-swap="innerHTML"
           style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
       <select name="member_id" class="form-select" style="flex:1">
         <option value="">nicht zugeteilt</option>
@@ -67,9 +69,11 @@
       <button type="submit" class="btn btn--secondary">zuteilen</button>
     </form>
 
-    <form method="post" action="/einsatz/{{ incident.id }}/fahrzeug/{{ vehicle.id }}/kommandant-neu"
+    <form hx-post="/einsatz/{{ incident.id }}/fahrzeug/{{ vehicle.id }}/kommandant-neu"
+          hx-target="#cardDetailBody"
+          hx-swap="innerHTML"
           style="display:flex; gap:8px; align-items:center;">
-      <input type="text" name="full_name" class="form-input" placeholder="Namen eingeben und zuteilen" style="flex:1">
+      <input type="text" name="full_name" class="form-input" placeholder="Namen eingeben und zuteilen" style="flex:1" required>
       <button type="submit" class="btn btn--secondary">ergänzen</button>
     </form>
 
