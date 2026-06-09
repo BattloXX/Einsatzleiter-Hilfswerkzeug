@@ -83,6 +83,10 @@
 <div class="incident-header" x-data="headerState('{{ incident.started_at|local_iso }}')">
   <div class="incident-header__alarm">
     <span class="alarm-badge alarm-badge--{{ incident.alarm_type_code[:1]|lower }}">{{ incident.alarm_type_code }}</span>
+    {% set _grund = (incident.reason or incident.report_text or '') %}
+    {% if _grund %}
+    <span class="incident-header__grund">{{ _grund[:80] }}</span>
+    {% endif %}
     {% if incident.address_street %}
     {% if can_edit %}
     <span class="incident-header__address" style="cursor:pointer"
