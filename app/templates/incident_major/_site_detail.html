@@ -349,9 +349,15 @@
          lbItems: [{% for m in site.media %}{{ m.id }}{% if not loop.last %},{% endif %}{% endfor %}],
          lbIdx: 0,
          lbShow(i) { this.lbIdx = i; this.lbOpen = true; },
-         lbClose() { this.lbOpen = false; }
-       }"
-       @keydown.escape.window="if(lbOpen) lbClose()">
+         lbClose() { this.lbOpen = false; },
+         init() {
+           const dlg = this.$el.closest('dialog');
+           if (!dlg) return;
+           const h = (e) => { if (this.lbOpen) { e.preventDefault(); this.lbClose(); } };
+           dlg.addEventListener('cancel', h);
+           this.$cleanup(() => dlg.removeEventListener('cancel', h));
+         }
+       }">
     <div style="font-size:.78rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;">FOTOS</div>
     <div class="media-grid">
       {% for m in site.media %}
