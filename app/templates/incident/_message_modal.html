@@ -79,15 +79,30 @@
   <p class="form-label" style="margin-bottom:8px;">MEDIEN</p>
   <div id="msgMediaSection">
     {% if msg.media %}
+    {% set imgs = msg.media|selectattr('kind', 'equalto', 'image')|list %}
+    <div x-data="{
+      lbOpen: false,
+      lbUrls: [{% for m in imgs %}'/medien/meldung/datei/{{ m.id }}'{% if not loop.last %},{% endif %}{% endfor %}],
+      lbIdx: 0,
+      lbShow(i) { this.lbIdx = i; this.lbOpen = true; },
+      lbClose() { this.lbOpen = false; },
+      init() {
+        const dlg = this.$el.closest('dialog');
+        if (!dlg) return;
+        const h = (e) => { if (this.lbOpen) { e.preventDefault(); this.lbClose(); } };
+        dlg.addEventListener('cancel', h);
+        this.$cleanup(() => dlg.removeEventListener('cancel', h));
+      }
+    }">
     <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); gap:6px; margin-bottom:10px;">
+      {% set lb = namespace(i=0) %}
       {% for m in msg.media %}
       <div style="position:relative; border:1px solid var(--border-color,#374151); border-radius:6px; overflow:hidden; background:var(--surface-2,#1f2937);">
         {% if m.kind == 'image' %}
-        <a href="/medien/meldung/datei/{{ m.id }}" title="{{ m.original_filename }}"
-           onclick="event.preventDefault(); openMediaViewer('/medien/meldung/datei/{{ m.id }}', 'image', {{ m.original_filename|tojson }});">
-          <img src="/medien/meldung/thumb/{{ m.id }}" alt="{{ m.original_filename }}"
-               style="width:100%;aspect-ratio:1;object-fit:cover;display:block;">
-        </a>
+        <img src="/medien/meldung/thumb/{{ m.id }}" alt="{{ m.original_filename }}"
+             style="width:100%;aspect-ratio:1;object-fit:cover;display:block;cursor:zoom-in;"
+             @click="lbShow({{ lb.i }})">
+        {% set lb.i = lb.i + 1 %}
         {% elif m.kind == 'pdf' %}
         <a href="/medien/meldung/datei/{{ m.id }}" title="{{ m.original_filename }}"
            onclick="event.preventDefault(); openMediaViewer('/medien/meldung/datei/{{ m.id }}', 'pdf', {{ m.original_filename|tojson }});"
@@ -118,6 +133,20 @@
         </form>
       </div>
       {% endfor %}
+    </div>
+    <div x-show="lbOpen" x-cloak
+         style="position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;"
+         @click.self="lbClose()">
+      <button @click="lbClose()"
+              style="position:fixed;top:16px;right:20px;background:rgba(0,0,0,.5);border:none;color:#fff;font-size:28px;line-height:1;cursor:pointer;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;"
+              aria-label="Schließen">×</button>
+      <button x-show="lbIdx > 0" @click.stop="lbIdx--"
+              style="position:fixed;left:12px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:none;color:#fff;font-size:36px;line-height:1;cursor:pointer;padding:6px 14px;border-radius:4px;">‹</button>
+      <button x-show="lbIdx < lbUrls.length - 1" @click.stop="lbIdx++"
+              style="position:fixed;right:12px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:none;color:#fff;font-size:36px;line-height:1;cursor:pointer;padding:6px 14px;border-radius:4px;">›</button>
+      <img :src="lbUrls[lbIdx]" alt=""
+           style="max-width:90vw;max-height:88vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.7);">
+    </div>
     </div>
     {% endif %}
     <form hx-post="/einsatz/{{ incident.id }}/meldung/{{ msg.id }}/medien"
