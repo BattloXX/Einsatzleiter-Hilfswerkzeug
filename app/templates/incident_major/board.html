@@ -114,6 +114,13 @@
     font-weight:700; font-size:.82rem; padding:4px;
     letter-spacing:.05em;
   }
+
+  /* ── Subnav (shared with all other lage pages) ───────────────────────────── */
+  .lage-subnav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .lage-subnav a { font-size: .78rem; padding: 3px 9px; border-radius: 4px;
+    color: var(--text-muted); text-decoration: none; }
+  .lage-subnav a:hover { background: rgba(255,255,255,.07); color: var(--text); }
+  .lage-subnav a.active { background: rgba(255,255,255,.1); color: var(--text); font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -129,17 +136,8 @@
     <a href="/lage" class="btn btn--ghost btn--sm" title="Alle Lagen">←</a>
     <div class="lage-topbar__title" title="{{ lage.name }}">{{ lage.name }}</div>
     <span class="lage-status lage-status--{{ lage.status.value }}">{{ lage.status.value }}</span>
-    <div style="display:flex;gap:3px;flex-wrap:wrap;">
-      <a href="/lage/{{ lage.id }}/dashboard" class="btn btn--ghost btn--sm">📊 Dashboard</a>
-      {% if mi_features.stab %}<a href="/lage/{{ lage.id }}/stab" class="btn btn--ghost btn--sm">👥 Stab</a>{% endif %}
-      {% if mi_features.funkjournal %}<a href="/lage/{{ lage.id }}/funkjournal" class="btn btn--ghost btn--sm">📻 Funkjournal</a>{% endif %}
-      {% if mi_features.meldungen %}<a href="/lage/{{ lage.id }}/meldungen" class="btn btn--ghost btn--sm">📥 Meldungen</a>{% endif %}
-      {% if mi_features.zeitreise %}<a href="/lage/{{ lage.id }}/zeitreise" class="btn btn--ghost btn--sm">🕐 Zeitreise</a>{% endif %}
-      {% if mi_features.sektoren %}<a href="/lage/{{ lage.id }}/sektoren" class="btn btn--ghost btn--sm">🗂 Abschnitte</a>{% endif %}
-      {% if mi_features.karte %}<a href="/lage/{{ lage.id }}/karte" class="btn btn--ghost btn--sm">🗺 Karte</a>{% endif %}
-      {% if mi_features.ressourcen %}<a href="/lage/{{ lage.id }}/ressourcen" class="btn btn--ghost btn--sm">🚒 Ressourcen</a>{% endif %}
-      <a href="/lage/{{ lage.id }}/druck" target="_blank" class="btn btn--ghost btn--sm">🖨 Drucken</a>
-    </div>
+
+    {# ── Board-Steuerung (Suche, Sortierung, Zähler) ──────────────────────── #}
     <input type="search" id="board-search" placeholder="Suchen…"
            oninput="filterBoard(this.value)"
            autocomplete="off"
@@ -148,6 +146,20 @@
     <button id="prio-sort-btn" type="button" onclick="togglePrioSort()"
             class="btn btn--ghost btn--sm" title="Karten nach Priorität sortieren">↕ Prio</button>
     <span class="lage-topbar__counts" id="board-counts">{{ open_count }} offen · {{ done_count }} erledigt</span>
+
+    {# ── Navigation ────────────────────────────────────────────────────────── #}
+    <nav class="lage-subnav">
+      <a href="/lage/{{ lage.id }}" class="active">📋 Board{% if open_count %} ({{ open_count }}){% endif %}</a>
+      <a href="/lage/{{ lage.id }}/dashboard">📊 Dashboard</a>
+      {% if mi_features.stab %}<a href="/lage/{{ lage.id }}/stab">👥 Stab</a>{% endif %}
+      {% if mi_features.funkjournal %}<a href="/lage/{{ lage.id }}/funkjournal">📻 Funkjournal</a>{% endif %}
+      {% if mi_features.meldungen %}<a href="/lage/{{ lage.id }}/meldungen">📥 Meldungen{% if new_meldungen_count %} ({{ new_meldungen_count }}){% endif %}</a>{% endif %}
+      {% if mi_features.zeitreise %}<a href="/lage/{{ lage.id }}/zeitreise">🕐 Zeitreise</a>{% endif %}
+      {% if mi_features.sektoren %}<a href="/lage/{{ lage.id }}/sektoren">🗂 Abschnitte</a>{% endif %}
+      {% if mi_features.karte %}<a href="/lage/{{ lage.id }}/karte">🗺 Karte</a>{% endif %}
+      {% if mi_features.ressourcen %}<a href="/lage/{{ lage.id }}/ressourcen">🚒 Ressourcen</a>{% endif %}
+      <a href="/lage/{{ lage.id }}/druck" target="_blank">🖨 Drucken</a>
+    </nav>
 
     {# ── Abgebrochen ein-/ausblenden ─────────────────────────────────────── #}
     {% if abgebrochen_sites %}

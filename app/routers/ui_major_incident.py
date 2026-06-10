@@ -157,6 +157,20 @@ def _can_manage(user) -> bool:
     return has_role(user, "incident_leader", "admin", "org_admin")
 
 
+def _nav_counts(lage_id: int, lage: MajorIncident, db: Session) -> dict:
+    """Returns open_count and new_meldungen_count for topbar nav badges."""
+    open_count = sum(
+        1 for s in lage.sites
+        if s.phase not in (SitePhase.erledigt, SitePhase.abgebrochen)
+    )
+    new_meldungen_count = (
+        db.query(CitizenReport)
+        .filter(CitizenReport.major_incident_id == lage_id, CitizenReport.status == "new")
+        .count()
+    )
+    return {"open_count": open_count, "new_meldungen_count": new_meldungen_count}
+
+
 # ── Navigation: aktive Lage der Org ─────────────────────────────────────────
 
 @router.get("/lage", response_class=HTMLResponse)
@@ -268,6 +282,12 @@ async def lage_board(
     sectors = sorted(lage.sectors, key=lambda s: s.id)
     sectors_by_id = {s.id: s for s in sectors}
 
+    new_meldungen_count = (
+        db.query(CitizenReport)
+        .filter(CitizenReport.major_incident_id == lage_id, CitizenReport.status == "new")
+        .count()
+    )
+
     return templates.TemplateResponse(request, "incident_major/board.html", {
         "user": user,
         "lage": lage,
@@ -281,6 +301,7 @@ async def lage_board(
         "can_manage": _can_manage(user),
         "open_count": open_count,
         "done_count": done_count,
+        "new_meldungen_count": new_meldungen_count,
         "show_abgebrochen": show_abgebrochen,
         "abgebrochen_sites": abgebrochen_sites,
         "sectors": sectors,
@@ -1067,6 +1088,7 @@ async def lage_dashboard(
         "active_res": active_res,
         "total_sites": len(lage.sites),
         "pending_reports": pending_reports,
+        "new_meldungen_count": pending_reports,
         "journal_categories": JOURNAL_CATEGORIES,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
@@ -1111,6 +1133,7 @@ async def lage_stab(
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
         "mi_features": _get_mi_features(db),
+        **_nav_counts(lage_id, lage, db),
     })
 
 
@@ -1249,6 +1272,7 @@ async def lage_funkjournal(
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
         "mi_features": _get_mi_features(db),
+        **_nav_counts(lage_id, lage, db),
     })
 
 
@@ -1632,12 +1656,18 @@ async def meldungen_list(
         .all()
     )
     new_count = sum(1 for r in reports if r.status == "new")
+    open_count = sum(
+        1 for s in lage.sites
+        if s.phase not in (SitePhase.erledigt, SitePhase.abgebrochen)
+    )
 
     return templates.TemplateResponse(request, "incident_major/meldungen.html", {
         "user": user,
         "lage": lage,
         "reports": reports,
         "new_count": new_count,
+        "open_count": open_count,
+        "new_meldungen_count": new_count,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
         "portal_url": str(request.base_url).rstrip("/") + f"/melden/{lage.public_token}"
@@ -1968,6 +1998,7 @@ async def lage_zeitreise(
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
         "mi_features": _get_mi_features(db),
+        **_nav_counts(lage_id, lage, db),
     })
 
 
@@ -2068,6 +2099,7 @@ async def sektoren_view(
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
         "mi_features": _get_mi_features(db),
+        **_nav_counts(lage_id, lage, db),
     })
 
 
@@ -2246,6 +2278,7 @@ async def lage_karte(
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
         "mi_features": _get_mi_features(db),
+        **_nav_counts(lage_id, lage, db),
     })
 
 
@@ -2336,6 +2369,7 @@ async def lage_ressourcen(
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
         "mi_features": _get_mi_features(db),
+        **_nav_counts(lage_id, lage, db),
     })
 
 
