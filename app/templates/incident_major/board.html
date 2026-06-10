@@ -121,7 +121,34 @@
     color: var(--text-muted); text-decoration: none; }
   .lage-subnav a:hover { background: rgba(255,255,255,.07); color: var(--text); }
   .lage-subnav a.active { background: rgba(255,255,255,.1); color: var(--text); font-weight: 600; }
+
+  /* ── Mobile Board ────────────────────────────────────────────────────────── */
+  @media (max-width: 760px) {
+    .lage-wrap { height: auto; overflow: visible; }
+    .phase-board { flex: none; flex-direction: column; overflow-x: hidden;
+      padding: 8px; align-items: stretch; gap: 0; }
+    .phase-col { flex: none; width: 100%; display: none; max-height: none; }
+    .phase-col.lage-col-active { display: flex; }
+    .lage-topbar { gap: 6px; padding: 6px 10px; }
+    #board-search { width: 110px !important; }
+  }
 </style>
+{% endblock %}
+
+{% block mobile_lage_nav %}
+<div class="mobile-menu__section mobile-menu__section--top">
+  <div class="mobile-menu__section-title">🚨 {{ lage.name }}</div>
+  <a href="/lage/{{ lage.id }}" class="mobile-menu__link active">📋 Board{% if open_count %} ({{ open_count }}){% endif %}</a>
+  <a href="/lage/{{ lage.id }}/dashboard" class="mobile-menu__link">📊 Dashboard</a>
+  {% if mi_features.stab %}<a href="/lage/{{ lage.id }}/stab" class="mobile-menu__link">👥 Stab</a>{% endif %}
+  {% if mi_features.funkjournal %}<a href="/lage/{{ lage.id }}/funkjournal" class="mobile-menu__link">📻 Funkjournal</a>{% endif %}
+  {% if mi_features.meldungen %}<a href="/lage/{{ lage.id }}/meldungen" class="mobile-menu__link">📥 Meldungen{% if new_meldungen_count %} ({{ new_meldungen_count }}){% endif %}</a>{% endif %}
+  {% if mi_features.zeitreise %}<a href="/lage/{{ lage.id }}/zeitreise" class="mobile-menu__link">🕐 Zeitreise</a>{% endif %}
+  {% if mi_features.sektoren %}<a href="/lage/{{ lage.id }}/sektoren" class="mobile-menu__link">🗂 Abschnitte</a>{% endif %}
+  {% if mi_features.karte %}<a href="/lage/{{ lage.id }}/karte" class="mobile-menu__link">🗺 Karte</a>{% endif %}
+  {% if mi_features.ressourcen %}<a href="/lage/{{ lage.id }}/ressourcen" class="mobile-menu__link">🚒 Ressourcen</a>{% endif %}
+  <a href="/lage/{{ lage.id }}/druck" class="mobile-menu__link" target="_blank">🖨 Drucken</a>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -188,12 +215,29 @@
     {% endif %}
   </div>
 
+  <!-- ── Mobile Phasen-Tabs ───────────────────────────────────────────────── -->
+  <div class="lage-phase-tabs" id="lage-phase-tabs">
+    {% for phase in phase_order %}
+    <button class="lage-phase-tab{% if loop.first %} active{% endif %}"
+            data-phase="{{ phase.value }}"
+            onclick="lageSwitchPhase('{{ phase.value }}', this)">
+      {{ phase_labels[phase] }}<span class="ptab-count">{{ sites_by_phase[phase]|length }}</span>
+    </button>
+    {% endfor %}
+    {% if show_abgebrochen and abgebrochen_sites %}
+    <button class="lage-phase-tab" data-phase="abgebrochen"
+            onclick="lageSwitchPhase('abgebrochen', this)">
+      Abgebrochen<span class="ptab-count">{{ abgebrochen_sites|length }}</span>
+    </button>
+    {% endif %}
+  </div>
+
   <!-- ── Phasen-Board ─────────────────────────────────────────────────────── -->
   <div class="phase-board" id="lage-board" data-lage-id="{{ lage.id }}">
 
     {% for phase in phase_order %}
     {% set phase_sites = sites_by_phase[phase] %}
-    <div class="phase-col">
+    <div class="phase-col{% if loop.first %} lage-col-active{% endif %}">
       <div class="phase-col__header">
         <span>{{ phase_labels[phase] }}</span>
         <span class="phase-col__count">{{ phase_sites|length }}</span>
@@ -311,6 +355,15 @@ function filterBoard(q) {
     var badge = col.querySelector('.phase-col__count');
     if (badge) badge.textContent = (q && visible !== cards.length) ? (visible + '/' + cards.length) : cards.length;
   });
+}
+
+function lageSwitchPhase(phase, btn) {
+  document.querySelectorAll('.lage-phase-tab').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('.phase-col').forEach(function(col) { col.classList.remove('lage-col-active'); });
+  var body = document.querySelector('.phase-col__body[data-phase="' + phase + '"]');
+  if (body) body.closest('.phase-col').classList.add('lage-col-active');
+  btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
 
 var PRIO_SORT = false;

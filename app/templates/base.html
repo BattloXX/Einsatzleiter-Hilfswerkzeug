@@ -164,6 +164,7 @@
               @click="mobileMenuOpen = false">×</button>
     </header>
     <nav class="mobile-menu__nav">
+      {% block mobile_lage_nav %}{% endblock %}
       <a href="/" class="mobile-menu__link {% if request.url.path == '/' %}active{% endif %}">📋 Übersicht</a>
       <a href="/archiv" class="mobile-menu__link {% if '/archiv' in request.url.path %}active{% endif %}">📚 Archiv</a>
       <a href="/statistik" class="mobile-menu__link {% if '/statistik' in request.url.path %}active{% endif %}">📊 Statistik</a>
