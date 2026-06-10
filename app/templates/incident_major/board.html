@@ -402,7 +402,18 @@ function lageSwitchPhase(phase) {
     var item = document.querySelector('.lage-phase-dd-item[data-phase="' + phase + '"]');
     if (item && item.dataset.phaseName) labelEl.textContent = item.dataset.phaseName;
   }
+  try { sessionStorage.setItem('lage_phase_{{ lage.id }}', phase); } catch(e) {}
 }
+
+// Restore phase after WebSocket-triggered reload
+(function() {
+  try {
+    var saved = sessionStorage.getItem('lage_phase_{{ lage.id }}');
+    if (saved && document.querySelector('.phase-col__body[data-phase="' + saved + '"]')) {
+      lageSwitchPhase(saved);
+    }
+  } catch(e) {}
+})();
 
 var PRIO_SORT = false;
 var _origOrder = {};
