@@ -272,7 +272,7 @@
           </td>
           <td style="color:var(--text-muted);">{{ r.resource_type or '–' }}</td>
           <td>
-            <a class="res-site-link" href="/lage/{{ lage.id }}">{{ site.bezeichnung[:35] }}</a>
+            <a class="res-site-link" href="/lage/{{ lage.id }}?open_site={{ site.id }}">{{ site.bezeichnung[:35] }}</a>
           </td>
           <td style="color:var(--text-muted);white-space:nowrap;font-size:.75rem;">
             {{ r.assigned_at|local_time }}
@@ -309,7 +309,7 @@
           <td><span class="res-status res-status--released">Abgezogen</span> {{ r.label or '–' }}</td>
           <td style="color:var(--text-muted);">{{ r.resource_type or '–' }}</td>
           <td>
-            <a class="res-site-link" href="/lage/{{ lage.id }}">{{ site.bezeichnung[:35] }}</a>
+            <a class="res-site-link" href="/lage/{{ lage.id }}?open_site={{ site.id }}">{{ site.bezeichnung[:35] }}</a>
           </td>
           <td style="color:var(--text-muted);white-space:nowrap;font-size:.75rem;">
             {{ r.released_at|local_time }}

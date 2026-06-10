@@ -1453,8 +1453,12 @@ async def buerger_submit(
 
     org = db.get(FireDept, lage.org_id) if lage.org_id else None
     phone = reporter_contact.strip()
+    org_name_str = org.name if org else "Feuerwehr"
 
-    if lage.org_id and is_sms_gateway_connected(lage.org_id):
+    gw_connected = bool(lage.org_id and is_sms_gateway_connected(lage.org_id))
+    logger.info("Bürger-Portal submit: org_id=%s gateway=%s phone=%s", lage.org_id, gw_connected, _mask_phone(phone))
+
+    if gw_connected:
         _cleanup_pending_verifications()
         pin = f"{random.randint(0, 9999):04d}"
         verify_token = secrets.token_urlsafe(24)
@@ -1475,17 +1479,23 @@ async def buerger_submit(
             "lage_id": lage.id,
             "source_ip": source_ip,
         }
-        sms_ok = await send_sms(lage.org_id, phone, f"Feuerwehr {org.name if org else ''}: Ihr Bestätigungscode lautet {pin}")
+        sms_ok = await send_sms(lage.org_id, phone, f"Feuerwehr {org_name_str}: Ihr Bestätigungscode lautet {pin}")
+        logger.info("Bürger-Portal SMS-Ergebnis: ok=%s phone=%s", sms_ok, _mask_phone(phone))
         if sms_ok:
             return templates.TemplateResponse(request, "incident_major/public_verify.html", {
                 "lage": lage,
                 "token": token,
                 "verify_token": verify_token,
                 "phone_masked": _mask_phone(phone),
-                "org_name": org.name if org else "Feuerwehr",
+                "org_name": org_name_str,
             })
-        # SMS fehlgeschlagen → Meldung ohne Verifikation anlegen
+        # SMS fehlgeschlagen → Fehlerseite zeigen, nicht still durchfallen
         _pending_verifications.pop(verify_token, None)
+        return templates.TemplateResponse(request, "incident_major/public_sms_error.html", {
+            "lage": lage,
+            "token": token,
+            "org_name": org_name_str,
+        }, status_code=200)
 
     db.add(CitizenReport(
         major_incident_id=lage.id,

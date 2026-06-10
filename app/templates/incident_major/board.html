@@ -267,6 +267,24 @@
 <script src="/static/js/sortable.min.js"></script>
 <script src="/static/js/lage_board.js"></script>
 <script>
+// Auto-open site card from ?open_site= query parameter
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var siteId = params.get('open_site');
+  if (!siteId) return;
+  // Remove from URL so back/refresh doesn't re-open
+  var url = new URL(window.location.href);
+  url.searchParams.delete('open_site');
+  history.replaceState(null, '', url.toString());
+  // Wait for HTMX to be ready, then load the site detail
+  setTimeout(function() {
+    htmx.ajax('GET', '/lage/{{ lage.id }}/stellen/' + siteId, {
+      target: '#siteDetailContent',
+      swap: 'innerHTML'
+    });
+  }, 150);
+})();
+
 function filterBoard(q) {
   q = (q || '').trim().toLowerCase();
   document.querySelectorAll('.phase-col').forEach(function(col) {
