@@ -1,14 +1,14 @@
 """Add phone_verified column to citizen_report
 
-Revision ID: 0041
-Revises: 0040
+Revision ID: 0042
+Revises: 0041
 Create Date: 2026-06-10 00:00:00.000000
 """
 from alembic import op
 from sqlalchemy import text
 
-revision = "0041"
-down_revision = "0040"
+revision = "0042"
+down_revision = "0041"
 branch_labels = None
 depends_on = None
 
