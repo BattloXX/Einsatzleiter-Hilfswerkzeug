@@ -13,11 +13,7 @@
   </div>
 
   {% if saved %}<div class="alert alert--success">Gespeichert.</div>{% endif %}
-  {% if error == "in_use" %}
-  <div class="alert alert--danger">Einheit kann nicht gelöscht werden – sie ist in bestehenden Einsätzen referenziert.</div>
-  {% elif error %}
-  <div class="alert alert--danger">{{ error }}</div>
-  {% endif %}
+  {% if error %}<div class="alert alert--danger">{{ error }}</div>{% endif %}
 
   <form method="get" action="/admin/fahrzeuge" style="display:flex;gap:10px;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
     {% if is_sysadmin %}
@@ -81,7 +77,7 @@
           <form method="post" action="/admin/fahrzeuge/{{ v.id }}/loeschen" style="display:inline">
             <button type="submit" class="btn btn--ghost btn--xs" style="color:var(--color-danger)"
                     data-name="{{ v.name | e }}"
-                    onclick="return confirm('Einheit „' + this.dataset.name + '" endgültig löschen?\n\nEinheiten die in bestehenden Einsätzen verwendet werden können nicht gelöscht werden.')">
+                    onclick="return confirm('Einheit „' + this.dataset.name + '" löschen?')">
               Löschen
             </button>
           </form>

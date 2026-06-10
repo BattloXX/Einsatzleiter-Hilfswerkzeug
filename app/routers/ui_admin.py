@@ -829,6 +829,7 @@ async def vehicles_list(
     is_sysadmin = has_role(user, "system_admin")
     all_orgs = db.query(FireDept).order_by(FireDept.name).all() if is_sysadmin else []
     q = db.query(VehicleMaster).join(VehicleMaster.dept)
+    q = q.filter(VehicleMaster.deleted == False)  # noqa: E712
     if is_sysadmin:
         if filter_org_id:
             q = q.filter(VehicleMaster.dept_id == filter_org_id)
@@ -961,18 +962,13 @@ async def delete_vehicle(
     vehicle_id: int, request: Request, db: Session = Depends(get_db),
     _=Depends(require_role("admin", "org_admin")),
 ):
-    from app.models.incident import IncidentVehicle
     v = db.get(VehicleMaster, vehicle_id)
     if not v:
         return RedirectResponse("/admin/fahrzeuge?error=Einheit+nicht+gefunden.", status_code=303)
-    ref_count = db.query(IncidentVehicle).filter(
-        IncidentVehicle.vehicle_master_id == vehicle_id
-    ).count()
-    if ref_count > 0:
-        return RedirectResponse("/admin/fahrzeuge?error=in_use", status_code=303)
+    v.deleted = True
+    v.active = False
     write_audit(db, "admin.vehicle.deleted", user_id=request.state.user.id,
                 entity_type="vehicle_master", entity_id=vehicle_id)
-    db.delete(v)
     db.commit()
     return RedirectResponse("/admin/fahrzeuge?saved=1", status_code=303)
 

@@ -57,6 +57,7 @@ class VehicleMaster(Base):
     is_first_train: Mapped[bool] = mapped_column(Boolean, default=False)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     bos_override: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     dept: Mapped[FireDept] = relationship(back_populates="vehicles")
