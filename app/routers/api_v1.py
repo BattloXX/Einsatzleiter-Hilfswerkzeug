@@ -23,11 +23,45 @@ from app.models.incident import Incident, IncidentOrg, IncidentToken
 from app.models.master import AlarmType, FireDept, OrgSettings
 from app.models.user import ApiKey
 from app.services.alarm_service import get_alarm_type_by_code
-from app.services.broadcast import manager
+from app.services.broadcast import broadcast_org, manager
 from app.services.incident_service import create_incident
 from app.services.push_service import notify_all
 
 router = APIRouter(prefix="/api/v1", tags=["Einsätze"])
+
+
+def _create_neighbor_invitations_api(
+    db, incident, alarm_type_code: str, org_id: int | None
+) -> None:
+    """Erstellt pending OrgInvitations für Partner-Orgs bei notify_neighbors-Alarm."""
+    if org_id is None:
+        return
+    alarm = (
+        db.query(AlarmType)
+        .filter(AlarmType.org_id == org_id, AlarmType.code == alarm_type_code)
+        .first()
+    )
+    if not alarm or not alarm.notify_neighbors:
+        return
+    from app.models.invitation import OrgInvitation, OrgPartner
+    partners = db.query(OrgPartner).filter(
+        OrgPartner.org_id == org_id,
+        OrgPartner.notify_on_incident == True,  # noqa: E712
+    ).all()
+    for p in partners:
+        existing = db.query(OrgInvitation).filter(
+            OrgInvitation.incident_id == incident.id,
+            OrgInvitation.invited_org_id == p.partner_org_id,
+        ).first()
+        if not existing:
+            db.add(OrgInvitation(
+                incident_id=incident.id,
+                inviting_org_id=org_id,
+                invited_org_id=p.partner_org_id,
+                status="pending",
+            ))
+    db.flush()
+
 
 # Mapping of possible lowercase Stufe values to alarm type codes
 STUFE_MAP = {
@@ -445,16 +479,19 @@ async def create_incident_api(
     address = f"{payload.Strasse or ''} {payload.HausNr or ''}, {payload.Ort or ''}".strip(", ")
     exercise_prefix = "[ÜBUNG] " if payload.Uebung else ""
 
-    # WebSocket broadcast to all connected clients
-    await manager.broadcast_all({
-        "type": "incident_created",
-        "incident_id": incident.id,
-        "alarm": alarm_type_code,
-        "address": address,
-        "is_exercise": payload.Uebung,
-        "url": f"/einsatz/{incident.id}",
-        "title": f"{exercise_prefix}Neuer Einsatz: {alarm_type_code} – {address}",
-    })
+    # WebSocket broadcast – org-spezifisch
+    if api_key.org_id:
+        await broadcast_org(api_key.org_id, {
+            "type": "incident_created",
+            "incident_id": incident.id,
+            "alarm": alarm_type_code,
+            "address": address,
+            "is_exercise": payload.Uebung,
+            "url": f"/einsatz/{incident.id}",
+            "title": f"{exercise_prefix}Neuer Einsatz: {alarm_type_code} – {address}",
+        })
+    # notify_neighbors → Einladungsvorschläge für Partner-Orgs
+    _create_neighbor_invitations_api(db, incident, alarm_type_code, api_key.org_id)
 
     # Web Push notification
     push_title = f"{exercise_prefix}🚒 Einsatz: {alarm_type_code}"

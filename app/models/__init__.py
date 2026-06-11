@@ -25,6 +25,7 @@ from app.models.incident import (
     RescuedPerson,
     Task,
 )
+from app.models.invitation import OrgInvitation, OrgPartner
 from app.models.lagekarte import LagekarteToken
 from app.models.master import (
     AIPromptVersion,
@@ -53,6 +54,7 @@ __all__ = [
     "DeviceToken", "FcmToken", "PushLog", "SmsGatewayToken",
     "FireDept", "VehicleMaster", "Member", "Qualification", "MemberQualification",
     "AlarmType", "SeedTemplate", "AIPromptVersion", "OrgStorageUsage",
+    "OrgInvitation", "OrgPartner",
     "TaskSuggestion", "TaskSuggestionAlarm",
     "MessageSuggestion", "MessageSuggestionAlarm",
     "LageHint", "LageHintAlarm", "DefaultMessage", "DefaultMessageAlarm",

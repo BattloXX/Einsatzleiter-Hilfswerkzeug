@@ -26,6 +26,7 @@ from app.routers import (
     ui_archive,
     ui_breathing,
     ui_incident,
+    ui_invitation,
     ui_major_incident,
     ui_media,
     ui_password_reset,
@@ -292,6 +293,7 @@ app.include_router(device_api.router)
 app.include_router(lagekarte_api.router)
 app.include_router(ws.router)
 app.include_router(ui_incident.router)
+app.include_router(ui_invitation.router)
 app.include_router(ui_major_incident.router)
 app.include_router(ui_media.router)
 app.include_router(ui_breathing.router)
