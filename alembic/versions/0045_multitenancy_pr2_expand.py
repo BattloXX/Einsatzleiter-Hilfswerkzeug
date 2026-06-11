@@ -48,12 +48,13 @@ def upgrade():
         pass
 
     # 3. alarm_type: PK von code auf id (BigInt AUTO_INCREMENT) umstellen + org_id hinzufügen
+    #    org_id BIGINT – muss zu fire_dept.id BIGINT passen (errno 150 sonst)
     conn.execute(text("""
         ALTER TABLE `alarm_type`
           DROP PRIMARY KEY,
           ADD COLUMN `id` BIGINT NOT NULL AUTO_INCREMENT FIRST,
           ADD PRIMARY KEY (`id`),
-          ADD COLUMN `org_id` INT NULL DEFAULT NULL,
+          ADD COLUMN `org_id` BIGINT NULL DEFAULT NULL,
           ADD INDEX `ix_alarm_type_org_id` (`org_id`)
     """))
 

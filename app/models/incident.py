@@ -49,7 +49,7 @@ class Incident(Base):
     incident_leader_member_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("member.id"), nullable=True)
     incident_leader_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # primary_org_id: the organisation leading this incident
-    primary_org_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("fire_dept.id"), nullable=True)
+    primary_org_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("fire_dept.id"), nullable=True)
     is_exercise: Mapped[bool] = mapped_column(Boolean, default=False)
     address_street: Mapped[str | None] = mapped_column(String(200), nullable=True)
     address_no: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -112,7 +112,7 @@ class IncidentOrg(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     incident_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("incident.id", ondelete="CASCADE"), nullable=False)
-    org_id: Mapped[int] = mapped_column(Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("fire_dept.id", ondelete="CASCADE"), nullable=False)
     # role: 'leader' (primary org) or 'collaborator'
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="collaborator")
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

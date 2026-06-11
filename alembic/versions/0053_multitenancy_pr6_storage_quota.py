@@ -26,7 +26,7 @@ def upgrade():
     # 2. OrgStorageUsage-Tabelle anlegen
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS org_storage_usage (
-            org_id       INT NOT NULL,
+            org_id       BIGINT NOT NULL,
             used_bytes   BIGINT NOT NULL DEFAULT 0,
             updated_at   DATETIME NOT NULL,
             PRIMARY KEY (org_id),
@@ -39,7 +39,7 @@ def upgrade():
     conn.execute(text("""
         ALTER TABLE site_media
         ADD COLUMN bytes  BIGINT NOT NULL DEFAULT 0,
-        ADD COLUMN org_id INT NULL,
+        ADD COLUMN org_id BIGINT NULL,
         ADD INDEX  ix_site_media_org_id (org_id)
     """))
 

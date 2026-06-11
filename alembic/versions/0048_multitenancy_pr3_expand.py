@@ -20,7 +20,7 @@ def upgrade():
     for table in ["task_suggestion", "message_suggestion", "lage_hint", "default_message"]:
         conn.execute(text(
             f"ALTER TABLE `{table}`"
-            f"  ADD COLUMN `org_id` INT NULL DEFAULT NULL,"
+            f"  ADD COLUMN `org_id` BIGINT NULL DEFAULT NULL,"
             f"  ADD INDEX `ix_{table}_org_id` (`org_id`)"
         ))
 

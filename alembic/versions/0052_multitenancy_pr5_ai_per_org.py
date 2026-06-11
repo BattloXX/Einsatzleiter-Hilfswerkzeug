@@ -29,7 +29,7 @@ def upgrade():
     # 2. AIPromptVersion: org_id hinzufügen (nullable für Bestand)
     conn.execute(text(
         "ALTER TABLE `ai_prompt_versions`"
-        "  ADD COLUMN `org_id` INT NULL DEFAULT NULL,"
+        "  ADD COLUMN `org_id` BIGINT NULL DEFAULT NULL,"
         "  ADD INDEX `ix_ai_prompt_versions_org_id` (`org_id`)"
     ))
 
@@ -52,7 +52,7 @@ def upgrade():
     # 5. org_id NOT NULL + FK
     conn.execute(text(
         "ALTER TABLE `ai_prompt_versions`"
-        "  MODIFY COLUMN `org_id` INT NOT NULL,"
+        "  MODIFY COLUMN `org_id` BIGINT NOT NULL,"
         "  ADD CONSTRAINT `fk_ai_prompt_versions_org_id`"
         "    FOREIGN KEY (`org_id`) REFERENCES `fire_dept` (`id`) ON DELETE CASCADE"
     ))

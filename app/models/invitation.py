@@ -21,10 +21,10 @@ class OrgInvitation(Base):
         BigInteger, ForeignKey("incident.id", ondelete="CASCADE"), nullable=False, index=True
     )
     inviting_org_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), nullable=False
+        BigInteger, ForeignKey("fire_dept.id", ondelete="CASCADE"), nullable=False
     )
     invited_org_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), nullable=False, index=True
+        BigInteger, ForeignKey("fire_dept.id", ondelete="CASCADE"), nullable=False, index=True
     )
     # pending | accepted | declined | revoked
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
@@ -50,10 +50,10 @@ class OrgPartner(Base):
     __tablename__ = "org_partner"
 
     org_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), primary_key=True
+        BigInteger, ForeignKey("fire_dept.id", ondelete="CASCADE"), primary_key=True
     )
     partner_org_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), primary_key=True
+        BigInteger, ForeignKey("fire_dept.id", ondelete="CASCADE"), primary_key=True
     )
     # True = Einladungsvorschlag bei notify_neighbors-Alarm
     notify_on_incident: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

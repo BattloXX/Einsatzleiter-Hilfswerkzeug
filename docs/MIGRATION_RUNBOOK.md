@@ -92,6 +92,58 @@ Nach erfolgreichem `alembic upgrade head`:
 
 ---
 
+## Bekannte Fallstricke beim Schreiben neuer Migrationen
+
+### BIGINT-Regel: FK-Spalten auf `fire_dept.id` müssen BIGINT sein
+
+`fire_dept.id` wurde in Migration 0001 als `BIGINT` angelegt. **Alle** FK-Spalten, die darauf zeigen, müssen ebenfalls `BIGINT` sein — nicht `INT`. MariaDB erzeugt bei Typabweichung:
+
+```
+errno: 150 "Foreign key constraint is incorrectly formed"
+```
+
+Falsch → richtig:
+
+```sql
+-- FALSCH (INT ≠ BIGINT → errno 150 beim FK-Anlegen):
+ADD COLUMN org_id INT NULL DEFAULT NULL,
+ADD CONSTRAINT fk_... FOREIGN KEY (org_id) REFERENCES fire_dept(id) ...
+
+-- RICHTIG:
+ADD COLUMN org_id BIGINT NULL DEFAULT NULL,
+ADD CONSTRAINT fk_... FOREIGN KEY (org_id) REFERENCES fire_dept(id) ...
+```
+
+Gleiches gilt für alle anderen PKs in diesem Projekt (`user.id`, `incident.id`, `api_key.id`, `member.id` usw.) — sie sind alle `BIGINT`. Entsprechend müssen auch FK-Spalten auf diese Tabellen `BIGINT` sein.
+
+Im SQLAlchemy-ORM: `mapped_column(BigInteger, ForeignKey("fire_dept.id"), ...)` — **nicht** `Integer`.
+
+### Idempotenz: Fehler in Migrate-Schritt hinterlässt Teilzustand
+
+Schlägt eine Migration in einem mittleren Schritt fehl (z.B. FK-Anlegen), hat der erste Schritt (ADD COLUMN) bereits Wirkung gezeigt. Beim Retry scheitert dann `ADD COLUMN` erneut mit „Duplicate column". Neu geschriebene Migrationen sollten daher idempotent sein:
+
+```python
+# Prüfen ob Spalte existiert, bevor ADD COLUMN ausgeführt wird:
+r = conn.execute(text(
+    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS"
+    " WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t' AND COLUMN_NAME='c'"
+))
+if r.scalar() == 0:
+    conn.execute(text("ALTER TABLE t ADD COLUMN c BIGINT NULL"))
+
+# FK nur anlegen wenn noch nicht vorhanden:
+r = conn.execute(text(
+    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS"
+    " WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t' AND CONSTRAINT_NAME='fk_...'"
+))
+if r.scalar() == 0:
+    conn.execute(text("ALTER TABLE t ADD CONSTRAINT fk_... FOREIGN KEY ..."))
+```
+
+Migration 0044 ist das Referenzbeispiel für diese idempotente Bauweise.
+
+---
+
 ## Bekannte Einschränkungen
 
 ### `db.get()` umgeht den Tenant-Filter

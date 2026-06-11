@@ -19,7 +19,7 @@ def upgrade():
     for table in ["task_suggestion", "message_suggestion", "lage_hint", "default_message"]:
         conn.execute(text(
             f"ALTER TABLE `{table}`"
-            f"  MODIFY COLUMN `org_id` INT NOT NULL,"
+            f"  MODIFY COLUMN `org_id` BIGINT NOT NULL,"
             f"  ADD CONSTRAINT `fk_{table}_org_id`"
             f"    FOREIGN KEY (`org_id`) REFERENCES `fire_dept` (`id`) ON DELETE CASCADE"
         ))

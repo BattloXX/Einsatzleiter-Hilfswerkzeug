@@ -20,8 +20,8 @@ def upgrade():
     # 1. OrgPartner: konfigurierte Nachbar-/Partner-Orgs
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS org_partner (
-            org_id         INT NOT NULL,
-            partner_org_id INT NOT NULL,
+            org_id         BIGINT NOT NULL,
+            partner_org_id BIGINT NOT NULL,
             notify_on_incident TINYINT(1) NOT NULL DEFAULT 1,
             PRIMARY KEY (org_id, partner_org_id),
             CONSTRAINT fk_op_org     FOREIGN KEY (org_id)         REFERENCES fire_dept(id) ON DELETE CASCADE,
@@ -34,8 +34,8 @@ def upgrade():
         CREATE TABLE IF NOT EXISTS org_invitation (
             id                  BIGINT       NOT NULL AUTO_INCREMENT,
             incident_id         BIGINT       NOT NULL,
-            inviting_org_id     INT          NOT NULL,
-            invited_org_id      INT          NOT NULL,
+            inviting_org_id     BIGINT       NOT NULL,
+            invited_org_id      BIGINT       NOT NULL,
             status              VARCHAR(20)  NOT NULL DEFAULT 'pending',
             created_by_user_id  BIGINT       NULL,
             created_at          DATETIME     NOT NULL,
