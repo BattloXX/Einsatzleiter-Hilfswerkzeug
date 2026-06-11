@@ -22,6 +22,7 @@ from app.models.incident import (
     Incident,
     IncidentColumn,
     IncidentLog,
+    IncidentOrg,
     IncidentToken,
     IncidentVehicle,
     Message,
@@ -144,6 +145,21 @@ def _incident_or_404(incident_id: int, db: Session):
     return inc
 
 
+def _visible_incidents_q(db: Session, user):
+    """Incident-Query gefiltert auf Einsätze der eigenen Org + kollaborative Einsätze.
+    system_admin erhält ungefilterte Abfrage.
+    """
+    q = db.query(Incident)
+    if has_role(user, "system_admin"):
+        return q
+    if not user or not user.org_id:
+        return q.filter(False)  # type: ignore[arg-type]
+    collab_subq = db.query(IncidentOrg.incident_id).filter(IncidentOrg.org_id == user.org_id)
+    return q.filter(
+        or_(Incident.primary_org_id == user.org_id, Incident.id.in_(collab_subq))
+    )
+
+
 def _create_neighbor_invitations(
     db: Session, incident, alarm_type_code: str, org_id: int | None, user_id: int | None
 ) -> None:
@@ -219,7 +235,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
     )
     adopted_id_set = {row[0] for row in adopted_ids}
     active = (
-        db.query(Incident)
+        _visible_incidents_q(db, user)
         .filter(Incident.status == "active", ~Incident.id.in_(adopted_id_set))
         .order_by(Incident.started_at.desc())
         .all()
@@ -505,10 +521,13 @@ async def alarm_regenerate_ki(
 
 @router.get("/einsatz/{incident_id}", response_class=HTMLResponse)
 async def incident_board(incident_id: int, request: Request, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
     incident = _incident_or_404(incident_id, db)
+    if not can_access_incident(user, incident):
+        raise HTTPException(403, "Kein Zugriff auf diesen Einsatz")
     db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons"])
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
     _at_board = get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code) if incident.alarm_type_code else None
@@ -716,7 +735,7 @@ async def dashboard_latest(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=302)
 
     latest = (
-        db.query(Incident)
+        _visible_incidents_q(db, user)
         .filter(Incident.status == "active")
         .order_by(Incident.started_at.desc())
         .first()
