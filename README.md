@@ -6,7 +6,7 @@
 [![CI](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions/workflows/ci.yml/badge.svg)](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green)
-![Version](https://img.shields.io/badge/version-2.0.0-orange)
+![Version](https://img.shields.io/badge/version-2.2.0-orange)
 
 ---
 
@@ -19,7 +19,7 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 **Kern-Prinzipien:**
 - Mehrere Geräte (Tablet, PC, Mobilgerät) arbeiten gleichzeitig am selben Einsatz
 - Vollständiges Audit-Log — jede Änderung wird protokolliert (Zeitreise-Funktion)
-- Multi-Tenancy — mehrere Organisationen auf einer Instanz, klar getrennt
+- Multi-Tenancy — mehrere Organisationen auf einer Instanz, row-level isoliert
 - Offline-fähige PWA — eingeschränkte Nutzung auch ohne Netzverbindung
 
 ---
@@ -31,8 +31,8 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | **Echtzeit-Kanban-Board** | WebSocket-basiertes Board für Einsatzkräfte, Aufgaben, Fahrzeuge und Meldungen |
 | **Atemschutzüberwachung** | Rückzugsdruckberechnung, Zeitmessung, gesetzlich verpflichtend |
 | **Media-Galerie** | Bilder, PDFs und Videos direkt an Aufträge anhängen; sichere Auslieferung über Auth-Route |
-| **Multi-Org-Support** | Mehrere Feuerwehren, gemeinsame Einsätze, eigene Stammdaten je Org |
-| **REST-API** | Automatische Einsatzanlage aus dem Alarmierungssystem (idempotent) |
+| **Multi-Org-Support** | Mehrere Feuerwehren, gemeinsame Einsätze, eigene Stammdaten je Org; row-level isoliert via SQLAlchemy Event-Handler |
+| **REST-API** | Automatische Einsatzanlage aus dem Alarmierungssystem (idempotent); Rate-Limiting per API-Key |
 | **PDF-Export** | Einsatzbericht mit Zeitstempeln, Audit-Log, Geretteten als WeasyPrint-PDF |
 | **Archiv & Zeitreise** | Vollständiges Änderungsprotokoll; jeden Zustand in der Vergangenheit anzeigen |
 | **Web-Push-Benachrichtigungen** | PWA Push bei neuem Einsatz (VAPID) |
@@ -41,8 +41,11 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | **Statistik-Dashboard** | Einsatzauswertung nach Typ, Zeit, Fahrzeug |
 | **Stammdaten-Verwaltung** | Fahrzeuge, Mitglieder, Qualifikationen (AGT-Ablaufdaten), Alarmtypen |
 | **Großschadenslage** | Phasen-Kanban für Massenanfall-Ereignisse: Einsatzstellen, Abschnitte, Stabsfunktionen, Funkliste, Bürgermeldungen, Pressemeldung |
-| **SMS-Gateway-Anbindung** | Docker-Container verbindet sich ausgehend über WebSocket und versendet SMS via CoNiuGo-Modem (HTTP); Basis für Verifizierung, 2FA und Info-SMS |
-| **KI-Assistent (✨)** | Auftragsvorschläge, Lage-Ticker-Hinweise, Lagebild und automatische Priorisierung neuer Einsatzstellen via Anthropic Claude; opt-in pro Instanz |
+| **SMS-Gateway-Anbindung** | Docker-Container verbindet sich ausgehend über WebSocket und versendet SMS via CoNiuGo-Modem |
+| **KI-Assistent (✨)** | Auftragsvorschläge, Lage-Ticker-Hinweise, Lagebild und automatische Priorisierung via Anthropic Claude; opt-in pro Org |
+| **Org-Konfig-Backup** | JSON-Export/Import der Org-Konfiguration inkl. Dry-Run-Diff |
+| **System-Admin-Konsole** | Per-Org KPI-Übersicht mit Schnellzugriff für Systemadministratoren |
+| **Auto-Schließen** | Inaktive Einsätze werden nach konfigurierbarer Zeit automatisch geschlossen (systemweit und pro Org) |
 
 ---
 
@@ -64,7 +67,7 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | Bild-Verarbeitung | **Pillow** + **pillow-heif** (HEIC/iPhone) |
 | Video-Transcode | **ffmpeg** (subprocess, H.264/AAC, 720p) |
 | PDF-Metadaten | **pypdf** (Seitenanzahl) |
-| Rate-Limiting | **slowapi** |
+| Rate-Limiting | **slowapi** (IP-basiert + API-Key-basiert) |
 | QR-Code | **qrcode[pil]** |
 | PWA | Service Worker + Web App Manifest |
 | Deployment | Gunicorn + UvicornWorker, Port **8092**, NGINX, systemd |
@@ -129,7 +132,7 @@ npm run dev    # Tailwind im Watch-Modus
 
 ## Setup (Produktion — Debian 12 + CloudPanel)
 
-Vollständige Anleitung: [`deploy/README-Deployment.md`](deploy/README-Deployment.md)
+Vollständige Anleitung: [`docs/wiki/Installation-App-Installation.md`](docs/wiki/Installation-App-Installation.md)
 
 ### Systempakete
 
@@ -225,15 +228,13 @@ location / {
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 }
 ```
 
 ### Graceful Reload nach Update
 
 ```bash
-# Gunicorn neu laden (kein Downtime)
-sudo kill -HUP $(cat /run/einsatzleiter.pid)
-# oder
 sudo systemctl reload einsatzleiter
 ```
 
@@ -257,6 +258,7 @@ COOKIE_SECURE=true    # In Produktion zwingend (HTTPS)
 APP_HOST=0.0.0.0
 APP_PORT=8092
 APP_BASE_URL=https://einsatz.example.com
+PUBLIC_BASE_URL=         # Für Mail-Links; leer = APP_BASE_URL verwenden
 DEBUG=false
 
 # ── Bootstrap-Admin (nur Erststart relevant) ───────────────────────
@@ -280,6 +282,11 @@ VAPID_CLAIM_EMAIL=admin@example.com
 # ── Zeitzone ───────────────────────────────────────────────────────
 DEFAULT_TIMEZONE=Europe/Vienna  # Fallback; Orgs können eigene Zeitzone setzen
 
+# ── Rate-Limiting ──────────────────────────────────────────────────
+LOGIN_RATELIMIT=10/minute          # POST /login
+API_ALARM_RATELIMIT=60/minute      # POST /api/v1/einsatz (Key-basiert)
+UPLOAD_RATELIMIT=20/minute         # Medien-Upload
+
 # ── Media-Upload ───────────────────────────────────────────────────
 # Speicherort außerhalb von app/static → Auslieferung nur über /medien/datei/{id}
 MEDIA_STORAGE_DIR=app_storage/incident_media
@@ -291,6 +298,12 @@ MEDIA_IMAGE_MAX_HEIGHT=1080
 MEDIA_THUMB_SIZE=240
 MEDIA_VIDEO_MAX_HEIGHT=720
 FFMPEG_BIN=ffmpeg    # Absoluter Pfad falls nötig: /usr/bin/ffmpeg
+
+# ── KI-Assistent ───────────────────────────────────────────────────
+ANTHROPIC_API_KEY=          # Überschreibt DB-Wert; leer = nur DB-Wert
+AI_ENABLED=false
+AI_MODEL_DEFAULT=claude-sonnet-4-6
+AI_MODEL_FAST=claude-haiku-4-5-20251001
 
 # ── In-App-Update ──────────────────────────────────────────────────
 UPDATE_ZIP_REQUIRE_HASH=true
@@ -316,22 +329,21 @@ alembic revision --autogenerate -m "kurze_beschreibung"
 alembic downgrade -1
 ```
 
-### Migrations-Chronologie
+### Migrations-Chronologie (Auszug)
 
 | Datei | Inhalt |
 |-------|--------|
 | `0001_initial.py` | Vollständiges Schema v1.0.0 |
-| `0002_multiorg_settings_update.py` | Multi-Org-Support, OrgSettings |
-| `0003_missing_columns.py` | Fehlende Spalten Nachlieferung |
-| `0004_alarm_dispatch.py` | AlarmDispatchVehicle (Ausrückordnung) |
-| `0005_user_contact_and_reset.py` | Benutzer-Kontaktfelder, Passwort-Reset |
-| `0006_org_timezone.py` | `FireDept.timezone` (IANA) |
-| `0007_task_media.py` | `task_media`-Tabelle (Media-Upload) |
+| `0044_multitenancy_pr1_infrastructure.py` | TenantScoped-Infrastruktur, org_id-Felder |
+| `0045–0047_multitenancy_pr2_*` | AlarmType-Migration (Expand/Migrate/Contract) |
+| `0048–0050_multitenancy_pr3_*` | Stammdaten org-scopen |
+| `0051_multitenancy_pr4_seed_templates.py` | Seed-Vorlagen |
+| `0052_multitenancy_pr5_ai_per_org.py` | KI-Prompts je Org |
+| `0053_multitenancy_pr6_storage_quota.py` | Speicher-Quotas |
+| `0054_multitenancy_pr7_invitations.py` | Einladungsmodell, QR-Tokens |
+| `0055_multitenancy_pr8_autoclose_backup.py` | Auto-Schließen je Org |
 
-**Migrations-Pfad beim Deployment** (Reihenfolge beachten):
-- PR 1–3: keine neuen System-Deps
-- PR 4: `ffmpeg` + `pillow-heif` + Migration `0007` erforderlich
-- `alembic upgrade head` immer vor Neustart ausführen
+Vollständiger Migrationsleitfaden: [`docs/MIGRATION_RUNBOOK.md`](docs/MIGRATION_RUNBOOK.md)
 
 ---
 
@@ -347,16 +359,6 @@ npm run build
 npm run dev
 ```
 
-`package.json`-Scripts:
-```json
-{
-  "build": "tailwindcss -i app/static/css/input.css -o app/static/css/app.css --minify",
-  "dev":   "tailwindcss -i app/static/css/input.css -o app/static/css/app.css --watch"
-}
-```
-
-Tailwind scannt alle Templates und JS-Dateien (`tailwind.config.js`, `content`-Pfade). Nach neuen Tailwind-Klassen in Templates immer `npm run build` ausführen und `app.css` committen.
-
 ---
 
 ## CLI
@@ -367,8 +369,8 @@ Verwaltungs-Kommandos über das eingebaute CLI (`app/cli.py`):
 # Admin-Benutzer anlegen
 python -m app.cli create-admin --username admin --password geheimpasswort
 
-# API-Key für Alarmierungssystem erstellen
-python -m app.cli create-api-key --label "Alarmierungssystem Leitstelle"
+# API-Key für Alarmierungssystem erstellen (mit Org-Zuordnung)
+python -m app.cli create-api-key --label "Alarmierungssystem Leitstelle" --org-id 1
 
 # Connection-Token für SMS-Gateway-Container erstellen
 python -m app.cli create-sms-gateway-token --label "Modem Wolfurt" --org-id 1
@@ -384,7 +386,7 @@ Beim allerersten Start ohne Benutzer in der Datenbank wird automatisch ein Admin
 - Passwort: `BOOTSTRAP_ADMIN_PASSWORD` oder zufällig generiert
 - Das generierte Passwort wird **einmalig** in den Logs ausgegeben
 
-Nach dem ersten Login sofort Passwort ändern.
+Nach dem ersten Login sofort Passwort ändern und `system_admin`-Rolle setzen.
 
 ---
 
@@ -394,12 +396,12 @@ Nach dem ersten Login sofort Passwort ändern.
 # Alle Tests
 pytest tests/ -v
 
+# Nur Unit-Tests (ohne DB-Verbindung)
+pytest tests/test_breathing.py tests/test_api_hardening.py tests/test_isolation.py \
+       tests/test_autoclose_per_org.py tests/test_sysadmin.py tests/test_smoke.py -v
+
 # Mit Coverage-Report
 pytest tests/ --cov=app --cov-report=html
-# → htmlcov/index.html öffnen
-
-# Nur ein Modul
-pytest tests/test_media.py -v
 ```
 
 CI (GitHub Actions): Lint (ruff) + Typecheck (mypy) + pytest mit MariaDB-Service-Container (Python 3.14).
@@ -408,10 +410,14 @@ CI (GitHub Actions): Lint (ruff) + Typecheck (mypy) + pytest mit MariaDB-Service
 
 ```
 tests/
-├── conftest.py          # Fixtures: test_db (SQLite in-memory), client (TestClient)
-├── test_api.py          # REST-API Endpunkte (Einsatz anlegen, idempotenz)
-├── test_breathing.py    # Atemschutz-Zustandsmaschine
-└── test_media.py        # Media-Upload, Resize, Delete (neu)
+├── conftest.py               Fixtures: test_db (SQLite in-memory), client, API-Key
+├── test_api.py               REST-API Endpunkte (Einsatz anlegen, Idempotenz) — benötigt DB
+├── test_api_hardening.py     AlarmPayload/LageAlarmPayload Validation + Rate-Limit-Key
+├── test_breathing.py         Atemschutz-Zustandsmaschine (Unit-Tests)
+├── test_isolation.py         Multi-Tenancy Row-Level-Isolation + can_access_incident
+├── test_autoclose_per_org.py Auto-Schließen: globale vs. org-spezifische Konfiguration
+├── test_sysadmin.py          _org_stats() Aggregation (System-Admin-Konsole)
+└── test_smoke.py             Import-Smoke-Tests aller Multi-Tenancy-Module
 ```
 
 ---
@@ -421,42 +427,43 @@ tests/
 ### Authentifizierung & Session
 
 - Passwörter: **bcrypt** (12 Runden)
-- Session-Token: signiert mit **itsdangerous** (HMAC-SHA1), Max-Age 24h + Inaktivitäts-Timeout 8h
-- Brute-Force-Schutz: 10 Fehlversuche → Konto für 15 Minuten gesperrt
+- Session-Token: signiert mit **itsdangerous** (HMAC-SHA1), Max-Age 24h + Inaktivitäts-Timeout 8h (Sliding Window)
+- Brute-Force-Schutz: konfigurierbare Anzahl Fehlversuche → Konto für konfigurierbare Dauer gesperrt (`LOGIN_MAX_FAILED`, `LOGIN_LOCKOUT_MINUTES`)
 - `COOKIE_SECURE=true` erzwingen in Produktion (HTTPS)
 
 ### CSRF
 
-- Custom `CSRFMiddleware` (Phase 7): Double-Submit-Cookie-Pattern
+- `CSRFMiddleware`: Double-Submit-Cookie-Pattern
 - Alle state-ändernden POST-Requests werden geprüft
 - `app/static/js/csrf.js` setzt den CSRF-Token automatisch in HTMX-Header
 
 ### Multi-Tenant-Isolation
 
 - Jeder Benutzer gehört einer Organisation (`org_id`) an
-- Alle DB-Abfragen filtern nach `org_id` des eingeloggten Benutzers
-- Incident-Collaboration via `IncidentOrg`-Junction — nur explizit eingeladene Orgs sehen gemeinsame Einsätze
+- DB-Abfragen mit `db.query()` filtern via SQLAlchemy `do_orm_execute`-Event automatisch nach `org_id`
+- `db.get()` umgeht den Event-Handler — Router prüfen daher nach Laden manuell via `same_org_or_system_admin()`
+- Incident-Collaboration via `IncidentOrg`-Junction — nur explizit eingeladene Orgs sehen gemeinsame Einsätze (`visible_incidents_q()`)
 - System-Admin sieht alles; Org-Admin sieht nur eigene Org
 
 ### Medien-Sicherheit
 
 - **Dateien außerhalb von `app/static/`**: `app_storage/incident_media/` — kein direkter HTTP-Zugriff möglich
-- **Auslieferung nur über `/medien/datei/{id}`** mit vollständigem Auth- und Org-Check → 401/403 ohne Login
-- **MIME-Validierung via `filetype`**: User-supplied `Content-Type` wird ignoriert; echte Datei-Bytes werden geprüft
-- **Dateinamen**: Gespeichert nur als DB-Feld (`original_filename`), nie im Dateisystem — UUID-Dateinamen verhindern Path-Traversal
-- **Pillow-Re-Encode**: HEIC/JPG mit eingeschleustem Polyglot-Payload werden durch Re-Encoding neutralisiert
-- **Größenlimits** auf FastAPI-Ebene: 10 MB Bild · 20 MB PDF · 50 MB Video (+ NGINX `client_max_body_size`)
+- **Auslieferung nur über `/medien/datei/{id}`** mit vollständigem Auth- und Org-Check
+- **MIME-Validierung via `filetype`**: echte Datei-Bytes werden geprüft
+- **Dateinamen**: UUID-basiert im Dateisystem — verhindert Path-Traversal
 
-### Rate-Limiting
+### Rate-Limiting (slowapi)
 
-- **slowapi**: Standard 300 Req/min für alle Endpoints
-- Login und Passwort-Reset: eigene engere Limits per Decorator
+- Standard: 300 Req/min für alle Endpoints
+- `POST /login`: `LOGIN_RATELIMIT` (Standard: 10/min) — IP-basiert
+- `POST /api/v1/einsatz`: `API_ALARM_RATELIMIT` (Standard: 60/min) — **API-Key-basiert** (je Key ein eigenes Limit-Budget)
+- Medien-Upload: `UPLOAD_RATELIMIT` (Standard: 20/min) — IP-basiert
 
 ### API-Key-Sicherheit
 
 - Keys werden als **SHA-256-Hash** gespeichert (nie im Klartext)
 - Vergleich via `hmac.compare_digest` (timing-sicher)
-- Ablaufdatum + Revoke-Funktion vorhanden
+- Ablaufdatum + Revoke-Funktion; pro Org isoliert
 
 ---
 
@@ -465,83 +472,63 @@ tests/
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                      Browser / PWA                       │
-│  HTMX (Form-Submits + partielle DOM-Updates)            │
-│  Alpine.js (lokaler State: Modals, Toasts, Lightbox)    │
-│  SortableJS (Drag & Drop)                               │
-│  WebSocket (Echtzeit-Events)                            │
+│  HTMX · Alpine.js · SortableJS · WebSocket              │
 └────────────────────────────┬────────────────────────────┘
-                             │ HTTP / WS
+                             │ HTTP / WSS
 ┌────────────────────────────▼────────────────────────────┐
 │                   NGINX (Reverse Proxy)                  │
-│  /static/ → direkt (7d Cache)                          │
-│  /ws      → WebSocket-Upgrade                          │
-│  /        → Proxy → :8092                              │
-│  client_max_body_size 60M (Media-Upload)               │
+│  /static/ → direkt · /ws → WS-Upgrade · / → :8092      │
 └────────────────────────────┬────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────┐
 │           FastAPI (app.main) auf Port 8092               │
-│  Gunicorn + UvicornWorker (2 Workers)                  │
 │                                                         │
-│  Middleware-Stack:                                      │
-│    SessionMiddleware → SecurityHeaders → CSRF           │
-│    SlowAPI (Rate-Limit)                                │
+│  Middleware: SessionMiddleware → SecurityHeaders         │
+│             → CSRF → SlowAPI (Rate-Limit)               │
 │                                                         │
-│  Routers:                                              │
-│    ui_incident  – Board, Aufgaben, Fahrzeuge           │
-│    ui_media     – Galerie, /medien/datei/{id}          │
-│    ui_breathing – Atemschutzüberwachung                │
-│    ui_archive   – Archiv, PDF-Export                   │
-│    ui_admin     – Stammdaten, Benutzer                 │
-│    ui_settings  – Org-Settings, ZIP-Update             │
-│    ui_stats     – Statistik                            │
-│    api_v1       – REST-API (Alarmierung)               │
-│    ws           – WebSocket Pub/Sub                    │
-│    auth         – Login/Logout/Reset                   │
+│  Routers:                                               │
+│    ui_incident   – Board, Aufgaben, Fahrzeuge           │
+│    ui_media      – Galerie, /medien/datei/{id}          │
+│    ui_breathing  – Atemschutzüberwachung                │
+│    ui_archive    – Archiv, PDF-Export                   │
+│    ui_admin      – Stammdaten, Benutzer, Audit          │
+│    ui_settings   – Org-Einstellungen, ZIP-Update        │
+│    ui_backup     – Konfig-Export/Import                 │
+│    ui_sysadmin   – System-Admin-Konsole                 │
+│    ui_invitation – Einladungslinks                      │
+│    ui_ai_prompts – KI-Prompt-Verwaltung                 │
+│    ui_stats      – Statistik                            │
+│    ui_push       – Web-Push-Verwaltung                  │
+│    api_v1        – REST-API (Alarmierung)               │
+│    ws            – WebSocket Pub/Sub                    │
+│    auth          – Login/Logout/QR-Login                │
 │                                                         │
-│  Services:                                             │
-│    incident_service  – Einsatz-Logik                   │
-│    media_service     – Upload-Pipeline (Bild/PDF/Video)│
-│    pdf_service       – WeasyPrint PDF                  │
-│    push_service      – Web-Push VAPID                  │
-│    broadcast         – WS-Pub/Sub-Manager              │
-│    sms_service       – SMS-Versand via Gateway         │
-│    update_service    – ZIP-Update + Alembic            │
+│  Core:                                                  │
+│    security.py   – Passwort, Session, API-Key, QR       │
+│    permissions.py – require_role, has_role,             │
+│                     can_access_incident                 │
+│    queries.py    – visible_incidents_q (Tenant-Filter)  │
+│    rate_limit.py – slowapi Limiter + API-Key-Identifier │
+│    audit.py      – Audit-Log-Writer                     │
+│    middleware/   – CSP-Headers, CSRF                    │
+│                                                         │
+│  Services:                                              │
+│    incident_service  – Einsatz-Logik                    │
+│    media_service     – Upload-Pipeline                  │
+│    pdf_service       – WeasyPrint PDF                   │
+│    push_service      – Web-Push VAPID                   │
+│    broadcast         – WS-Pub/Sub-Manager               │
+│    autoclose         – Hintergrund-Job Auto-Schließen   │
+│    ai_service        – Anthropic Claude                 │
+│    alarm_service     – Alarmtyp-Lookup                  │
+│    seed_service      – Seed-Template-Anwendung          │
 └────────────────────────────┬────────────────────────────┘
-                             │
               ┌──────────────┼──────────────┐
-              │              │              │
 ┌─────────────▼──┐  ┌───────▼──────┐  ┌───▼──────────────┐
 │  MariaDB 10.11 │  │ app_storage/ │  │ app/static/      │
 │  (utf8mb4)     │  │ incident_    │  │ css, js, img     │
-│                │  │ media/       │  │ (kein Auth nötig)│
-│  Tabellen:     │  │ (Auth-Schutz)│  └──────────────────┘
-│  incident      │  └─────────────┘
-│  task          │
-│  task_media    │
-│  user          │
-│  fire_dept     │
-│  breathing_*   │
-│  ...           │
-└────────────────┘
-```
-
-### Datenfluss: Media-Upload
-
-```
-Browser                  FastAPI                 Dateisystem + DB
-  │                         │                         │
-  │─── POST /aufgabe/{id}/medien (multipart) ────────►│
-  │                         │                         │
-  │                    filetype.guess()               │
-  │                    Größen-Check                   │
-  │                    Pillow / ffmpeg                │
-  │                         │──── schreibt UUID.jpg ──►│
-  │                         │──── schreibt UUID_thumb ►│
-  │                         │──── INSERT task_media ──►│
-  │                         │                         │
-  │◄── 200 _task_media.html (HTMX-Partial) ──────────│
-  │    (DOM-Swap #taskMediaSection)                   │
+│  55 Migrationen│  │ media/       │  │ (kein Auth nötig)│
+└────────────────┘  └─────────────┘  └──────────────────┘
 ```
 
 ---
@@ -572,12 +559,30 @@ Content-Type: application/json
 }
 ```
 
+**Payload-Validierung (Pydantic v2):**
+- `Key`: Pflichtfeld, 1–200 Zeichen, wird getrimmt, darf nicht nur Leerzeichen sein
+- `Stufe`: wird normalisiert (z.B. `f3` → `F3`), max. 10 Zeichen
+- `Meldung`: max. 5000 Zeichen
+- `Nummer`: ≥ 0
+
 **Idempotenz:** Doppelter `Key` → `created: false`, vorhandene `incident_id` wird zurückgegeben.
 
 API-Key erstellen:
 ```bash
-python -m app.cli create-api-key --label "Alarmierungssystem"
+python -m app.cli create-api-key --label "Alarmierungssystem" --org-id 1
 ```
+
+### Lage-Alarm anlegen
+
+```http
+POST /api/v1/lage/alarm
+X-API-Key: elh_...
+Content-Type: application/json
+```
+
+Erstellt eine Einsatzstelle in einer laufenden Großschadenslage. Gleiche Validierungsregeln wie `AlarmPayload`, zusätzlich:
+- `Lat`: -90.0 bis +90.0
+- `Lng`: -180.0 bis +180.0
 
 ---
 
@@ -596,7 +601,7 @@ python -m app.cli create-api-key --label "Alarmierungssystem"
 
 ## KI-Assistent (✨)
 
-Der optionale KI-Assistent nutzt die **Anthropic Claude API** und muss pro Instanz explizit aktiviert werden.
+Der optionale KI-Assistent nutzt die **Anthropic Claude API** und kann pro Org separat aktiviert werden.
 
 ### Aktivierung
 
@@ -604,44 +609,19 @@ In den System-Einstellungen (`/admin/system-einstellungen`, nur `system_admin`):
 - `ai_enabled = true`
 - `ai_api_key = sk-ant-...`
 
+Oder per Org über `/admin/settings` (BYOK — eigener API-Key je Org möglich).
+
 Default: **deaktiviert** (`AI_ENABLED=false`).
 
 ### Funktionen
 
 | Funktion | Beschreibung |
 |----------|-------------|
-| **✨ Auftragsvorschläge** | Beim Alarmeingang (via REST-API) generiert die KI 3–5 Erstmaßnahmen als Kanban-Tasks mit `source="ai_suggestion"`. Der Einsatzleiter bestätigt (✓) oder verwirft (✗) jeden Vorschlag. |
-| **✨ Lage-Hinweise** | Taktische Ticker-Hinweise für das Board (Sidebar + Header). KI-Hinweise werden mit ✨ markiert; admin-gepflegte Hinweise dienen als Fallback wenn keine KI-Hinweise vorliegen. |
-| **✨ Lagebild** | Kompakte Lagebeschreibung aus Live-Einsatzdaten; kann ins Journal übernommen werden. |
-| **✨ Einsatzbericht** | KI-Entwurf für den Abschlussbericht (im Archiv). |
-| **✨ Auto-Priorisierung (Großschadenslage)** | Beim Anlegen einer Einsatzstelle (manuell, API, Bürgermeldung) analysiert die KI die Einsatzmeldung und schlägt automatisch eine Priorität (Sofort / Dringend / Normal / Aufschiebbar) samt `danger_score` und `urgency_score` vor. |
-
-### Auftragsvorschlags-Chips
-
-Im "Auftrag anlegen"-Dialog werden Vorschläge als Chips dargestellt:
-- **KI-Vorschläge vorhanden** → nur KI-Chips (✨) werden angezeigt
-- **Keine KI-Vorschläge** → admin-gepflegte Vorlagen als Fallback
-- Das ✨-Icon erscheint nur im Chip-Label — beim Übernehmen wird der reine Auftragstext ohne ✨ eingesetzt
-
-### Sicherheit & Datenschutz
-
-- **Keine Personendaten an die KI**: Alle Payloads durchlaufen `_strip_persons()` in `ai_service.py`
-- **KI ist Assistenz, nie Akteur**: Das LLM erzeugt nur Vorschläge — keine automatischen Statusänderungen
-- **Alarm-Anlage scheitert nie an KI-Fehler**: AI-Enrichment läuft als Background-Task, Fehler werden geloggt
-- Tests mocken den Provider: `ai_service.complete` via Monkeypatching in `conftest.py`
-
----
-
-## Einsätze löschen (system_admin)
-
-System-Admins können Einsätze im Archiv endgültig löschen:
-
-1. Archiv-Detailseite des Einsatzes öffnen (`/archiv/{id}`)
-2. Button **🗑 Löschen** anklicken (nur für `system_admin` sichtbar)
-3. Doppelte Bestätigungsabfrage im Browser
-4. Alle abhängigen Daten (Aufgaben, Meldungen, Fahrzeuge, Atemschutz, Journal, Medien) werden gelöscht
-
-Die Aktion wird im Audit-Log protokolliert (`admin.incident.deleted`).
+| **✨ Auftragsvorschläge** | 3–5 Erstmaßnahmen als Kanban-Tasks; Einsatzleiter bestätigt oder verwirft |
+| **✨ Lage-Hinweise** | Taktische Ticker-Hinweise für das Board |
+| **✨ Lagebild** | Kompakte Lagebeschreibung aus Live-Einsatzdaten |
+| **✨ Einsatzbericht** | KI-Entwurf für den Abschlussbericht |
+| **✨ Auto-Priorisierung (Großschadenslage)** | Priorität + `danger_score` + `urgency_score` für Einsatzstellen |
 
 ---
 
@@ -653,19 +633,22 @@ Mehrere Feuerwehren können auf einer Instanz betrieben werden und gemeinsam an 
 System-Admin (organisationsübergreifend)
     │
     ├── Organisation A (z. B. FF Wolfurt) — Org-Admin A
-    │   ├── Benutzer von Org A
-    │   ├── Mitglieder, Fahrzeuge, Stammdaten
-    │   └── Einstellungen (Logo, Farbe, Zeitzone)
+    │   ├── Benutzer, Mitglieder, Fahrzeuge (org-isoliert via TenantScoped)
+    │   ├── Einstellungen (Logo, Farbe, Zeitzone, KI-Key, Autoclose)
+    │   └── Seed-Profile für schnelles Onboarding
     │
     └── Organisation B (z. B. FF Lauterach) — Org-Admin B
         └── ...
 
 Gemeinsamer Einsatz:
     Org A erstellt Einsatz → lädt Org B ein (IncidentOrg)
-    → Benutzer beider Orgs sehen & bearbeiten den Einsatz
+    → visible_incidents_q() filtert korrekt für alle Beteiligten
     → Fahrzeuge + Mitglieder beider Orgs verfügbar
-    → Media-Galerie isoliert: jede Org sieht nur eigene Medien
 ```
+
+### Row-Level-Isolation
+
+Alle `TenantScoped`-Modelle (AlarmType, Member, TaskSuggestion, MessageSuggestion, LageHint, DefaultMessage, AIPromptVersion) werden automatisch per SQLAlchemy `do_orm_execute`-Event auf die aktuelle Org gefiltert. Der Context wird via `set_tenant_context(db, org_id)` gesetzt.
 
 ---
 
@@ -674,25 +657,16 @@ Gemeinsamer Einsatz:
 Updates können über die Weboberfläche eingespielt werden — kein SSH erforderlich.
 
 **Ablauf** (`/admin/system/update`, nur `system_admin`):
-1. Release-ZIP hochladen (muss `app/` und `pyproject.toml` enthalten)
-2. Optional: SHA-256-Prüfsumme eingeben (Empfehlung: immer verwenden)
-3. System validiert ZIP (Zip-Slip-Schutz), extrahiert in tmp, kopiert Dateien
+1. Release-ZIP hochladen
+2. Optional: SHA-256-Prüfsumme eingeben
+3. System validiert ZIP (Zip-Slip-Schutz), extrahiert, kopiert Dateien
 4. Führt `alembic upgrade head` aus
-5. Sendet SIGHUP an Gunicorn (graceful reload, kein Downtime)
-
-**Geschützte Pfade** (werden nie überschrieben):
-
-| Pfad | Grund |
-|------|-------|
-| `.env` | Secrets |
-| `alembic/versions/` | Eigene Migrationen |
-| `app/static/img/uploads/` | Hochgeladene Logos |
-| `app_storage/` | Medien-Dateien |
+5. Sendet SIGHUP an Gunicorn (graceful reload)
 
 **Release-ZIP erstellen:**
 ```bash
-git archive --format=zip --prefix=release-2.0.0/ HEAD > release-2.0.0.zip
-sha256sum release-2.0.0.zip   # Prüfsumme notieren
+git archive --format=zip --prefix=release-2.2.0/ HEAD > release-2.2.0.zip
+sha256sum release-2.2.0.zip
 ```
 
 ---
@@ -702,22 +676,26 @@ sha256sum release-2.0.0.zip   # Prüfsumme notieren
 ```
 app/
 ├── main.py              FastAPI-App, Middleware, Router-Registrierung
-├── config.py            Einstellungen (pydantic-settings, .env)
+├── config.py            Einstellungen (pydantic-settings, .env) — v2.2.0
 ├── db.py                SQLAlchemy-Engine, SessionLocal, Base
 ├── cli.py               CLI: create-admin, create-api-key, generate-vapid
 ├── seed_data.py         Initialdaten (Rollen, Alarmtypen, ...)
 ├── core/
 │   ├── security.py      Passwort-Hashing, Session-Signing, QR-Token
-│   ├── permissions.py   require_role(), has_role()
+│   ├── permissions.py   require_role(), has_role(), can_access_incident()
+│   ├── queries.py       visible_incidents_q() — Tenant-bewusste Einsatz-Abfrage
+│   ├── rate_limit.py    slowapi-Instanz + get_api_key_identifier()
 │   ├── templating.py    Jinja2-Environment + Zeitzonen-Filter
 │   └── audit.py         Audit-Log-Helfer
 ├── middleware/
 │   ├── security_headers.py  CSP, X-Frame-Options, ...
 │   └── csrf.py              Double-Submit CSRF-Schutz
 ├── models/
-│   ├── incident.py      Incident, Task, TaskMedia, Message, ...
-│   ├── user.py          User, Role, ApiKey, AuditLog, ...
-│   ├── master.py        FireDept, VehicleMaster, Member, OrgSettings, ...
+│   ├── incident.py      Incident, Task, TaskMedia, Message, IncidentOrg, IncidentToken, ...
+│   ├── user.py          User, Role, ApiKey, AuditLog, DeviceToken, ...
+│   ├── master.py        FireDept, VehicleMaster, Member (TenantScoped), OrgSettings,
+│   │                    AlarmType (TenantScoped), SeedTemplate, ...
+│   ├── invitation.py    OrgInvitation
 │   ├── breathing.py     BreathingTroop, TroopMember, PressureLog
 │   └── password_reset.py
 ├── routers/
@@ -727,34 +705,45 @@ app/
 │   ├── ui_archive.py    Archiv, PDF-Export
 │   ├── ui_admin.py      Stammdaten, Benutzer, API-Keys, Audit
 │   ├── ui_settings.py   Org-Einstellungen, ZIP-Update, System-Admin
+│   ├── ui_backup.py     Konfig-Export/Import (JSON, Dry-Run)
+│   ├── ui_sysadmin.py   System-Admin-Konsole (/admin/system/orgs)
+│   ├── ui_invitation.py Einladungslinks für neue Org-Admins
+│   ├── ui_ai_prompts.py KI-Prompt-Verwaltung
 │   ├── ui_stats.py      Statistik-Dashboard
 │   ├── ui_push.py       Web-Push-Verwaltung
 │   ├── ui_password_reset.py
-│   ├── api_v1.py        REST-API (Alarmierung)
+│   ├── api_v1.py        REST-API (Alarmierung, Lage-Alarm)
 │   ├── ws.py            WebSocket Pub/Sub
-│   └── auth.py          Login / Logout
+│   └── auth.py          Login / Logout / QR-Login / Geräte-Login
 ├── services/
 │   ├── incident_service.py  Einsatz-Logik, Spalten, Tasks
 │   ├── media_service.py     Upload-Pipeline (Bild/PDF/Video/HEIC)
 │   ├── pdf_service.py       WeasyPrint PDF-Generierung
 │   ├── push_service.py      Web-Push (VAPID)
 │   ├── broadcast.py         WS-Pub/Sub-Manager
-│   ├── sms_service.py       SMS-Versand über Gateway-Container
-│   ├── mail_service.py      SMTP (Passwort-Reset)
+│   ├── autoclose.py         Auto-Schließen Hintergrund-Service
+│   ├── ai_service.py        Anthropic Claude Integration
+│   ├── alarm_service.py     Alarmtyp-Lookup + org-aware
+│   ├── seed_service.py      Seed-Template-Anwendung bei Org-Anlage
+│   ├── sms_service.py       SMS-Versand via Gateway-Container
+│   ├── mail_service.py      SMTP (Passwort-Reset, Einladungen)
 │   └── update_service.py    ZIP-Update + Alembic-Migration
 ├── static/
 │   ├── css/app.css          Fertiger Tailwind-Build (committet)
-│   ├── js/                  alpine.min.js, htmx.min.js, sortable.min.js,
-│   │                        app.js, sortable-glue.js, lightbox.js, ...
+│   ├── js/                  alpine.min.js, htmx.min.js, sortable.min.js, app.js, ...
 │   └── img/                 Logo, Favicon, Icons
 └── templates/
     ├── base.html            Master-Layout (Nav, Modal, Toasts, WS-Alert)
     ├── incident/            Board-Komponenten, Task/Fahrzeug-Modals
     ├── media/               gallery.html
-    ├── admin/, archive/, auth/, breathing/, pdf/, stats/
-alembic/versions/            Migrations (0001–0007)
-deploy/                      systemd-Service, NGINX-Snippet
-tests/                       pytest-Suite (conftest, test_api, test_media, ...)
+    ├── admin/               sysadmin_orgs.html, konfig.html, ...
+    └── ...
+alembic/versions/            Migrationen 0001–0055
+docs/
+├── MIGRATION_RUNBOOK.md     Vollständiger Migrationsleitfaden
+├── multi-tenancy-konzept.md Technisches Konzeptdokument
+└── wiki/                    GitHub-Wiki-Quelldateien
+tests/                       pytest-Suite (8 Testmodule, 60+ Unit-Tests)
 app_storage/incident_media/  Medien-Dateien (Auth-geschützt, nicht im Repo)
 ```
 
@@ -773,7 +762,8 @@ app_storage/incident_media/  Medien-Dateien (Auth-geschützt, nicht im Repo)
 
 | Version | Datum | Highlights |
 |---------|-------|------------|
-| **2.0.0** | 2026-05-23 | Media-Upload + Galerie, Multi-Org, System-Admin-Rolle, Zeitzone je Org, ZIP-Update, Python 3.14 |
+| **2.2.0** | 2026-06-11 | Multi-Tenancy vollständig (12 PRs): Row-Level-Isolation, Org-Onboarding, KI je Org, Speicher-Quotas, Einladungsmodell, Auto-Schließen, Rate-Limiting, API-Härtung, System-Konsole, Migration-Runbook |
+| **2.0.0** | 2026-05-23 | Media-Upload + Galerie, System-Admin-Rolle, Zeitzone je Org, ZIP-Update, Python 3.14 |
 | **1.0.0** | 2026-05-22 | Initiale Webapp (FastAPI + HTMX, WebSocket, Atemschutz, PWA, QR-Code) |
 
 ---

@@ -17,9 +17,10 @@ def upgrade():
     conn = op.get_bind()
 
     # 1. alarm_type.org_id NOT NULL machen + FK + Unique-Constraint
+    #    BIGINT NOT NULL – muss zu fire_dept.id BIGINT passen (errno 150 sonst)
     conn.execute(text("""
         ALTER TABLE `alarm_type`
-          MODIFY COLUMN `org_id` INT NOT NULL,
+          MODIFY COLUMN `org_id` BIGINT NOT NULL,
           ADD CONSTRAINT `fk_alarm_type_org_id`
             FOREIGN KEY (`org_id`) REFERENCES `fire_dept` (`id`) ON DELETE CASCADE,
           ADD CONSTRAINT `uq_alarm_type_org_code` UNIQUE (`org_id`, `code`)

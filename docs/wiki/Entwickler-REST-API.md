@@ -7,8 +7,18 @@ Die REST-API ist für **externe Systeme** (Alarmierungssystem) gedacht. Alle End
 ## Authentifizierung
 
 ```http
-X-API-Key: fwwo_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+X-API-Key: elh_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+API-Keys sind org-spezifisch. Der Key wird als SHA-256-Hash gespeichert, nie im Klartext.
+
+## Rate-Limiting
+
+Alarm-Endpunkte sind **per API-Key** rate-limited (nicht per IP). Jeder Key hat ein eigenes Budget:
+- Standard: `60/minute` (konfigurierbar via `API_ALARM_RATELIMIT` in `.env`)
+- Überschreitung: HTTP 429 Too Many Requests
+
+Der Rate-Limit-Key ist `apikey:sha256(key)[:24]` — verschiedene Keys beeinflussen sich nicht gegenseitig.
 
 ## Endpunkte
 
@@ -20,7 +30,7 @@ Legt einen neuen Einsatz an (oder gibt den bestehenden zurück bei Idempotenz).
 
 ```http
 POST /api/v1/einsatz
-X-API-Key: fwwo_...
+X-API-Key: elh_...
 Content-Type: application/json
 ```
 
@@ -30,10 +40,10 @@ Content-Type: application/json
   "Nummer": 1978,
   "AlarmDatumZeit": "2026-05-19T21:11:11.323",
   "Zeitzone": "Europe/Vienna",
-  "Stufe": "t9",
+  "Stufe": "t3",
   "Art": "T",
-  "Meldung": "wolfurt senderstraße 34 heizraum überflutet",
-  "Einsatzgrund": "heizraum überflutet",
+  "Meldung": "Wolfurt Senderstraße 34 Heizraum überflutet",
+  "Einsatzgrund": "Heizraum überflutet",
   "Ort": "Wolfurt",
   "Strasse": "Senderstraße",
   "HausNr": "34",
@@ -41,32 +51,32 @@ Content-Type: application/json
 }
 ```
 
-**Felder Überblick:**
+**Felder:**
 
-| Feld | Typ | Pflicht | Beschreibung |
-|------|-----|---------|-------------|
-| `Key` | string | ja | Eindeutiger Schlüssel für Idempotenz |
-| `Nummer` | integer | nein | Einsatznummer aus dem Alarmierungssystem |
-| `AlarmDatumZeit` | ISO-8601 | nein | Zeitpunkt des Alarms (mit oder ohne UTC-Offset) |
-| `Zeitzone` | string (IANA) | nein | Zeitzone für naive `AlarmDatumZeit` — siehe unten |
-| `Stufe` | string | nein | Alarmstufe (t1–t9, f1–f4) |
-| `Art` | string | nein | Einsatzart: `T` (Technik) oder `F` (Feuer) |
-| `Meldung` | string | nein | Freitext-Meldung |
-| `Einsatzgrund` | string | nein | Kurzer Grund |
-| `Ort` | string | nein | Ort/Gemeinde |
-| `Strasse` | string | nein | Straße |
-| `HausNr` | string | nein | Hausnummer |
-| `Uebung` | boolean | nein | Übungseinsatz? (Standard: `false`) |
+| Feld | Typ | Pflicht | Validierung | Beschreibung |
+|------|-----|---------|-------------|-------------|
+| `Key` | string | ja | 1–200 Zeichen, Strip, kein reines Whitespace | Idempotenz-Schlüssel |
+| `Nummer` | integer | nein | ≥ 0 | Einsatznummer aus Alarmierungssystem |
+| `AlarmDatumZeit` | ISO-8601 | nein | | Zeitpunkt des Alarms |
+| `Zeitzone` | string (IANA) | nein | | Zeitzone für naive `AlarmDatumZeit` |
+| `Stufe` | string | nein | max. 10 Zeichen, wird uppercase normalisiert | Alarmstufe (t1–t9, f1–f4) → F3 |
+| `Art` | string | nein | | Einsatzart: `T` oder `F` |
+| `Meldung` | string | nein | max. 5000 Zeichen | Freitext-Meldung |
+| `Einsatzgrund` | string | nein | max. 500 Zeichen | Kurzer Grund |
+| `Ort` | string | nein | max. 200 Zeichen | Ort/Gemeinde |
+| `Strasse` | string | nein | max. 200 Zeichen | Straße |
+| `HausNr` | string | nein | max. 20 Zeichen | Hausnummer |
+| `Uebung` | boolean | nein | | Übungseinsatz? (Standard: `false`) |
+| `Name` | string | nein | max. 200 Zeichen | Meldender |
+| `Telefon` | string | nein | max. 50 Zeichen | Rückrufnummer |
 
 #### Zeitzone-Handling
 
-`AlarmDatumZeit` kann auf zwei Arten übergeben werden:
-
 - **Mit UTC-Offset** (empfohlen): `"2026-05-19T21:11:11+02:00"` — wird direkt übernommen.
-- **Naiv (ohne Offset)**: `"2026-05-19T21:11:11.323"` — der Server interpretiert die Zeit in der Zeitzone, die durch folgende Priorität bestimmt wird:
-  1. `Zeitzone`-Feld im Request (z. B. `"Europe/Vienna"`)
+- **Naiv (ohne Offset)**: `"2026-05-19T21:11:11.323"` — Zeitzone-Priorität:
+  1. `Zeitzone`-Feld im Request
   2. In der Organisation hinterlegte Zeitzone
-  3. Server-Default (`Europe/Vienna`)
+  3. Server-Default (`DEFAULT_TIMEZONE`, Standard: `Europe/Vienna`)
 
 Intern werden alle Zeitpunkte als UTC gespeichert.
 
@@ -79,48 +89,55 @@ Intern werden alle Zeitpunkte als UTC gespeichert.
   "url": "/einsatz/42",
   "created": true,
   "board_token": "InVzZXJfaWQiOiAxfQ.abc123...",
-  "board_url": "https://einsatzleiter.example.at/qr-login?incident_id=42&token=InVzZXJfaWQiOiAxfQ.abc123..."
+  "board_url": "https://einsatzleiter.example.at/qr-login?incident_id=42&token=..."
 }
 ```
 
-Bei Idempotenz (Key bereits bekannt): `"created": false`, `"id": <vorhandene ID>` — `board_token` und `board_url` werden ebenfalls zurückgegeben.
-
-**Response-Felder:**
-
-| Feld | Typ | Beschreibung |
-|------|-----|-------------|
-| `id` | integer | Interne Einsatz-ID |
-| `external_key` | string | Mitgegebener Idempotenz-Schlüssel |
-| `url` | string | Relativer Pfad zum Einsatz-Board |
-| `created` | boolean | `true` bei Neuanlage, `false` bei Idempotenz-Treffer |
-| `board_token` | string\|null | Signiertes QR-Token für direkten Board-Zugriff — siehe unten |
-| `board_url` | string\|null | Vollständige Login-URL für QR-Code-Zugriff auf das Board |
-
-#### Board-Token / QR-Code-Zugriff
-
-`board_token` und `board_url` ermöglichen passwortlosen Direktzugriff auf das Einsatz-Board, solange der Einsatz aktiv ist — dasselbe Verfahren, das auch der QR-Code in der Benutzeroberfläche nutzt.
-
-**Verwendung:**
-- `board_url` direkt als QR-Code rendern oder in Benachrichtigungen verlinken
-- Öffnen der URL in einem Browser meldet den verknüpften Benutzer automatisch an und leitet auf das Board weiter
-- Token ist an den Benutzer gebunden, der den API-Key erstellt hat
-- Gültigkeit endet automatisch, wenn der Einsatz geschlossen oder archiviert wird
-
-`board_token` und `board_url` sind `null`, wenn dem API-Key kein Benutzer zugeordnet ist (Legacy-Keys).
+Bei Idempotenz (Key bereits bekannt): `"created": false`, `"id": <vorhandene ID>`.
 
 **Fehler-Responses:**
 
 | Code | Bedeutung |
 |------|-----------|
 | 401 | API-Key ungültig oder fehlt |
-| 422 | Payload-Validierungsfehler |
+| 422 | Payload-Validierungsfehler (z.B. Key zu lang, Lat außerhalb Bereich) |
+| 429 | Rate-Limit überschritten |
 | 500 | Serverfehler |
+
+### POST /api/v1/lage/alarm — Lage-Alarm anlegen
+
+Erstellt eine neue Einsatzstelle in einer laufenden Großschadenslage.
+
+```http
+POST /api/v1/lage/alarm
+X-API-Key: elh_...
+Content-Type: application/json
+```
+
+```json
+{
+  "Key": "lage-001",
+  "Meldung": "Wasserschaden Erdgeschoss",
+  "Ort": "Wolfurt",
+  "Strasse": "Bahnhofstraße",
+  "HausNr": "12",
+  "Lat": 47.4664,
+  "Lng": 9.7416
+}
+```
+
+Zusätzliche Felder gegenüber AlarmPayload:
+
+| Feld | Typ | Validierung |
+|------|-----|-------------|
+| `Lat` | float | -90.0 bis +90.0 |
+| `Lng` | float | -180.0 bis +180.0 |
 
 ### GET /api/v1/einsatz/active — Aktive Einsätze
 
 ```http
 GET /api/v1/einsatz/active
-X-API-Key: fwwo_...
+X-API-Key: elh_...
 ```
 
 Response: Array von Einsatz-Objekten mit `id`, `alarm_type_code`, `started_at`, `is_exercise`.
@@ -129,32 +146,19 @@ Response: Array von Einsatz-Objekten mit `id`, `alarm_type_code`, `started_at`, 
 
 ```http
 GET /api/v1/einsatz/42
-X-API-Key: fwwo_...
+X-API-Key: elh_...
 ```
 
-Response: Vollständiges Einsatz-Objekt mit `id`, `alarm_type_code`, `status`, `started_at`, `address`, `is_exercise`.
+## Stufen-Normalisierung
 
-## Stufen-Mapping
-
-| Payload-Stufe | Intern | Bedeutung |
-|---------------|--------|-----------|
-| `t1` | T1 | Techn. Hilfe klein |
-| `t2` | T2 | Techn. Hilfe mittel |
-| `t3` | T3 | Techn. Hilfe groß |
-| `t6` | T6 | Massenanfall |
-| `t9` | T3 | Unbekannte Stufe → T3 Fallback |
-| `f1` | F1 | Brand klein |
-| `f2` | F2 | Brand mittel |
-| `f3` | F3 | Brand groß |
-| `f4` | F4 | Großbrand |
-| `f14` | F14 | Großbrand Sonderstufe |
+Die API normalisiert `Stufe` automatisch: `f3` → `F3`, `T3` bleibt `T3`.
 
 ## curl-Beispiele
 
 ```bash
-# Einsatz anlegen mit expliziter Zeitzone:
+# Einsatz anlegen:
 curl -X POST https://einsatzleiter.feuerwehr-wolfurt.at/api/v1/einsatz \
-  -H "X-API-Key: fwwo_xxxx" \
+  -H "X-API-Key: elh_xxxx" \
   -H "Content-Type: application/json" \
   -d '{
     "Key": "test-uuid-001",
@@ -164,14 +168,32 @@ curl -X POST https://einsatzleiter.feuerwehr-wolfurt.at/api/v1/einsatz \
     "Stufe": "t1",
     "Art": "T",
     "Meldung": "Wasserschaden Keller",
-    "Einsatzgrund": "Wasserschaden",
     "Ort": "Wolfurt",
     "Strasse": "Teststraße",
-    "HausNr": "1",
-    "Uebung": false
+    "HausNr": "1"
   }'
 
 # Aktive Einsätze:
 curl https://einsatzleiter.feuerwehr-wolfurt.at/api/v1/einsatz/active \
-  -H "X-API-Key: fwwo_xxxx"
+  -H "X-API-Key: elh_xxxx"
+
+# Rate-Limit-Header in der Response:
+# X-RateLimit-Limit: 60
+# X-RateLimit-Remaining: 59
+# X-RateLimit-Reset: 1717000060
 ```
+
+## API-Key erstellen
+
+```bash
+python -m app.cli create-api-key --label "Alarmierungssystem Leitstelle" --org-id 1
+```
+
+Ausgabe:
+```
+API-Key: elh_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Key-ID: 1
+Label: Alarmierungssystem Leitstelle
+```
+
+> Den Key sofort kopieren — er wird nur einmal im Klartext angezeigt.

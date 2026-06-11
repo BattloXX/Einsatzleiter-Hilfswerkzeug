@@ -13,7 +13,7 @@ class FireDept(Base):
     """Organisation / Feuerwehr. Dient gleichzeitig als vollständige multi-org Entität."""
     __tablename__ = "fire_dept"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     slug: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     color: Mapped[str] = mapped_column(String(7), nullable=False, default="#d42225")
@@ -55,7 +55,7 @@ class VehicleMaster(Base):
     __tablename__ = "vehicle_master"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    dept_id: Mapped[int] = mapped_column(Integer, ForeignKey("fire_dept.id"), nullable=False)
+    dept_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("fire_dept.id"), nullable=False)
     code: Mapped[str] = mapped_column(String(30), nullable=False)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     type: Mapped[str] = mapped_column(String(200), nullable=False, default="")
@@ -261,7 +261,7 @@ class OrgSettings(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     org_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), unique=True, nullable=False
+        BigInteger, ForeignKey("fire_dept.id", ondelete="CASCADE"), unique=True, nullable=False
     )
     logo_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     primary_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
@@ -290,7 +290,7 @@ class OrgStorageUsage(Base):
     __tablename__ = "org_storage_usage"
 
     org_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), primary_key=True
+        BigInteger, ForeignKey("fire_dept.id", ondelete="CASCADE"), primary_key=True
     )
     used_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

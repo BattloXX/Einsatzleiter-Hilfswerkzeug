@@ -8,37 +8,97 @@
 Browser (HTMX + Alpine.js + WebSocket)
          │ HTTP/2 + WSS
     NGINX (Reverse Proxy, TLS, Static Files)
-         │ HTTP/1.1 (127.0.0.1:8000)
+         │ HTTP/1.1 (127.0.0.1:8092)
     Gunicorn + UvicornWorker (2 Worker)
          │
     FastAPI (app/main.py)
+    ├── Middleware-Stack
+    │   ├── SessionMiddleware   – Cookie → request.state.user (Sliding Window)
+    │   ├── SecurityHeadersMiddleware – CSP, X-Frame-Options, ...
+    │   ├── CSRFMiddleware      – Double-Submit-Cookie-Pattern
+    │   └── SlowAPI             – Rate-Limiting (IP + API-Key)
     ├── Routers (HTTP-Endpunkte)
-    │   ├── auth.py       – Login/Logout/QR-Login
-    │   ├── ui_incident.py – Einsatz-Board (HTMX-Partials)
-    │   ├── ui_breathing.py – AS-Überwachung
-    │   ├── ui_admin.py   – Admin-UI
-    │   ├── ui_archive.py – Archiv & PDF
-    │   ├── ui_stats.py   – Statistik
-    │   ├── ui_push.py    – Push-Subscribe
-    │   ├── api_v1.py     – REST-API (extern)
-    │   └── ws.py         – WebSocket-Endpoint
+    │   ├── auth.py             – Login / Logout / QR-Login / Geräte-Login
+    │   ├── ui_incident.py      – Einsatz-Board (HTMX-Partials)
+    │   ├── ui_breathing.py     – Atemschutzüberwachung
+    │   ├── ui_media.py         – Galerie, Auth-geschützte Datei-Auslieferung
+    │   ├── ui_archive.py       – Archiv & PDF-Export
+    │   ├── ui_admin.py         – Stammdaten, Benutzer, API-Keys, Audit
+    │   ├── ui_settings.py      – Org-Einstellungen, ZIP-Update
+    │   ├── ui_backup.py        – Konfig-Export/Import (JSON, Dry-Run)
+    │   ├── ui_sysadmin.py      – System-Admin-Konsole (per-Org KPIs)
+    │   ├── ui_invitation.py    – Einladungslinks für neue Org-Admins
+    │   ├── ui_ai_prompts.py    – KI-Prompt-Verwaltung (Versionierung)
+    │   ├── ui_stats.py         – Statistik-Dashboard
+    │   ├── ui_push.py          – Web-Push-Verwaltung
+    │   ├── ui_password_reset.py
+    │   ├── api_v1.py           – REST-API (Alarmierung, Lage-Alarm)
+    │   ├── lagekarte_api.py    – GeoJSON-Feed für lagekarte.info
+    │   └── ws.py               – WebSocket Pub/Sub
+    ├── Core
+    │   ├── security.py        – Passwort-Hashing, Session, API-Key, QR-Token
+    │   ├── permissions.py     – require_role(), has_role(), can_access_incident()
+    │   ├── queries.py         – visible_incidents_q() — Tenant-Filterung
+    │   ├── rate_limit.py      – slowapi-Instanz + get_api_key_identifier()
+    │   ├── audit.py           – Audit-Log-Writer
+    │   └── templating.py      – Jinja2-Env + local-Filter
     ├── Services (Geschäftslogik)
     │   ├── incident_service.py
-    │   ├── breathing_service.py
-    │   ├── broadcast.py   – WS Pub/Sub
-    │   ├── pdf_service.py – WeasyPrint
-    │   └── push_service.py – VAPID Push
-    ├── Models (SQLAlchemy ORM)
-    │   ├── user.py, master.py, incident.py, breathing.py
-    └── Core
-        ├── security.py   – Passwort, Session, API-Key, QR
-        ├── permissions.py – Rollen-Checks
-        └── audit.py      – Audit-Log-Writer
+    │   ├── media_service.py   – Upload-Pipeline (Bild/PDF/Video/HEIC)
+    │   ├── broadcast.py       – WS Pub/Sub-Manager
+    │   ├── pdf_service.py     – WeasyPrint
+    │   ├── push_service.py    – VAPID Push
+    │   ├── autoclose.py       – Hintergrund-Job Auto-Schließen
+    │   ├── ai_service.py      – Anthropic Claude
+    │   ├── alarm_service.py   – Alarmtyp-Lookup
+    │   ├── seed_service.py    – Seed-Template bei Org-Anlage
+    │   ├── sms_service.py     – SMS via Gateway-Container
+    │   ├── mail_service.py    – SMTP (Passwort-Reset, Einladungen)
+    │   └── update_service.py  – ZIP-Update + Alembic
+    └── Models (SQLAlchemy ORM)
+        ├── incident.py   – Incident, Task, TaskMedia, IncidentOrg, IncidentToken, ...
+        ├── user.py       – User, Role, ApiKey, AuditLog, DeviceToken, ...
+        ├── master.py     – FireDept, Member (TenantScoped), AlarmType (TenantScoped), OrgSettings, SeedTemplate, ...
+        ├── invitation.py – OrgInvitation
+        └── breathing.py  – BreathingTroop, TroopMember, PressureLog
          │
-    SQLAlchemy 2.x (ORM + Alembic Migrations)
+    SQLAlchemy 2.x (ORM + do_orm_execute Tenant-Filter + Alembic)
          │
-    MariaDB 10.11 (UTF8MB4, InnoDB)
+    MariaDB 10.11 (UTF8MB4, InnoDB, 55 Migrationen)
 ```
+
+## Multi-Tenancy: Row-Level-Isolation
+
+```
+User (org_id=3) → Session-Cookie → SessionMiddleware → request.state.user
+         │
+    set_tenant_context(db, org_id=3)   ← bei jedem Request gesetzt
+         │
+    do_orm_execute Event (SQLAlchemy)
+         └── db.query(TenantScoped) → automatisch WHERE org_id=3
+                  │
+    Modelle: Member, AlarmType, TaskSuggestion, MessageSuggestion,
+             LageHint, DefaultMessage, AIPromptVersion
+
+    AUSNAHME: db.get(Model, id)  ← umgeht den Event-Handler!
+    → Router prüfen danach manuell: same_org_or_system_admin()
+```
+
+### Einsatz-Sichtbarkeit
+
+```python
+# app/core/queries.py
+def visible_incidents_q(db, user):
+    """Eigene Org (primary_org_id) + kollaborierende Orgs (IncidentOrg)."""
+    if is_system_admin:  return db.query(Incident)          # alles
+    if not user.org_id:  return db.query(Incident).filter(False)
+    return db.query(Incident).filter(
+        or_(Incident.primary_org_id == user.org_id,
+            Incident.id.in_(collab_subquery))
+    )
+```
+
+Verwendet in: `ui_incident.py` (Dashboard, Board), `ui_admin.py` (Admin-Dashboard), `api_v1.py`.
 
 ## Realtime-Architektur (WebSockets)
 
@@ -61,14 +121,42 @@ Bei jeder schreibenden Aktion:
 
 ```
 1. Browser sendet HTMX-POST (z.B. Auftrag erledigen)
-2. FastAPI-Router validiert Session-Cookie → User
-3. require_role()-Dependency prüft Berechtigung
-4. Service-Funktion führt DB-Änderung durch
-5. audit.write_incident_change() schreibt Change-Log
-6. DB-Commit
-7. broadcast.publish() → alle WS-Clients erhalten Event
-8. Router gibt HTML-Partial zurück (HTMX-Swap)
-9. Audit: push_service.send() falls relevantes Event
+2. CSRF-Middleware prüft Double-Submit-Token
+3. SessionMiddleware: Cookie → User aus DB → request.state.user
+4. set_tenant_context(db, user.org_id) — Tenant-Filter aktivieren
+5. require_role()-Dependency prüft Berechtigung
+6. Service-Funktion führt DB-Änderung durch
+7. audit.write_incident_change() schreibt Change-Log
+8. DB-Commit
+9. broadcast.publish() → alle WS-Clients erhalten Event
+10. Router gibt HTML-Partial zurück (HTMX-Swap)
+```
+
+## Rate-Limiting
+
+```
+POST /login              → IP-basiert (LOGIN_RATELIMIT, Standard: 10/min)
+POST /api/v1/einsatz     → API-Key-basiert (API_ALARM_RATELIMIT, Standard: 60/min)
+POST /api/v1/lage/alarm  → API-Key-basiert
+Medien-Upload            → IP-basiert (UPLOAD_RATELIMIT, Standard: 20/min)
+Standard alle Endpoints  → IP-basiert (300/min)
+
+API-Key-Bucket: sha256(X-API-Key)[:24] → jeder Key hat eigenes Kontingent
+```
+
+## Datenfluss: Media-Upload
+
+```
+Browser → POST /aufgabe/{id}/medien (multipart)
+           │
+      filetype.guess() → MIME-Validierung
+      Größen-Check
+      Pillow / ffmpeg (Re-encode)
+           │
+      UUID.ext + UUID_thumb → app_storage/incident_media/
+      INSERT task_media (DB)
+           │
+      200 _task_media.html (HTMX-Partial, DOM-Swap)
 ```
 
 ## Frontend-Technologien
@@ -81,13 +169,3 @@ Bei jeder schreibenden Aktion:
 | **Web Speech API** | Sprachdiktat (Browser-nativ) |
 | **Service Worker** | PWA, Offline-Cache |
 | **Web Push API** | Push-Benachrichtigungen (VAPID) |
-
-## Datenfluss bei WebSocket-Event
-
-```
-1. Server-Event: broadcast.publish(42, {"type": "task_done", "partial_html": "<div>..."})
-2. WS-Client (app.js) empfängt JSON
-3. Alpine/HTMX swappt das Partial ins DOM
-4. Falls type == 'alarm_popup': Modal wird angezeigt
-5. Falls type == 'new_incident': Toast erscheint
-```
