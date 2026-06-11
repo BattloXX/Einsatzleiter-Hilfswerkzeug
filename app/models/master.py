@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime
 from sqlalchemy import BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.tenant import TenantScoped
 from app.db import Base
 
 BOS_VALUES = ["Feuerwehr", "Rotes Kreuz", "Polizei", "Bauhof", "Privat"]
@@ -83,12 +84,11 @@ class Qualification(Base):
     is_gruppenkommandant: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
-class Member(Base):
+class Member(TenantScoped, Base):
     __tablename__ = "member"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    # org_id: which organisation this member belongs to
-    org_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("fire_dept.id"), nullable=True)
+    # org_id kommt via TenantScoped-Mixin
     lastname: Mapped[str] = mapped_column(String(100), nullable=False)
     firstname: Mapped[str] = mapped_column(String(100), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
@@ -96,7 +96,7 @@ class Member(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
-    org: Mapped[FireDept | None] = relationship(back_populates="members", foreign_keys=[org_id])
+    org: Mapped[FireDept | None] = relationship(back_populates="members", foreign_keys="Member.org_id")
     qualifications: Mapped[list[MemberQualification]] = relationship(
         back_populates="member", lazy="joined", passive_deletes=True,
     )

@@ -187,8 +187,8 @@ async def index(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
-    home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
-    default_city = (home.city if home and home.city else settings.DEFAULT_INCIDENT_CITY)
+    org = getattr(user, "org", None)
+    default_city = (org.city if org and org.city else settings.DEFAULT_INCIDENT_CITY)
     return templates.TemplateResponse(request, "index.html", {
         "user": user,
         "active_incidents": active,
@@ -221,8 +221,8 @@ async def new_incident(
 
     # Ort aus Org-Stammdaten wenn nicht angegeben
     if not address_city.strip():
-        _home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
-        address_city = (_home.city if _home and _home.city else settings.DEFAULT_INCIDENT_CITY)
+        _org = getattr(user, "org", None)
+        address_city = (_org.city if _org and _org.city else settings.DEFAULT_INCIDENT_CITY)
 
     lat_f: float | None = None
     lng_f: float | None = None
@@ -2203,8 +2203,8 @@ async def address_edit_modal(
         from fastapi import HTTPException
         raise HTTPException(403, "Kein Zugriff auf diesen Einsatz")
     org = db.get(FireDept, incident.primary_org_id) if incident.primary_org_id else None
-    home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
-    default_city = (home.city if home and home.city else settings.DEFAULT_INCIDENT_CITY)
+    _user_org = getattr(user, "org", None)
+    default_city = (_user_org.city if _user_org and _user_org.city else settings.DEFAULT_INCIDENT_CITY)
     return templates.TemplateResponse(request, "incident/_address_modal.html", {
         "user": user, "incident": incident, "org": org,
         "auto_token": incident.auto_geojson_token,

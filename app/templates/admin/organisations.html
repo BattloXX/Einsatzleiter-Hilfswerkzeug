@@ -55,17 +55,11 @@
           {% endif %}
         </td>
         <td>
-          {% if org.is_home_org %}<span class="badge badge-primary">Heimwehr</span>{% else %}
-          <span class="badge badge-secondary">Partner</span>{% endif %}
-        </td>
-        <td>
-          {% if not org.is_home_org %}
           <form method="post" action="/admin/organisations/{{ org.id }}/toggle" style="display:inline">
             <button type="submit" class="btn btn-sm btn-outline">
               {% if org.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}
             </button>
           </form>
-          {% endif %}
         </td>
       </tr>
       {% endfor %}

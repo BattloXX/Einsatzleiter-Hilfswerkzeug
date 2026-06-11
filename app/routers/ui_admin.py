@@ -864,8 +864,7 @@ async def create_vehicle(
     user = request.state.user
     target_dept_id = dept_id if (has_role(user, "system_admin") and dept_id) else None
     if not target_dept_id:
-        home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
-        target_dept_id = home.id if home else None
+        target_dept_id = user.org_id
     if not target_dept_id:
         return RedirectResponse("/admin/fahrzeuge?error=no_org", status_code=303)
     max_order = db.query(VehicleMaster).filter(VehicleMaster.dept_id == target_dept_id).count()
@@ -1259,11 +1258,11 @@ async def delete_alarm_type(
 @router.get("/ausrueckordnung", response_class=HTMLResponse)
 async def dispatch_order_list(request: Request, db: Session = Depends(get_db),
                               _=Depends(require_role("admin", "org_admin"))):
+    user = request.state.user
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
-    home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
     _vehicle_query = db.query(VehicleMaster).filter(VehicleMaster.active == True)  # noqa: E712
-    if home:
-        _vehicle_query = _vehicle_query.filter(VehicleMaster.dept_id == home.id)
+    if user.org_id:
+        _vehicle_query = _vehicle_query.filter(VehicleMaster.dept_id == user.org_id)
     vehicles = _vehicle_query.order_by(VehicleMaster.display_order).all()
     dispatch_entries = db.query(AlarmDispatchVehicle).order_by(
         AlarmDispatchVehicle.alarm_type_code, AlarmDispatchVehicle.display_order

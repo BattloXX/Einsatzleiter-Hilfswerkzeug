@@ -190,16 +190,13 @@ def collect_situation_context(incident_id: int, db: Session) -> dict[str, Any]:
 def _resolve_org_id(db: Session, requested: int | None) -> int | None:
     """Liefert eine gültige fire_dept.id zurück.
 
-    Reihenfolge: 1) explizit übergeben, 2) Home-Org (is_home_org=True),
-    3) erste FireDept-Zeile, 4) None (keine Org in der DB → kein Fallback möglich).
+    Reihenfolge: 1) explizit übergeben, 2) erste FireDept-Zeile nach ID,
+    3) None (keine Org in der DB → kein Fallback möglich).
     """
     from app.models.master import FireDept
     if requested:
         if db.get(FireDept, requested):
             return requested
-    home = db.query(FireDept).filter(FireDept.is_home_org == True).first()  # noqa: E712
-    if home:
-        return home.id
     any_org = db.query(FireDept).order_by(FireDept.id).first()
     return any_org.id if any_org else None
 

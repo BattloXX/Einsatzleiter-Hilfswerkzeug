@@ -252,7 +252,6 @@ async def create_organisation(
         color=color,
         bos=bos if bos in BOS_VALUES else "Feuerwehr",
         contact_email=contact_email or None,
-        is_home_org=False,
         is_active=True,
     )
     db.add(org)
@@ -263,7 +262,7 @@ async def create_organisation(
 @router.post("/organisations/{org_id}/toggle")
 def toggle_organisation(org_id: int, db=Depends(get_db), user: User = Depends(require_system_admin)):
     org = db.query(FireDept).filter(FireDept.id == org_id).first()
-    if org and not org.is_home_org:
+    if org:
         org.is_active = not org.is_active
         db.commit()
     return RedirectResponse("/admin/organisations", status_code=303)
