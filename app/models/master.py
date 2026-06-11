@@ -137,10 +137,11 @@ class AlarmType(TenantScoped, Base):
     triggers_major_incident: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
-class TaskSuggestion(Base):
+class TaskSuggestion(TenantScoped, Base):
     __tablename__ = "task_suggestion"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
     text: Mapped[str] = mapped_column(String(500), nullable=False)
 
     alarm_assignments: Mapped[list[TaskSuggestionAlarm]] = relationship(
@@ -164,10 +165,11 @@ class TaskSuggestionAlarm(Base):
     alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
 
 
-class MessageSuggestion(Base):
+class MessageSuggestion(TenantScoped, Base):
     __tablename__ = "message_suggestion"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
     text: Mapped[str] = mapped_column(String(500), nullable=False)
 
     alarm_assignments: Mapped[list[MessageSuggestionAlarm]] = relationship(
@@ -191,10 +193,11 @@ class MessageSuggestionAlarm(Base):
     alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
 
 
-class LageHint(Base):
+class LageHint(TenantScoped, Base):
     __tablename__ = "lage_hint"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
     text: Mapped[str] = mapped_column(String(500), nullable=False)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -219,10 +222,11 @@ class LageHintAlarm(Base):
     alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
 
 
-class DefaultMessage(Base):
+class DefaultMessage(TenantScoped, Base):
     __tablename__ = "default_message"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
     text: Mapped[str] = mapped_column(String(500), nullable=False)
 
     alarm_assignments: Mapped[list[DefaultMessageAlarm]] = relationship(

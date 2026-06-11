@@ -297,7 +297,7 @@ def _upsert_task_suggestions(db):
             continue
         for i, text in enumerate(suggestions):
             if text not in text_to_obj:
-                s = TaskSuggestion(text=text)
+                s = TaskSuggestion(org_id=home.id, text=text)
                 db.add(s)
                 db.flush()
                 text_to_obj[text] = s
@@ -327,7 +327,7 @@ def _upsert_default_messages(db):
             text = msg["text"]
             due = msg.get("due_after_sec", 300)
             if text not in text_to_obj:
-                m = DefaultMessage(text=text)
+                m = DefaultMessage(org_id=home.id, text=text)
                 db.add(m)
                 db.flush()
                 text_to_obj[text] = m
@@ -342,8 +342,11 @@ def _upsert_default_messages(db):
 def _upsert_lage_hints(db):
     existing = db.query(LageHint).count()
     if existing == 0:
+        home = db.query(FireDept).order_by(FireDept.id).first()
+        if not home:
+            return
         for i, text in enumerate(LAGE_HINTS):
-            db.add(LageHint(text=text, display_order=i))
+            db.add(LageHint(org_id=home.id, text=text, display_order=i))
 
 
 if __name__ == "__main__":

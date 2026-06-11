@@ -1025,10 +1025,11 @@ async def create_task_suggestion(
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
     text = text.strip()
+    user = request.state.user
     existing = db.query(TaskSuggestion).filter(TaskSuggestion.text == text).first()
     if existing:
         return RedirectResponse("/admin/auftragsvorlagen?error=duplicate", status_code=303)
-    s = TaskSuggestion(text=text)
+    s = TaskSuggestion(org_id=user.org_id, text=text)
     db.add(s)
     db.flush()
     db.commit()
@@ -1136,10 +1137,11 @@ async def create_msg_suggestion(
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
     text = text.strip()
+    user = request.state.user
     existing = db.query(MessageSuggestion).filter(MessageSuggestion.text == text).first()
     if existing:
         return RedirectResponse("/admin/meldungsvorlagen?error=duplicate", status_code=303)
-    s = MessageSuggestion(text=text)
+    s = MessageSuggestion(org_id=user.org_id, text=text)
     db.add(s)
     db.flush()
     db.commit()
@@ -1471,8 +1473,9 @@ async def create_lage_hint(
     request: Request, text: str = Form(...),
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
+    user = request.state.user
     max_order = db.query(LageHint).count()
-    h = LageHint(text=text, display_order=max_order)
+    h = LageHint(org_id=user.org_id, text=text, display_order=max_order)
     db.add(h)
     db.flush()
     db.commit()
@@ -1596,10 +1599,11 @@ async def create_default_message(
     db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
 ):
     text = text.strip()
+    user = request.state.user
     existing = db.query(DefaultMessage).filter(DefaultMessage.text == text).first()
     if existing:
         return RedirectResponse("/admin/default-meldungen?error=duplicate", status_code=303)
-    m = DefaultMessage(text=text)
+    m = DefaultMessage(org_id=user.org_id, text=text)
     db.add(m)
     db.flush()
     db.commit()
@@ -2000,12 +2004,12 @@ async def backup_restore(
         db.flush()
         lines.append(f"Fahrzeuge: {len(data.get('vehicles', []))} verarbeitet")
 
-        # TaskSuggestions – replace all
+        # TaskSuggestions – replace all (scoped to target org)
         if "task_suggestions" in data:
-            db.query(TaskSuggestion).delete()
+            db.query(TaskSuggestion).filter(TaskSuggestion.org_id == _target_org_id).delete()
             db.flush()
             for item in data["task_suggestions"]:
-                s = TaskSuggestion(text=item["text"])
+                s = TaskSuggestion(org_id=_target_org_id, text=item["text"])
                 db.add(s)
                 db.flush()
                 for a in item.get("alarms", []):
@@ -2016,12 +2020,12 @@ async def backup_restore(
                                                    display_order=a.get("display_order", 0)))
             lines.append(f"Auftragsvorlagen: {len(data['task_suggestions'])} importiert")
 
-        # MessageSuggestions – replace all
+        # MessageSuggestions – replace all (scoped to target org)
         if "message_suggestions" in data:
-            db.query(MessageSuggestion).delete()
+            db.query(MessageSuggestion).filter(MessageSuggestion.org_id == _target_org_id).delete()
             db.flush()
             for item in data["message_suggestions"]:
-                s = MessageSuggestion(text=item["text"])  # type: ignore[assignment]
+                s = MessageSuggestion(org_id=_target_org_id, text=item["text"])  # type: ignore[assignment]
                 db.add(s)
                 db.flush()
                 for a in item.get("alarms", []):
@@ -2032,12 +2036,12 @@ async def backup_restore(
                                                       display_order=a.get("display_order", 0)))
             lines.append(f"Meldungsvorlagen: {len(data['message_suggestions'])} importiert")
 
-        # LageHints – replace all
+        # LageHints – replace all (scoped to target org)
         if "lage_hints" in data:
-            db.query(LageHint).delete()
+            db.query(LageHint).filter(LageHint.org_id == _target_org_id).delete()
             db.flush()
             for item in data["lage_hints"]:
-                h = LageHint(text=item["text"], display_order=item.get("display_order", 0))
+                h = LageHint(org_id=_target_org_id, text=item["text"], display_order=item.get("display_order", 0))
                 db.add(h)
                 db.flush()
                 for a in item.get("alarms", []):
@@ -2050,12 +2054,12 @@ async def backup_restore(
                         ))
             lines.append(f"Lage-Hinweise: {len(data['lage_hints'])} importiert")
 
-        # DefaultMessages – replace all
+        # DefaultMessages – replace all (scoped to target org)
         if "default_messages" in data:
-            db.query(DefaultMessage).delete()
+            db.query(DefaultMessage).filter(DefaultMessage.org_id == _target_org_id).delete()
             db.flush()
             for item in data["default_messages"]:
-                m = DefaultMessage(text=item["text"])
+                m = DefaultMessage(org_id=_target_org_id, text=item["text"])
                 db.add(m)
                 db.flush()
                 for a in item.get("alarms", []):

@@ -354,8 +354,11 @@ async def create_incident_api(
 ):
     org = db.get(FireDept, api_key.org_id) if api_key.org_id else None
 
-    # Idempotency check
-    existing = db.query(Incident).filter(Incident.external_key == payload.Key).first()
+    # Idempotency check (org-scoped: two orgs may use the same external key)
+    existing = db.query(Incident).filter(
+        Incident.primary_org_id == api_key.org_id,
+        Incident.external_key == payload.Key,
+    ).first()
     if existing:
         write_audit(db, "api.incident.duplicate", api_key_id=api_key.id,
                     incident_id=existing.id, ip=request.client.host if request.client else None)

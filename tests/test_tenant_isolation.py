@@ -1,10 +1,13 @@
-"""Tenant-Isolation-Tests (PR 1 + PR 2 Grundlage).
+"""Tenant-Isolation-Tests (PR 1 + PR 2 + PR 3 Grundlage).
 
 Akzeptanz-Kriterium PR 1: ungefiltertes select(Member) liefert nur Org-A-Daten,
 wenn Org A im Session-Kontext gesetzt ist – obwohl beide Orgs in der DB liegen.
 
 Akzeptanz-Kriterium PR 2: Zwei Orgs können beide Alarmtyp 'B3' mit unterschiedlichem
 Label führen; get_alarm_type_by_code liefert org-scoped Ergebnis.
+
+Akzeptanz-Kriterium PR 3: TaskSuggestion, MessageSuggestion, LageHint, DefaultMessage
+sind vollständig org-isoliert; Org-B-Inhalte nicht aus Org-A-Kontext sichtbar.
 
 Diese Fixture wird in jedem Folge-PR um neue Endpoints erweitert.
 """
@@ -21,7 +24,15 @@ def _bigint_sqlite(element, compiler, **kw):
 
 from app.core.tenant import set_tenant_context
 from app.db import Base
-from app.models.master import AlarmType, FireDept, Member
+from app.models.master import (
+    AlarmType,
+    DefaultMessage,
+    FireDept,
+    LageHint,
+    Member,
+    MessageSuggestion,
+    TaskSuggestion,
+)
 from app.models.user import Role
 from app.services.alarm_service import get_alarm_type_by_code
 
@@ -232,3 +243,97 @@ def test_alarm_type_no_cross_tenant_leak(alarm_type_db):
     result = db.query(AlarmType).filter(AlarmType.code == "T2").first()
 
     assert result is None, "Org-A darf keinen Org-B-AlarmType sehen!"
+
+
+# ---------------------------------------------------------------------------
+# PR 3: Vorlagen-Isolation (TaskSuggestion, MessageSuggestion, LageHint, DefaultMessage)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def stammdaten_db():
+    """Eigene In-Memory-DB für Vorlagen-Isolationstests."""
+    engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    org_a = FireDept(slug="sd-org-a", name="SD Org A", color="#ff0000", bos="Feuerwehr")
+    org_b = FireDept(slug="sd-org-b", name="SD Org B", color="#0000ff", bos="Feuerwehr")
+    db.add_all([org_a, org_b])
+    db.flush()
+
+    db.add_all([
+        TaskSuggestion(org_id=org_a.id, text="Auftrag Org A"),
+        TaskSuggestion(org_id=org_b.id, text="Auftrag Org B"),
+        MessageSuggestion(org_id=org_a.id, text="Meldung Org A"),
+        MessageSuggestion(org_id=org_b.id, text="Meldung Org B"),
+        LageHint(org_id=org_a.id, text="Lage-Hinweis Org A", display_order=0),
+        LageHint(org_id=org_b.id, text="Lage-Hinweis Org B", display_order=0),
+        DefaultMessage(org_id=org_a.id, text="Default Org A"),
+        DefaultMessage(org_id=org_b.id, text="Default Org B"),
+    ])
+    db.commit()
+
+    yield db, org_a.id, org_b.id
+
+    db.close()
+    Base.metadata.drop_all(bind=engine)
+
+
+def test_task_suggestion_isolation_org_a(stammdaten_db):
+    """Mit Org-A-Kontext: nur Org-A-TaskSuggestions sichtbar."""
+    db, org_a_id, org_b_id = stammdaten_db
+    set_tenant_context(db, org_a_id)
+    db.expire_all()
+
+    results = db.query(TaskSuggestion).all()
+
+    assert len(results) == 1
+    assert results[0].text == "Auftrag Org A"
+
+
+def test_message_suggestion_isolation_org_b(stammdaten_db):
+    """Mit Org-B-Kontext: nur Org-B-MessageSuggestions sichtbar."""
+    db, org_a_id, org_b_id = stammdaten_db
+    set_tenant_context(db, org_b_id)
+    db.expire_all()
+
+    results = db.query(MessageSuggestion).all()
+
+    assert len(results) == 1
+    assert results[0].text == "Meldung Org B"
+
+
+def test_lage_hint_isolation(stammdaten_db):
+    """Mit Org-A-Kontext: nur Org-A-LageHints sichtbar."""
+    db, org_a_id, org_b_id = stammdaten_db
+    set_tenant_context(db, org_a_id)
+    db.expire_all()
+
+    results = db.query(LageHint).all()
+
+    assert len(results) == 1
+    assert results[0].text == "Lage-Hinweis Org A"
+
+
+def test_default_message_isolation(stammdaten_db):
+    """Mit Org-B-Kontext: nur Org-B-DefaultMessages sichtbar."""
+    db, org_a_id, org_b_id = stammdaten_db
+    set_tenant_context(db, org_b_id)
+    db.expire_all()
+
+    results = db.query(DefaultMessage).all()
+
+    assert len(results) == 1
+    assert results[0].text == "Default Org B"
+
+
+def test_stammdaten_no_context_sees_all(stammdaten_db):
+    """Ohne Tenant-Kontext (system_admin): alle Vorlagen aller Orgs sichtbar."""
+    db, org_a_id, org_b_id = stammdaten_db
+    set_tenant_context(db, None)
+
+    assert db.query(TaskSuggestion).count() == 2
+    assert db.query(MessageSuggestion).count() == 2
+    assert db.query(LageHint).count() == 2
+    assert db.query(DefaultMessage).count() == 2
