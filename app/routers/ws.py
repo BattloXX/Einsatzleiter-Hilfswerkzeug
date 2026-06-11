@@ -21,7 +21,7 @@ from app.db import SessionLocal
 from app.models.incident import Incident
 from app.models.major_incident import MajorIncident
 from app.models.user import SmsGatewayToken, User
-from app.services.broadcast import LAGE_WS_OFFSET, manager
+from app.services.broadcast import LAGE_WS_OFFSET, ORG_WS_OFFSET, manager
 
 logger = logging.getLogger("einsatzleiter.ws")
 router = APIRouter()
@@ -126,23 +126,24 @@ async def lage_ws(websocket: WebSocket, lage_id: int):
 
 @router.websocket("/ws/global")
 async def global_ws(websocket: WebSocket):
-    """Global channel – empfängt new-incident-Benachrichtigungen.
+    """Org-spezifischer globaler Kanal – neue Einsätze, Einladungen etc.
 
-    Auth erforderlich; org-Filter passiert serverseitig im Broadcaster.
+    Auth erforderlich; Kanal = ORG_WS_OFFSET + user.org_id (org-isoliert).
     """
     user = _resolve_user(websocket)
     if user is None:
         await websocket.close(code=WS_CLOSE_UNAUTHORIZED)
         return
 
-    await manager.connect(0, websocket)  # 0 = global channel
+    org_channel = ORG_WS_OFFSET + user.org_id if user.org_id else 0
+    await manager.connect(org_channel, websocket)
     try:
         while True:
             data = await websocket.receive_text()
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
-        await manager.disconnect(0, websocket)
+        await manager.disconnect(org_channel, websocket)
 
 
 # ── SMS-Gateway WebSocket ──────────────────────────────────────────────────────

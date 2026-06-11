@@ -52,7 +52,7 @@ from app.models.user import Role, User, UserRole
 from app.config import settings
 from app.services.ai_service import is_enabled as ai_is_enabled
 from app.services.alarm_service import get_alarm_type_by_code
-from app.services.broadcast import manager
+from app.services.broadcast import broadcast_org, manager
 from app.services.incident_service import (
     add_section_column,
     add_task,
@@ -142,6 +142,41 @@ def _incident_or_404(incident_id: int, db: Session):
         from fastapi import HTTPException
         raise HTTPException(404, "Einsatz nicht gefunden")
     return inc
+
+
+def _create_neighbor_invitations(
+    db: Session, incident, alarm_type_code: str, org_id: int | None, user_id: int | None
+) -> None:
+    """Erstellt pending OrgInvitations für alle Partner-Orgs wenn notify_neighbors aktiv."""
+    if org_id is None:
+        return
+    from app.models.master import AlarmType
+    alarm = (
+        db.query(AlarmType)
+        .filter(AlarmType.org_id == org_id, AlarmType.code == alarm_type_code)
+        .first()
+    )
+    if not alarm or not alarm.notify_neighbors:
+        return
+    from app.models.invitation import OrgInvitation, OrgPartner
+    partners = db.query(OrgPartner).filter(
+        OrgPartner.org_id == org_id,
+        OrgPartner.notify_on_incident == True,  # noqa: E712
+    ).all()
+    for p in partners:
+        existing = db.query(OrgInvitation).filter(
+            OrgInvitation.incident_id == incident.id,
+            OrgInvitation.invited_org_id == p.partner_org_id,
+        ).first()
+        if not existing:
+            db.add(OrgInvitation(
+                incident_id=incident.id,
+                inviting_org_id=org_id,
+                invited_org_id=p.partner_org_id,
+                status="pending",
+                created_by_user_id=user_id,
+            ))
+    db.flush()
 
 
 def _entity_logs(db: Session, incident_id: int, entity_type: str, entity_id: int) -> list:
@@ -260,12 +295,14 @@ async def new_incident(
             incident.lng = geo.lng
             db.commit()
 
-    await manager.broadcast_all({
-        "type": "incident_created", "incident_id": incident.id,
-        "alarm": alarm_type_code, "is_exercise": is_exercise,
-        "url": f"/einsatz/{incident.id}",
-        "title": f"{'[ÜBUNG] ' if is_exercise else ''}Neuer Einsatz: {alarm_type_code}",
-    })
+    if user.org_id:
+        await broadcast_org(user.org_id, {
+            "type": "incident_created", "incident_id": incident.id,
+            "alarm": alarm_type_code, "is_exercise": is_exercise,
+            "url": f"/einsatz/{incident.id}",
+            "title": f"{'[ÜBUNG] ' if is_exercise else ''}Neuer Einsatz: {alarm_type_code}",
+        })
+    _create_neighbor_invitations(db, incident, alarm_type_code, user.org_id, user.id)
 
     if ai_is_enabled() and not is_exercise:
         background_tasks.add_task(
@@ -1123,7 +1160,7 @@ async def create_message(
             if not f.filename:
                 continue
             try:
-                await store_upload_for_message(f, msg, request.state.user, db)
+                await store_upload_for_message(f, msg, request.state.user, db, org_id=request.state.user.org_id)
             except _HE:
                 pass
         db.commit()
@@ -1951,7 +1988,7 @@ async def upload_task_media(
         if not f.filename:
             continue
         try:
-            await store_upload(f, task, request.state.user, db)
+            await store_upload(f, task, request.state.user, db, org_id=request.state.user.org_id)
         except _HE as exc:
             errors.append(str(exc.detail))
         except Exception as exc:  # noqa: BLE001
@@ -2013,7 +2050,7 @@ async def upload_message_media(
         if not f.filename:
             continue
         try:
-            await store_upload_for_message(f, msg, request.state.user, db)
+            await store_upload_for_message(f, msg, request.state.user, db, org_id=request.state.user.org_id)
         except _HE:
             pass
     db.commit()
@@ -2069,7 +2106,7 @@ async def upload_person_media(
         if not f.filename:
             continue
         try:
-            await store_upload_for_person(f, person, request.state.user, db)
+            await store_upload_for_person(f, person, request.state.user, db, org_id=request.state.user.org_id)
         except _HE:
             pass
     db.commit()

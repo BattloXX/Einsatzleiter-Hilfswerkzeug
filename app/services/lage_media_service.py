@@ -17,26 +17,37 @@ logger = logging.getLogger("einsatzleiter.lage_media")
 _LAGE_MEDIA_DIR = "app_storage/lage_media"
 
 
-def _site_dir(site_id: int) -> Path:
-    d = Path(_LAGE_MEDIA_DIR) / str(site_id)
+def _site_dir(site_id: int, org_id: int | None = None) -> Path:
+    if org_id is not None:
+        d = Path(_LAGE_MEDIA_DIR) / str(org_id) / str(site_id)
+    else:
+        d = Path(_LAGE_MEDIA_DIR) / str(site_id)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
 def site_media_path(media: SiteMedia) -> Path:
+    org_id = getattr(media, "org_id", None)
+    if org_id is not None:
+        return Path(_LAGE_MEDIA_DIR) / str(org_id) / str(media.incident_site_id) / media.stored_filename
     return Path(_LAGE_MEDIA_DIR) / str(media.incident_site_id) / media.stored_filename
 
 
 def site_thumb_path(media: SiteMedia) -> Path:
     fname = media.stored_filename.replace(".jpg", "_thumb.jpg")
+    org_id = getattr(media, "org_id", None)
+    if org_id is not None:
+        return Path(_LAGE_MEDIA_DIR) / str(org_id) / str(media.incident_site_id) / fname
     return Path(_LAGE_MEDIA_DIR) / str(media.incident_site_id) / fname
 
 
 async def upload_site_media(
     file: UploadFile,
     site_id: int,
+    org_id: int | None = None,
     user_id: int | None = None,
     author_name: str | None = None,
+    db=None,
 ) -> SiteMedia:
     """Verarbeitet das hochgeladene Bild und gibt ein (unflushed) SiteMedia-Objekt zurück."""
     data = await file.read()
@@ -66,7 +77,7 @@ async def upload_site_media(
         Image.Resampling.LANCZOS,
     )
 
-    dest = _site_dir(site_id)
+    dest = _site_dir(site_id, org_id)
     uid = uuid.uuid4().hex
     main_fn = f"{uid}.jpg"
     thumb_fn = f"{uid}_thumb.jpg"
@@ -76,6 +87,11 @@ async def upload_site_media(
     thumb.thumbnail((settings.MEDIA_THUMB_SIZE, settings.MEDIA_THUMB_SIZE), Image.Resampling.LANCZOS)
     thumb.save(dest / thumb_fn, "JPEG", quality=80, optimize=True)
 
+    stored_bytes = (dest / main_fn).stat().st_size
+    if db is not None and org_id is not None:
+        from app.services.storage_service import reserve_storage
+        reserve_storage(db, org_id, stored_bytes)
+
     return SiteMedia(
         incident_site_id=site_id,
         stored_filename=main_fn,
@@ -83,4 +99,6 @@ async def upload_site_media(
         media_type="image",
         uploaded_by=user_id,
         author_name=author_name,
+        bytes=stored_bytes,
+        org_id=org_id,
     )

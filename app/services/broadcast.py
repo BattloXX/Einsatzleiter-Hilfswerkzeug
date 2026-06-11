@@ -1,4 +1,4 @@
-"""WebSocket connection manager – pub/sub per incident and major incident."""
+"""WebSocket connection manager – pub/sub per incident, major incident, and org."""
 import asyncio
 import json
 from collections import defaultdict
@@ -7,6 +7,8 @@ from fastapi import WebSocket
 
 # Lage-Kanäle verwenden einen Offset um Kollision mit Einsatz-IDs zu vermeiden
 LAGE_WS_OFFSET = 10_000_000
+# Org-Kanäle für globale Org-Benachrichtigungen (neue Einsätze, Einladungen …)
+ORG_WS_OFFSET = 20_000_000
 
 
 class ConnectionManager:
@@ -52,3 +54,8 @@ manager = ConnectionManager()
 
 async def broadcast_lage(lage_id: int, event: dict) -> None:
     await manager.broadcast(LAGE_WS_OFFSET + lage_id, event)
+
+
+async def broadcast_org(org_id: int, event: dict) -> None:
+    """Sendet ein Event an alle Clients im globalen Kanal dieser Org."""
+    await manager.broadcast(ORG_WS_OFFSET + org_id, event)

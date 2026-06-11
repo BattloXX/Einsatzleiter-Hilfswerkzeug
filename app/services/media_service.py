@@ -63,14 +63,20 @@ def _storage_root() -> Path:
     return root
 
 
-def _task_dir(incident_id: int, task_id: int) -> Path:
-    d = _storage_root() / str(incident_id) / str(task_id)
+def _task_dir(incident_id: int, task_id: int, org_id: int | None = None) -> Path:
+    if org_id is not None:
+        d = _storage_root() / str(org_id) / str(incident_id) / str(task_id)
+    else:
+        d = _storage_root() / str(incident_id) / str(task_id)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
-def _entity_dir(incident_id: int, entity_type: str, entity_id: int) -> Path:
-    d = _storage_root() / str(incident_id) / entity_type / str(entity_id)
+def _entity_dir(incident_id: int, entity_type: str, entity_id: int, org_id: int | None = None) -> Path:
+    if org_id is not None:
+        d = _storage_root() / str(org_id) / str(incident_id) / entity_type / str(entity_id)
+    else:
+        d = _storage_root() / str(incident_id) / entity_type / str(entity_id)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -223,9 +229,25 @@ def _process_video(
     return main_path, thumb_path if thumb_path else None, width, height, duration_s
 
 
+# ── Quota helpers ─────────────────────────────────────────────────
+def _reserve(db: Session, org_id: int | None, n_bytes: int) -> None:
+    if org_id is None:
+        return
+    from app.services.storage_service import reserve_storage
+    reserve_storage(db, org_id, n_bytes)
+
+
+def _release(db: Session, org_id: int | None, n_bytes: int) -> None:
+    if org_id is None:
+        return
+    from app.services.storage_service import release_storage
+    release_storage(db, org_id, n_bytes)
+
+
 # ── Public API ────────────────────────────────────────────────────
 async def store_upload(
     file: UploadFile, task: Task, user: User, db: Session,
+    org_id: int | None = None,
 ) -> UploadResult:
     """Validiert + verarbeitet einen Upload und legt einen TaskMedia-Eintrag an."""
     raw = await file.read()
@@ -249,12 +271,14 @@ async def store_upload(
             415, "HEIC-Dateien werden auf diesem Server nicht unterstuetzt (pillow-heif fehlt).",
         )
 
-    dest_dir = _task_dir(task.incident_id, task.id)
+    dest_dir = _task_dir(task.incident_id, task.id, org_id)
     storage_root = _storage_root().resolve()
     warnings: list[str] = []
 
     if kind == "image":
         main_p, thumb_p, w, h, out_mime = _process_image(raw, dest_dir)
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = TaskMedia(
             task_id=task.id, incident_id=task.incident_id,
             uploaded_by_user_id=user.id,
@@ -262,11 +286,13 @@ async def store_upload(
             original_filename=file.filename or "image",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/"),
-            mime_type=out_mime, bytes=main_p.stat().st_size,
+            mime_type=out_mime, bytes=stored_bytes,
             width=w, height=h,
         )
     elif kind == "pdf":
         main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")  # type: ignore[assignment]
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = TaskMedia(
             task_id=task.id, incident_id=task.incident_id,
             uploaded_by_user_id=user.id,
@@ -274,11 +300,13 @@ async def store_upload(
             original_filename=file.filename or "document.pdf",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/") if thumb_p else None,
-            mime_type="application/pdf", bytes=main_p.stat().st_size,
+            mime_type="application/pdf", bytes=stored_bytes,
             pages=pages,
         )
     else:  # video
         main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)  # type: ignore[assignment]
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = TaskMedia(
             task_id=task.id, incident_id=task.incident_id,
             uploaded_by_user_id=user.id,
@@ -286,7 +314,7 @@ async def store_upload(
             original_filename=file.filename or "video.mp4",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/") if thumb_p else None,
-            mime_type="video/mp4", bytes=main_p.stat().st_size,
+            mime_type="video/mp4", bytes=stored_bytes,
             width=w, height=h, duration_s=dur,
         )
         if thumb_p is None:
@@ -299,6 +327,7 @@ async def store_upload(
 
 async def store_upload_for_message(
     file: UploadFile, message: Message, user: User, db: Session,
+    org_id: int | None = None,
 ) -> MessageMedia:
     """Wie store_upload, aber fuer Message-Anhaenge."""
     raw = await file.read()
@@ -313,37 +342,43 @@ async def store_upload_for_message(
     if len(raw) > _size_limit_for_kind(kind):
         limit_mb = _size_limit_for_kind(kind) // (1024 * 1024)
         raise HTTPException(413, f"Datei zu gross. Limit fuer {kind}: {limit_mb} MB.")
-    dest_dir = _entity_dir(message.incident_id, "msg", message.id)
+    dest_dir = _entity_dir(message.incident_id, "msg", message.id, org_id)
     storage_root = _storage_root().resolve()
     if kind == "image":
         main_p, thumb_p, w, h, out_mime = _process_image(raw, dest_dir)
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = MessageMedia(
             message_id=message.id, incident_id=message.incident_id,
             uploaded_by_user_id=user.id, kind="image",
             original_filename=file.filename or "image",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/"),
-            mime_type=out_mime, bytes=main_p.stat().st_size, width=w, height=h,
+            mime_type=out_mime, bytes=stored_bytes, width=w, height=h,
         )
     elif kind == "pdf":
         main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")  # type: ignore[assignment]
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = MessageMedia(
             message_id=message.id, incident_id=message.incident_id,
             uploaded_by_user_id=user.id, kind="pdf",
             original_filename=file.filename or "document.pdf",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/") if thumb_p else None,
-            mime_type="application/pdf", bytes=main_p.stat().st_size, pages=pages,
+            mime_type="application/pdf", bytes=stored_bytes, pages=pages,
         )
     else:
         main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)  # type: ignore[assignment]
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = MessageMedia(
             message_id=message.id, incident_id=message.incident_id,
             uploaded_by_user_id=user.id, kind="video",
             original_filename=file.filename or "video.mp4",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/") if thumb_p else None,
-            mime_type="video/mp4", bytes=main_p.stat().st_size, width=w, height=h, duration_s=dur,
+            mime_type="video/mp4", bytes=stored_bytes, width=w, height=h, duration_s=dur,
         )
     db.add(media)
     db.flush()
@@ -352,6 +387,7 @@ async def store_upload_for_message(
 
 async def store_upload_for_person(
     file: UploadFile, person: RescuedPerson, user: User, db: Session,
+    org_id: int | None = None,
 ) -> PersonMedia:
     """Wie store_upload, aber fuer Person-Anhaenge."""
     raw = await file.read()
@@ -366,37 +402,43 @@ async def store_upload_for_person(
     if len(raw) > _size_limit_for_kind(kind):
         limit_mb = _size_limit_for_kind(kind) // (1024 * 1024)
         raise HTTPException(413, f"Datei zu gross. Limit fuer {kind}: {limit_mb} MB.")
-    dest_dir = _entity_dir(person.incident_id, "person", person.id)
+    dest_dir = _entity_dir(person.incident_id, "person", person.id, org_id)
     storage_root = _storage_root().resolve()
     if kind == "image":
         main_p, thumb_p, w, h, out_mime = _process_image(raw, dest_dir)
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = PersonMedia(
             person_id=person.id, incident_id=person.incident_id,
             uploaded_by_user_id=user.id, kind="image",
             original_filename=file.filename or "image",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/"),
-            mime_type=out_mime, bytes=main_p.stat().st_size, width=w, height=h,
+            mime_type=out_mime, bytes=stored_bytes, width=w, height=h,
         )
     elif kind == "pdf":
         main_p, thumb_p, pages = _process_pdf(raw, dest_dir, file.filename or "document.pdf")  # type: ignore[assignment]
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = PersonMedia(
             person_id=person.id, incident_id=person.incident_id,
             uploaded_by_user_id=user.id, kind="pdf",
             original_filename=file.filename or "document.pdf",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/") if thumb_p else None,
-            mime_type="application/pdf", bytes=main_p.stat().st_size, pages=pages,
+            mime_type="application/pdf", bytes=stored_bytes, pages=pages,
         )
     else:
         main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)  # type: ignore[assignment]
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
         media = PersonMedia(
             person_id=person.id, incident_id=person.incident_id,
             uploaded_by_user_id=user.id, kind="video",
             original_filename=file.filename or "video.mp4",
             storage_path=str(main_p.resolve().relative_to(storage_root)).replace("\\", "/"),
             thumb_path=str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/") if thumb_p else None,
-            mime_type="video/mp4", bytes=main_p.stat().st_size, width=w, height=h, duration_s=dur,
+            mime_type="video/mp4", bytes=stored_bytes, width=w, height=h, duration_s=dur,
         )
     db.add(media)
     db.flush()
@@ -415,6 +457,15 @@ def delete_media(media, db: Session) -> None:
                 path.unlink()
         except OSError as e:
             logger.warning("delete failed for %s: %s", path, e)
+    # Release storage quota
+    n_bytes = getattr(media, "bytes", 0) or 0
+    if n_bytes > 0:
+        incident_id = getattr(media, "incident_id", None)
+        if incident_id is not None:
+            from app.models.incident import Incident
+            incident = db.get(Incident, incident_id)
+            if incident:
+                _release(db, incident.primary_org_id, n_bytes)
     db.delete(media)
 
 
