@@ -51,6 +51,7 @@ from app.models.major_incident import IncidentSite, MajorIncident, MajorIncident
 from app.models.user import Role, User, UserRole
 from app.config import settings
 from app.services.ai_service import is_enabled as ai_is_enabled
+from app.services.alarm_service import get_alarm_type_by_code
 from app.services.broadcast import manager
 from app.services.incident_service import (
     add_section_column,
@@ -282,7 +283,7 @@ async def new_incident(
             get_active_lage as _get_active_lage,
             adopt_incident_as_site as _adopt_incident_as_site,
         )
-        at = db.get(_AlarmType, alarm_type_code)
+        at = get_alarm_type_by_code(db, user.org_id, alarm_type_code)
         if at and at.triggers_major_incident:
             lage, _site, _created = _handle_alarm_trigger(
                 db, user.org_id, alarm_type_code, incident.id,
@@ -385,12 +386,13 @@ async def alarm_dispatch_vehicles(
     incident = _incident_or_404(incident_id, db)
     db.refresh(incident, ["columns", "vehicles"])
 
+    _at_for_dispatch = get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code) if incident.alarm_type_code else None
     dispatch_entries = (
         db.query(AlarmDispatchVehicle)
-        .filter(AlarmDispatchVehicle.alarm_type_code == incident.alarm_type_code)
+        .filter(AlarmDispatchVehicle.alarm_type_id == _at_for_dispatch.id)
         .order_by(AlarmDispatchVehicle.display_order)
         .all()
-    )
+    ) if _at_for_dispatch else []
 
     dispatched_col = next((c for c in incident.columns if c.code == "dispatched"), None)
     added = 0
@@ -467,18 +469,19 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
     incident = _incident_or_404(incident_id, db)
     db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons"])
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
+    _at_board = get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code) if incident.alarm_type_code else None
     from sqlalchemy import exists as _exists
     _has_any_alarm = _exists().where(LageHintAlarm.lage_hint_id == LageHint.id)
     _has_matching = _exists().where(
         (LageHintAlarm.lage_hint_id == LageHint.id)
-        & (LageHintAlarm.alarm_type_code == incident.alarm_type_code)
-    )
+        & (LageHintAlarm.alarm_type_id == _at_board.id)
+    ) if _at_board else None
     lage_hints = (
         db.query(LageHint)
         .filter(or_(~_has_any_alarm, _has_matching))
         .order_by(LageHint.display_order)
         .all()
-    ) if incident.alarm_type_code else (
+    ) if _at_board else (
         db.query(LageHint)
         .filter(~_has_any_alarm)
         .order_by(LageHint.display_order)
@@ -489,17 +492,17 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
     task_suggestions = (
         db.query(TaskSuggestion)
         .join(TaskSuggestionAlarm, TaskSuggestionAlarm.task_suggestion_id == TaskSuggestion.id)
-        .filter(TaskSuggestionAlarm.alarm_type_code == incident.alarm_type_code)
+        .filter(TaskSuggestionAlarm.alarm_type_id == _at_board.id)
         .order_by(TaskSuggestionAlarm.display_order)
         .all()
-    ) if incident.alarm_type_code else []
+    ) if _at_board else []
     msg_suggestions = (
         db.query(MessageSuggestion)
         .join(MessageSuggestionAlarm, MessageSuggestionAlarm.message_suggestion_id == MessageSuggestion.id)
-        .filter(MessageSuggestionAlarm.alarm_type_code == incident.alarm_type_code)
+        .filter(MessageSuggestionAlarm.alarm_type_id == _at_board.id)
         .order_by(MessageSuggestionAlarm.display_order)
         .all()
-    ) if incident.alarm_type_code else []
+    ) if _at_board else []
     can_edit = has_role(user, "incident_leader", "admin", "recorder")
     # Leader candidates: active users of same org with relevant roles
     leader_roles = {"incident_leader", "admin", "org_admin", "system_admin"}
@@ -586,18 +589,19 @@ async def incident_dashboard(
             person_stats[p.status].append(p)
 
     started_at_iso = incident.started_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+    _at_board2 = get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code) if incident.alarm_type_code else None
     from sqlalchemy import exists as _exists2
     _has_any2 = _exists2().where(LageHintAlarm.lage_hint_id == LageHint.id)
     _has_match2 = _exists2().where(
         (LageHintAlarm.lage_hint_id == LageHint.id)
-        & (LageHintAlarm.alarm_type_code == incident.alarm_type_code)
-    )
+        & (LageHintAlarm.alarm_type_id == _at_board2.id)
+    ) if _at_board2 else None
     lage_hints = (
         db.query(LageHint)
         .filter(or_(~_has_any2, _has_match2))
         .order_by(LageHint.display_order)
         .all()
-    ) if incident.alarm_type_code else (
+    ) if _at_board2 else (
         db.query(LageHint)
         .filter(~_has_any2)
         .order_by(LageHint.display_order)

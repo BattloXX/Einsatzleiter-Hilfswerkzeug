@@ -123,10 +123,13 @@ class MemberQualification(Base):
     qualification: Mapped[Qualification] = relationship(lazy="joined")
 
 
-class AlarmType(Base):
+class AlarmType(TenantScoped, Base):
     __tablename__ = "alarm_type"
+    __table_args__ = (UniqueConstraint("org_id", "code", name="uq_alarm_type_org_code"),)
 
-    code: Mapped[str] = mapped_column(String(10), primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
+    code: Mapped[str] = mapped_column(String(10), nullable=False)
     category: Mapped[str] = mapped_column(String(20), nullable=False, default="T")
     label: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     default_first_train_only: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -152,12 +155,13 @@ class TaskSuggestionAlarm(Base):
     task_suggestion_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("task_suggestion.id", ondelete="CASCADE"), nullable=False
     )
-    alarm_type_code: Mapped[str] = mapped_column(
-        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    alarm_type_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("alarm_type.id", ondelete="CASCADE"), nullable=False
     )
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
     suggestion: Mapped[TaskSuggestion] = relationship(back_populates="alarm_assignments")
+    alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
 
 
 class MessageSuggestion(Base):
@@ -178,12 +182,13 @@ class MessageSuggestionAlarm(Base):
     message_suggestion_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("message_suggestion.id", ondelete="CASCADE"), nullable=False
     )
-    alarm_type_code: Mapped[str] = mapped_column(
-        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    alarm_type_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("alarm_type.id", ondelete="CASCADE"), nullable=False
     )
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
     suggestion: Mapped[MessageSuggestion] = relationship(back_populates="alarm_assignments")
+    alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
 
 
 class LageHint(Base):
@@ -205,12 +210,13 @@ class LageHintAlarm(Base):
     lage_hint_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("lage_hint.id", ondelete="CASCADE"), nullable=False
     )
-    alarm_type_code: Mapped[str] = mapped_column(
-        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    alarm_type_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("alarm_type.id", ondelete="CASCADE"), nullable=False
     )
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
     hint: Mapped[LageHint] = relationship(back_populates="alarm_assignments")
+    alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
 
 
 class DefaultMessage(Base):
@@ -231,13 +237,14 @@ class DefaultMessageAlarm(Base):
     default_message_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("default_message.id", ondelete="CASCADE"), nullable=False
     )
-    alarm_type_code: Mapped[str] = mapped_column(
-        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    alarm_type_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("alarm_type.id", ondelete="CASCADE"), nullable=False
     )
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     due_after_sec: Mapped[int] = mapped_column(Integer, default=300)
 
     message: Mapped[DefaultMessage] = relationship(back_populates="alarm_assignments")
+    alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
 
 
 class OrgSettings(Base):
@@ -289,13 +296,13 @@ class AlarmDispatchVehicle(Base):
     __tablename__ = "alarm_dispatch_vehicle"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    alarm_type_code: Mapped[str] = mapped_column(
-        String(10), ForeignKey("alarm_type.code", ondelete="CASCADE"), nullable=False
+    alarm_type_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("alarm_type.id", ondelete="CASCADE"), nullable=False
     )
     vehicle_master_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("vehicle_master.id", ondelete="CASCADE"), nullable=False
     )
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
-    alarm_type: Mapped[AlarmType] = relationship()
+    alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
     vehicle: Mapped[VehicleMaster] = relationship()

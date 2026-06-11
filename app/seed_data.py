@@ -207,8 +207,8 @@ def seed(db=None):
     try:
         _upsert_roles(db)
         _upsert_qualifications(db)
+        _upsert_depts_and_vehicles(db)   # Orgs müssen vor AlarmTypes existieren
         _upsert_alarm_types(db)
-        _upsert_depts_and_vehicles(db)
         _upsert_task_suggestions(db)
         _upsert_default_messages(db)
         _upsert_lage_hints(db)
@@ -236,10 +236,18 @@ def _upsert_qualifications(db):
 
 
 def _upsert_alarm_types(db):
+    home = db.query(FireDept).order_by(FireDept.id).first()
+    org_id = home.id if home else None
+    if org_id is None:
+        return
     for a in ALARM_TYPES:
-        obj = db.get(AlarmType, a["code"])
+        obj = (
+            db.query(AlarmType)
+            .filter(AlarmType.org_id == org_id, AlarmType.code == a["code"])
+            .first()
+        )
         if not obj:
-            db.add(AlarmType(**a))
+            db.add(AlarmType(org_id=org_id, **a))
         else:
             for k, v in a.items():
                 setattr(obj, k, v)
@@ -275,9 +283,18 @@ def _upsert_depts_and_vehicles(db):
 def _upsert_task_suggestions(db):
     if db.query(TaskSuggestion).count() > 0:
         return
-    # Collect unique texts (a template may appear in multiple alarm types)
+    home = db.query(FireDept).order_by(FireDept.id).first()
+    if not home:
+        return
+    alarm_type_map = {
+        at.code: at
+        for at in db.query(AlarmType).filter(AlarmType.org_id == home.id).all()
+    }
     text_to_obj: dict[str, TaskSuggestion] = {}
     for alarm_code, suggestions in TASK_SUGGESTIONS.items():
+        at = alarm_type_map.get(alarm_code)
+        if at is None:
+            continue
         for i, text in enumerate(suggestions):
             if text not in text_to_obj:
                 s = TaskSuggestion(text=text)
@@ -286,7 +303,7 @@ def _upsert_task_suggestions(db):
                 text_to_obj[text] = s
             db.add(TaskSuggestionAlarm(
                 task_suggestion_id=text_to_obj[text].id,
-                alarm_type_code=alarm_code,
+                alarm_type_id=at.id,
                 display_order=i,
             ))
 
@@ -294,8 +311,18 @@ def _upsert_task_suggestions(db):
 def _upsert_default_messages(db):
     if db.query(DefaultMessage).count() > 0:
         return
+    home = db.query(FireDept).order_by(FireDept.id).first()
+    if not home:
+        return
+    alarm_type_map = {
+        at.code: at
+        for at in db.query(AlarmType).filter(AlarmType.org_id == home.id).all()
+    }
     text_to_obj: dict[str, DefaultMessage] = {}
     for alarm_code, messages in DEFAULT_MESSAGES.items():
+        at = alarm_type_map.get(alarm_code)
+        if at is None:
+            continue
         for i, msg in enumerate(messages):
             text = msg["text"]
             due = msg.get("due_after_sec", 300)
@@ -306,7 +333,7 @@ def _upsert_default_messages(db):
                 text_to_obj[text] = m
             db.add(DefaultMessageAlarm(
                 default_message_id=text_to_obj[text].id,
-                alarm_type_code=alarm_code,
+                alarm_type_id=at.id,
                 display_order=i,
                 due_after_sec=due,
             ))

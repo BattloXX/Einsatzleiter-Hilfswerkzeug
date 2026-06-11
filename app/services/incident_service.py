@@ -226,12 +226,13 @@ def create_incident(
 
     from app.models.lagekarte import LagekarteToken
 
-    alarm = db.get(AlarmType, alarm_type_code)
-    if alarm is None:
-        alarm_type_code = "T1"
-        alarm = db.get(AlarmType, "T1")  # ohne re-fetch wäre _populate_vehicles ein No-op
+    from app.services.alarm_service import get_alarm_type_by_code as _get_alarm_type
 
     resolved_org_id = _resolve_org_id(db, primary_org_id)
+    alarm = _get_alarm_type(db, resolved_org_id, alarm_type_code) if resolved_org_id else None
+    if alarm is None:
+        alarm_type_code = "T1"
+        alarm = _get_alarm_type(db, resolved_org_id, "T1") if resolved_org_id else None
     raw_token = "lkw_" + _secrets.token_urlsafe(32)
 
     incident = Incident(
@@ -318,7 +319,7 @@ def _populate_vehicles(db: Session, incident: Incident, alarm: AlarmType | None)
     # Check if explicit dispatch order exists for this alarm type
     dispatch_entries = (
         db.query(AlarmDispatchVehicle)
-        .filter(AlarmDispatchVehicle.alarm_type_code == alarm.code)
+        .filter(AlarmDispatchVehicle.alarm_type_id == alarm.id)
         .order_by(AlarmDispatchVehicle.display_order)
         .all()
     )
@@ -381,7 +382,7 @@ def _create_default_messages(db: Session, incident: Incident, alarm: AlarmType |
     msgs_col = _get_column(incident, "messages")
     assignments = (
         db.query(DefaultMessageAlarm)
-        .filter(DefaultMessageAlarm.alarm_type_code == alarm.code)
+        .filter(DefaultMessageAlarm.alarm_type_id == alarm.id)
         .order_by(DefaultMessageAlarm.display_order)
         .all()
     )

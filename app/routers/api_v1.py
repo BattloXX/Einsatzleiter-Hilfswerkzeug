@@ -22,6 +22,7 @@ from app.db import get_db
 from app.models.incident import Incident, IncidentOrg, IncidentToken
 from app.models.master import AlarmType, FireDept, OrgSettings
 from app.models.user import ApiKey
+from app.services.alarm_service import get_alarm_type_by_code
 from app.services.broadcast import manager
 from app.services.incident_service import create_incident
 from app.services.push_service import notify_all
@@ -295,7 +296,7 @@ def _handle_major_incident_trigger(
         handle_alarm_trigger,
     )
 
-    alarm_type = db.get(AlarmType, alarm_type_code)
+    alarm_type = get_alarm_type_by_code(db, org_id, alarm_type_code)
     triggers = alarm_type.triggers_major_incident if alarm_type else False
 
     active_lage = get_active_lage(db, org_id)
