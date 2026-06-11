@@ -24,6 +24,8 @@ class FireDept(Base):
     # Multi-org fields
     is_home_org: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Org-Lifecycle: NULL = aktiv, gesetzt = Soft-Delete (30-Tage-Frist bis Purge)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     logo_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -310,3 +312,18 @@ class AlarmDispatchVehicle(Base):
 
     alarm_type: Mapped[AlarmType] = relationship(lazy="joined")
     vehicle: Mapped[VehicleMaster] = relationship()
+
+
+class SeedTemplate(Base):
+    """System-Vorlagen je Profil – system_admin pflegt; beim Org-Anlegen werden sie kopiert."""
+    __tablename__ = "seed_template"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    profile: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    profile_label: Mapped[str] = mapped_column(String(100), nullable=False)
+    # type: alarm_type | task_suggestion | message_suggestion | lage_hint | default_message
+    type: Mapped[str] = mapped_column(String(30), nullable=False)
+    data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON object
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC),
+                                                  onupdate=lambda: datetime.now(UTC))
