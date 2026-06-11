@@ -1123,7 +1123,7 @@ async def create_message(
             if not f.filename:
                 continue
             try:
-                await store_upload_for_message(f, msg, request.state.user, db)
+                await store_upload_for_message(f, msg, request.state.user, db, org_id=request.state.user.org_id)
             except _HE:
                 pass
         db.commit()
@@ -1951,7 +1951,7 @@ async def upload_task_media(
         if not f.filename:
             continue
         try:
-            await store_upload(f, task, request.state.user, db)
+            await store_upload(f, task, request.state.user, db, org_id=request.state.user.org_id)
         except _HE as exc:
             errors.append(str(exc.detail))
         except Exception as exc:  # noqa: BLE001
@@ -2013,7 +2013,7 @@ async def upload_message_media(
         if not f.filename:
             continue
         try:
-            await store_upload_for_message(f, msg, request.state.user, db)
+            await store_upload_for_message(f, msg, request.state.user, db, org_id=request.state.user.org_id)
         except _HE:
             pass
     db.commit()
@@ -2069,7 +2069,7 @@ async def upload_person_media(
         if not f.filename:
             continue
         try:
-            await store_upload_for_person(f, person, request.state.user, db)
+            await store_upload_for_person(f, person, request.state.user, db, org_id=request.state.user.org_id)
         except _HE:
             pass
     db.commit()

@@ -240,6 +240,9 @@ class SiteMedia(Base):
     uploaded_by:       Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id"), nullable=True)
     author_name:       Mapped[str | None] = mapped_column(String(120), nullable=True)
+    bytes:             Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    org_id:            Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("fire_dept.id"), nullable=True, index=True)
 
 
 class CommLogEntry(Base):

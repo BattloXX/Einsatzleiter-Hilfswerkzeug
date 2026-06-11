@@ -39,6 +39,8 @@ class FireDept(Base):
     # Kurz-Kürzel (max. 3 Zeichen, z.B. "WOL") für Fahrzeug-Darstellung: "RLF WOL"
     short_code: Mapped[str | None] = mapped_column(String(3), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    # Storage-Quota in Bytes (NULL = unbegrenzt)
+    storage_quota_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     vehicles: Mapped[list[VehicleMaster]] = relationship(back_populates="dept")
     members: Mapped[list[Member]] = relationship(back_populates="org", foreign_keys="Member.org_id")
@@ -276,6 +278,17 @@ class OrgSettings(Base):
     ai_tokens_month_key: Mapped[str | None] = mapped_column(String(7), nullable=True)  # YYYY-MM
 
     org: Mapped[FireDept] = relationship(back_populates="settings")
+
+
+class OrgStorageUsage(Base):
+    """Laufende Speicher-Verbrauchszeile pro Organisation."""
+    __tablename__ = "org_storage_usage"
+
+    org_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("fire_dept.id", ondelete="CASCADE"), primary_key=True
+    )
+    used_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class SystemSettings(Base):

@@ -829,8 +829,10 @@ async def site_media_upload(
     from app.services.lage_media_service import upload_site_media
     media = await upload_site_media(
         file, site_id,
+        org_id=lage.org_id,
         user_id=user.id,
         author_name=get_author_name(request),
+        db=db,
     )
     db.add(media)
     db.add(SiteLogEntry(
