@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 # Fixed column codes (always present)
-FIXED_COLUMNS = ["dispatched", "active", "tasks", "messages", "neighbor", "rescued"]
+FIXED_COLUMNS = ["dispatched", "active", "tasks", "messages", "rescued"]
 UNIT_STATUS_VALUES = [
     "Einsatz übernommen",
     "Am Einsatzort",
@@ -128,6 +128,7 @@ class IncidentColumn(Base):
     incident_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("incident.id", ondelete="CASCADE"), nullable=False)
     code: Mapped[str] = mapped_column(String(50), nullable=False)
     title: Mapped[str] = mapped_column(String(150), nullable=False)
+    column_kind: Mapped[str] = mapped_column(String(20), nullable=False, default="vehicles")
     is_fixed: Mapped[bool] = mapped_column(Boolean, default=False)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     card_order: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -356,14 +356,14 @@
   <!-- Kanban Board -->
   <div class="kanban" id="kanban" data-incident-id="{{ incident.id }}">
     {% set columns = incident.columns %}
-    {% set lane_map = {'tasks':'tasks','messages':'messages','rescued':'persons'} %}
+    {% set kind_to_lane = {'tasks':'tasks','messages':'messages','rescued':'persons','vehicles':'vehicles','neighbor':'vehicles','custom':'vehicles'} %}
     {% for col in columns %}
     {% set col_vehicles = incident.vehicles|selectattr('column_id', 'eq', col.id)|selectattr('removed_at', 'none')|list %}
     {% set col_tasks = incident.tasks|selectattr('column_id', 'eq', col.id)|list %}
     {% set col_messages = incident.messages|selectattr('column_id', 'eq', col.id)|list %}
-    {% set col_persons = incident.rescued_persons if col.code == 'rescued' else [] %}
+    {% set col_persons = incident.rescued_persons if col.column_kind == 'rescued' else [] %}
     {% set col_count = col_vehicles|length + col_tasks|length + col_messages|length + col_persons|length %}
-    {% set lane = lane_map.get(col.code) or ('col-' + col.id|string) %}
+    {% set lane = kind_to_lane.get(col.column_kind) or ('col-' + col.id|string) %}
 
     <div class="kanban-col" id="col-{{ col.id }}"
          data-col-id="{{ col.id }}" data-col-code="{{ col.code }}"
