@@ -228,10 +228,64 @@
     });
   }
 
+  // ── Spalten-Drag (ganze Kanban-Spalten verschieben) ─────────────────────────
+  //
+  // WARUM DIESE IMPLEMENTIERUNG:
+  //   handle: '.kanban-col__drag-handle'  → nur der ⣿-Griff löst Drag aus, nie Buttons
+  //   delayOnTouchOnly: true              → Maus reagiert sofort; kein 150ms-Lag
+  //   _columnDragActive-Guard             → scheduleInit() zerstört keine laufende Drag-Operation
+  //
+  function initColumnSortable() {
+    const kanban = document.getElementById('kanban');
+    if (!kanban) return;
+    const incidentId = getIncidentId();
+    if (!incidentId) return;
+
+    // Laufende Drag-Operation nie unterbrechen
+    if (kanban._columnDragActive) return;
+
+    if (kanban._columnSortableInstance) {
+      try { kanban._columnSortableInstance.destroy(); } catch (e) { /* noop */ }
+      kanban._columnSortableInstance = null;
+    }
+
+    kanban._columnSortableInstance = new Sortable(kanban, {
+      group:               'kanban-columns',
+      animation:           150,
+      handle:              '.kanban-col__drag-handle',
+      draggable:           '.kanban-col[data-col-id]',
+      ghostClass:          'kanban-col--ghost',
+      chosenClass:         'kanban-col--chosen',
+      delay:               200,
+      delayOnTouchOnly:    true,
+      touchStartThreshold: 8,
+      fallbackTolerance:   5,
+      fallbackOnBody:      true,
+      onStart: function () {
+        kanban._columnDragActive = true;
+        document.body.classList.add('dnd-active');
+      },
+      onEnd: function () {
+        kanban._columnDragActive = false;
+        document.body.classList.remove('dnd-active');
+        const cols = Array.from(kanban.querySelectorAll('.kanban-col[data-col-id]'));
+        const ids = cols.map(function (c) { return parseInt(c.dataset.colId, 10); });
+        fetch('/einsatz/' + incidentId + '/spalten/reihenfolge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'column_order=' + encodeURIComponent(JSON.stringify(ids)),
+          credentials: 'same-origin',
+        }).catch(function (err) {
+          console.warn('[sortable-glue] Spalten-Reihenfolge fehlgeschlagen:', err);
+        });
+      },
+    });
+  }
+
   // ── Startpunkt ───────────────────────────────────────────────────────────────
   function initAll() {
     initSortable();
-    // Spalten-Drag ist deaktiviert – Spalten werden nicht verschoben.
+    initColumnSortable();
   }
 
   if (document.readyState === 'loading') {
