@@ -3,6 +3,8 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/leaflet.min.css">
+<link rel="stylesheet" href="/static/css/leaflet-geoman.min.css">
+<link rel="stylesheet" href="/static/css/MarkerCluster.Default.css">
 <style>
 .lage-status { font-size:.75rem; padding:2px 8px; border-radius:10px; white-space:nowrap; }
 .lage-status--active  { background:rgba(34,197,94,.15); color:#4ade80; }
@@ -100,6 +102,53 @@
 }
 .nocoords-box__title { font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
 .nocoords-item { padding: 3px 0; border-top: 1px solid rgba(255,255,255,.05); color: var(--text); }
+
+/* Side-Panel */
+#site-panel-wrap {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 1100;
+  width: 340px; max-width: 90vw;
+  background: var(--surface, #141824);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .25s ease;
+  overflow: hidden;
+}
+#site-panel-wrap.open { transform: translateX(0); }
+
+.site-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  background: var(--surface-elevated, #1e2130);
+  flex-shrink: 0;
+}
+.site-panel-header span { font-size: .78rem; font-weight: 600; color: var(--text-muted); }
+#site-panel-content { flex: 1; overflow-y: auto; }
+
+/* Fahrzeug-Legende */
+.veh-legend {
+  position: fixed; bottom: 16px; right: 16px; z-index: 1001;
+  background: rgba(17,24,39,.88); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; font-size: .72rem;
+  backdrop-filter: blur(4px); cursor: pointer;
+}
+.veh-legend-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.veh-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.veh-dot--live   { background: #22c55e; box-shadow: 0 0 4px #22c55e; }
+.veh-dot--stale  { background: #6b7280; }
+.veh-dot--manual { background: #f97316; }
+
+/* Geoman-Polygon-Modal */
+#poly-modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px; min-width: 280px;
+}
+#poly-modal::backdrop { background: rgba(0,0,0,.6); }
+
+@media (max-width: 640px) {
+  #site-panel-wrap { width: 100%; top: auto; height: 55vh; transform: translateY(100%); border-left: none; border-top: 1px solid var(--border); }
+  #site-panel-wrap.open { transform: translateY(0); }
+}
 </style>
 {% endblock %}
 
@@ -185,16 +234,87 @@
 </div>
 {% endif %}
 
+{# Abschnitt-Filter-Chips #}
+{% if sectors %}
+<div id="section-filters" style="position:fixed;top:60px;right:8px;z-index:1001;
+     background:rgba(17,24,39,.85);border:1px solid var(--border);border-radius:8px;
+     padding:6px 10px;backdrop-filter:blur(4px);max-width:200px;">
+  <div style="font-size:.65rem;color:var(--text-muted);margin-bottom:4px;">Abschnitt-Filter</div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;">
+    <button class="section-chip active" data-sector="all"
+            style="font-size:.7rem;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.2);
+                   background:rgba(255,255,255,.1);color:var(--text);cursor:pointer;">Alle</button>
+    {% for sec in sectors %}
+    <button class="section-chip" data-sector="{{ sec.id }}"
+            style="font-size:.7rem;padding:2px 7px;border-radius:10px;cursor:pointer;
+                   border:1px solid {{ sec.color or '#6b7280' }}88;
+                   background:{{ sec.color or '#6b7280' }}22;
+                   color:{{ sec.color or '#6b7280' }};">{{ sec.name }}</button>
+    {% endfor %}
+    <button class="section-chip" data-sector="none"
+            style="font-size:.7rem;padding:2px 7px;border-radius:10px;border:1px solid rgba(107,114,128,.4);
+                   background:rgba(107,114,128,.15);color:#9ca3af;cursor:pointer;">Ohne</button>
+  </div>
+</div>
+{% endif %}
+
+{# Fahrzeug-Legende #}
+<div class="veh-legend" id="veh-legend" onclick="this.querySelector('.veh-legend-detail').style.display = this.querySelector('.veh-legend-detail').style.display === 'none' ? '' : 'none'">
+  <div style="font-size:.68rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">FAHRZEUGE</div>
+  <div class="veh-legend-detail">
+    <div class="veh-legend-row"><div class="veh-dot veh-dot--live"></div> GPS live (≤ 5 min)</div>
+    <div class="veh-legend-row"><div class="veh-dot veh-dot--stale"></div> GPS veraltet</div>
+    <div class="veh-legend-row"><div class="veh-dot veh-dot--manual"></div> Manuell gesetzt</div>
+  </div>
+</div>
+
+{# Side-Panel #}
+<div id="site-panel-wrap">
+  <div class="site-panel-header">
+    <span>EINSATZ-DETAILS</span>
+    <button onclick="closePanel()" class="btn btn--xs btn--ghost">✕</button>
+  </div>
+  <div id="site-panel-content">
+    <div style="padding:16px;color:var(--text-muted);font-size:.8rem;">Einsatz wählen…</div>
+  </div>
+</div>
+
+{# Polygon-Namens-Modal #}
+<dialog id="poly-modal">
+  <h3 style="font-size:.9rem;margin:0 0 12px;">Abschnitt benennen</h3>
+  <div class="form-group">
+    <input type="text" id="poly-name" class="form-input" placeholder="z.B. Abschnitt Nord" maxlength="80" autocomplete="off">
+  </div>
+  <div class="form-group">
+    <label class="form-label" style="font-size:.72rem;">Farbe</label>
+    <div id="poly-swatches" style="display:flex;gap:5px;flex-wrap:wrap;">
+      {% set poly_colors = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899'] %}
+      {% for c in poly_colors %}
+      <div style="width:22px;height:22px;border-radius:50%;cursor:pointer;background:{{ c }};border:2px solid transparent;"
+           onclick="selectPolyColor('{{ c }}',this)"></div>
+      {% endfor %}
+    </div>
+  </div>
+  <input type="hidden" id="poly-color" value="#3b82f6">
+  <div style="display:flex;gap:8px;margin-top:14px;">
+    <button onclick="cancelPoly()" class="btn btn--ghost btn--sm">Abbrechen</button>
+    <button onclick="confirmPoly()" class="btn btn--primary btn--sm">Speichern</button>
+  </div>
+</dialog>
+
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/js/leaflet.min.js"></script>
+<script src="/static/js/leaflet-geoman.min.js"></script>
+<script src="/static/js/leaflet.markercluster.js"></script>
 <script>
 (function () {
   var SITES   = {{ map_sites_json | safe }};
   var SECTORS = {{ sectors_json | safe }};
   var REPORTS = {{ citizen_reports_json | safe }};
   var lageId  = {{ lage.id }};
+  var canEdit = {{ 'true' if can_edit else 'false' }};
 
   // Build sector lookup: id → {name, color}
   var sectorMap = {};
@@ -365,7 +485,248 @@
     document.getElementById('btn-sektor').style.display = 'none';
   }
 
-  // WebSocket: reload markers on board changes
+  // ── Abschnitt-Polygone ──────────────────────────────────────────────────────
+  var polygonPane = map.createPane('sectionPane');
+  polygonPane.style.zIndex = 350;  // Unterhalb Marker-Pane (400)
+
+  var sectorLayers = {};  // sectorId → L.polygon
+
+  function renderSectorPolygons() {
+    // Bestehende entfernen
+    Object.values(sectorLayers).forEach(function(l) { map.removeLayer(l); });
+    sectorLayers = {};
+
+    SECTORS.forEach(function(s) {
+      if (!s.geometry) return;
+      try {
+        var color = s.color || '#6b7280';
+        var poly = L.geoJSON(s.geometry, {
+          pane: 'sectionPane',
+          style: {
+            color: color, fillColor: color, fillOpacity: 0.15,
+            weight: 2, opacity: 0.7,
+          },
+        });
+        poly.bindTooltip(s.name, { permanent: true, direction: 'center',
+          className: 'leaflet-tooltip', opacity: 0.85 });
+        poly.addTo(map);
+        poly.sectorId = s.id;
+        sectorLayers[s.id] = poly;
+      } catch(e) { console.warn('Polygon-Fehler Sektor', s.id, e); }
+    });
+  }
+  renderSectorPolygons();
+
+  // ── Geoman: Polygon zeichnen ────────────────────────────────────────────────
+  var pendingGeoJson = null;
+  var pendingSectorId = null;  // null = neuer Abschnitt, int = bestehenden updaten
+
+  if (canEdit && typeof L.PM !== 'undefined') {
+    map.pm.addControls({
+      position: 'topleft',
+      drawMarker: false, drawCircle: false, drawCircleMarker: false,
+      drawPolyline: false, drawRectangle: false, drawText: false,
+      editMode: true, dragMode: false, cutPolygon: false, removalMode: false,
+      rotateMode: false,
+    });
+    map.pm.setGlobalOptions({ allowSelfIntersection: false, snappable: true });
+
+    map.on('pm:create', function(e) {
+      pendingGeoJson = e.layer.toGeoJSON().geometry;
+      pendingSectorId = null;
+      // Modal zum Benennen öffnen
+      document.getElementById('poly-modal').showModal();
+      // Temp-Layer entfernen (wird nach Bestätigung als echtes Polygon geladen)
+      map.removeLayer(e.layer);
+      // Zeichenmodus beenden
+      map.pm.disableDraw();
+    });
+
+    // Bestehende Polygone editierbar machen
+    map.on('pm:edit', function(e) {
+      var layer = e.layer;
+      // Finde Sektor-ID
+      var sectorId = null;
+      Object.entries(sectorLayers).forEach(function(kv) {
+        if (kv[1] === layer || (layer.getLayers && layer.getLayers().includes(kv[1]))) {
+          sectorId = parseInt(kv[0]);
+        }
+      });
+      // Layer.getLayers() für GeoJSON-Gruppen
+      Object.entries(sectorLayers).forEach(function(kv) {
+        var gl = kv[1];
+        if (gl.getLayers) {
+          gl.getLayers().forEach(function(sub) {
+            if (sub === layer) sectorId = parseInt(kv[0]);
+          });
+        }
+      });
+      if (!sectorId) return;
+      var geo = layer.toGeoJSON ? layer.toGeoJSON().geometry : null;
+      if (!geo) return;
+      saveSectorPolygon(sectorId, geo);
+    });
+  }
+
+  function saveSectorPolygon(sectorId, geometry) {
+    fetch('/lage/' + lageId + '/sektoren/' + sectorId + '/geometrie', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ request.state.csrf_token }}' },
+      body: JSON.stringify({ geometry: geometry }),
+    }).then(function(r) {
+      if (!r.ok) r.json().then(function(j) { alert(j.detail || 'Fehler'); });
+    });
+  }
+
+  window.cancelPoly = function() {
+    pendingGeoJson = null;
+    document.getElementById('poly-modal').close();
+  };
+
+  window.confirmPoly = function() {
+    var name = document.getElementById('poly-name').value.trim();
+    var color = document.getElementById('poly-color').value;
+    if (!name) { alert('Bitte Bezeichnung eingeben'); return; }
+    if (!pendingGeoJson) return;
+
+    // Neuen Sektor anlegen, dann Geometrie speichern
+    var formData = new URLSearchParams();
+    formData.append('_csrf', '{{ request.state.csrf_token }}');
+    formData.append('name', name);
+    formData.append('color', color);
+
+    fetch('/lage/' + lageId + '/sektoren', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData,
+      redirect: 'manual',
+    }).then(function() {
+      // Nach Anlegen: Seite neu laden, um neue Sektor-ID zu bekommen, dann Polygon speichern
+      // Vereinfacht: Bei Neuladen wird alles korrekt. Wir nutzen sessionStorage als Bridge.
+      sessionStorage.setItem('pendingPolygon', JSON.stringify({
+        geometry: pendingGeoJson, color: color,
+      }));
+      location.reload();
+    });
+    document.getElementById('poly-modal').close();
+  };
+
+  window.selectPolyColor = function(color, el) {
+    document.getElementById('poly-color').value = color;
+    document.querySelectorAll('#poly-swatches div').forEach(function(d) {
+      d.style.borderColor = 'transparent';
+    });
+    el.style.borderColor = '#fff';
+  };
+
+  // Nach Reload: Polygon für neusten Sektor speichern
+  (function() {
+    var pending = sessionStorage.getItem('pendingPolygon');
+    if (!pending) return;
+    sessionStorage.removeItem('pendingPolygon');
+    try {
+      var data = JSON.parse(pending);
+      // Letzten Sektor der aktuellen Lage finden
+      var lastSector = SECTORS[SECTORS.length - 1];
+      if (lastSector && data.geometry) {
+        saveSectorPolygon(lastSector.id, data.geometry);
+      }
+    } catch(e) {}
+  })();
+
+  // ── Abschnitt-Chips ──────────────────────────────────────────────────────────
+  var activeSectorFilter = 'all';
+  document.querySelectorAll('.section-chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      activeSectorFilter = this.dataset.sector;
+      document.querySelectorAll('.section-chip').forEach(function(c) {
+        c.style.background = '';
+        c.style.borderColor = '';
+      });
+      this.style.background = 'rgba(255,255,255,.15)';
+      renderMarkers();
+    });
+  });
+
+  // ── Side-Panel ──────────────────────────────────────────────────────────────
+  window.openPanel = function(siteId) {
+    var wrap = document.getElementById('site-panel-wrap');
+    var content = document.getElementById('site-panel-content');
+    content.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:.8rem;">Lade…</div>';
+    wrap.classList.add('open');
+    fetch('/lage/' + lageId + '/stellen/' + siteId + '/panel')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        content.innerHTML = html;
+        // HTMX re-process für Post-Formulare im Panel
+        if (window.htmx) htmx.process(content);
+      });
+  };
+
+  window.closePanel = function() {
+    document.getElementById('site-panel-wrap').classList.remove('open');
+  };
+
+  // ── Marker-Click → Panel statt Popup ────────────────────────────────────────
+  // Wird im SITES.forEach-Loop per panel-onclick gesetzt (unten)
+
+  // Marker-Click auf Panel umstellen
+  markers.forEach(function(obj) {
+    obj.marker.off('click');
+    obj.marker.on('click', function() {
+      openPanel(obj.site.id);
+    });
+  });
+
+  // ── Fahrzeug-Layer ──────────────────────────────────────────────────────────
+  var vehicleMarkers = {};  // vehicle_id or "manual_<id>" → L.circleMarker
+
+  function vehicleColor(source, isStale) {
+    if (source === 'manual') return '#f97316';
+    if (isStale) return '#6b7280';
+    return '#22c55e';
+  }
+
+  function buildVehiclePopup(v) {
+    return '<div style="min-width:140px;">' +
+      '<div style="font-weight:700;font-size:.85rem;margin-bottom:3px;">' + v.label + '</div>' +
+      '<div style="font-size:.72rem;color:#9ca3af;margin-bottom:3px;">' +
+        (v.name || '') + '</div>' +
+      '<div style="font-size:.68rem;color:#9ca3af;">' +
+        (v.source === 'gps' ? (v.is_stale ? 'GPS veraltet' : 'GPS live') : 'Manuell') +
+        (v.ts ? ' · ' + new Date(v.ts).toLocaleTimeString('de-AT', {hour:'2-digit',minute:'2-digit'}) : '') +
+      '</div>' +
+      '</div>';
+  }
+
+  var vehicleLayerGroup = L.layerGroup().addTo(map);
+  var vehicleVisible = true;
+
+  function loadVehiclePositions() {
+    fetch('/lage/' + lageId + '/fahrzeuge/positionen')
+      .then(function(r) { return r.json(); })
+      .then(function(positions) {
+        vehicleLayerGroup.clearLayers();
+        vehicleMarkers = {};
+        positions.forEach(function(v) {
+          var c = vehicleColor(v.source, v.is_stale);
+          var m = L.circleMarker([v.lat, v.lng], {
+            radius: 9, color: c, fillColor: c, fillOpacity: 0.9, weight: 2,
+            dashArray: v.source === 'manual' ? '5 3' : null,
+          });
+          m.bindPopup(buildVehiclePopup(v));
+          // Label
+          m.bindTooltip(v.label, { permanent: true, direction: 'top',
+            offset: [0, -10], className: 'leaflet-tooltip', opacity: 0.9 });
+          vehicleLayerGroup.addLayer(m);
+          var key = v.vehicle_id != null ? 'v' + v.vehicle_id : 'm' + v.id;
+          vehicleMarkers[key] = m;
+        });
+      });
+  }
+  loadVehiclePositions();
+
+  // ── WS: Live-Events ─────────────────────────────────────────────────────────
   var wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
   var wsUrl = wsProto + '://' + location.host + '/ws/lage/' + lageId;
   function connectWS() {
@@ -373,12 +734,53 @@
     ws.onmessage = function(ev) {
       try {
         var msg = JSON.parse(ev.data);
-        if (msg.reload_board || msg.type === 'site_updated') location.reload();
+        if (msg.reload_board || msg.type === 'site_updated') {
+          location.reload();
+        } else if (msg.type === 'section:changed') {
+          location.reload();
+        } else if (msg.type === 'vehicle:position') {
+          // Fahrzeug-Marker animiert bewegen
+          var key = msg.vehicle_id != null ? 'v' + msg.vehicle_id : null;
+          if (key && vehicleMarkers[key]) {
+            vehicleMarkers[key].setLatLng([msg.lat, msg.lng]);
+          } else {
+            loadVehiclePositions();
+          }
+        }
       } catch(e) {}
     };
     ws.onclose = function() { setTimeout(connectWS, 3000); };
   }
   connectWS();
+
+  // ── Sektor-Filter Update ────────────────────────────────────────────────────
+  var _origRenderMarkers = renderMarkers;
+  renderMarkers = function() {
+    var checks = document.querySelectorAll('#karte-controls .phase-filter');
+    var active = Array.from(checks).filter(function(c) { return c.checked; }).map(function(c) { return c.value; });
+    var visible = 0;
+    markers.forEach(function(obj) {
+      var sectorMatch = activeSectorFilter === 'all' ||
+        (activeSectorFilter === 'none' && obj.site.sector_id == null) ||
+        (activeSectorFilter !== 'none' && obj.site.sector_id == activeSectorFilter);
+      if (active.includes(obj.phase) && sectorMatch) {
+        if (!map.hasLayer(obj.marker)) obj.marker.addTo(map);
+        visible++;
+      } else {
+        if (map.hasLayer(obj.marker)) map.removeLayer(obj.marker);
+      }
+    });
+    var repToggle = document.getElementById('rep-toggle');
+    var repVis = (repToggle && repToggle.checked)
+      ? reportMarkers.filter(function(m) { return map.hasLayer(m); }).length
+      : 0;
+    var badge = visible + ' / ' + SITES.length + ' Stellen';
+    if (repVis > 0) badge += ' · ' + repVis + ' Meldung' + (repVis !== 1 ? 'en' : '');
+    document.getElementById('karte-badge').textContent = badge;
+  };
+  // Initial
+  renderMarkers();
+
 })();
 </script>
 {% endblock %}

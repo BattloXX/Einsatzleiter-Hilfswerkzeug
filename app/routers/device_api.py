@@ -95,9 +95,63 @@ async def update_location(request: Request, db: Session = Depends(get_db)):
     if not device_token:
         raise HTTPException(status_code=404, detail="Kein registriertes Gerät")
 
+    now = datetime.now(UTC)
     device_token.last_lat = lat
     device_token.last_lng = lng
-    device_token.last_location_at = datetime.now(UTC)
+    device_token.last_location_at = now
+
+    # Positionshistorie schreiben wenn einem Fahrzeug zugeordnet
+    if device_token.vehicle_master_id:
+        from app.models.major_incident import VehiclePosition
+        from app.models.master import OrgSettings
+        # Aktive GSL-Lage für dieses Fahrzeug ermitteln
+        from app.models.major_incident import MajorIncident, MajorIncidentStatus, LageEinheit
+        active_lage = (
+            db.query(MajorIncident)
+            .join(LageEinheit, LageEinheit.lage_id == MajorIncident.id)
+            .filter(
+                LageEinheit.vehicle_id == device_token.vehicle_master_id,
+                LageEinheit.status == "eingesetzt",
+                MajorIncident.status == MajorIncidentStatus.active,
+            )
+            .first()
+        )
+
+        from app.models.master import VehicleMaster
+        vehicle = db.get(VehicleMaster, device_token.vehicle_master_id)
+        org_id = vehicle.dept_id if vehicle else 0
+
+        accuracy = float(data.get("accuracy", 0) or 0) or None
+        db.add(VehiclePosition(
+            incident_id=active_lage.id if active_lage else None,
+            org_id=org_id,
+            vehicle_id=device_token.vehicle_master_id,
+            lat=lat,
+            lon=lng,
+            accuracy_m=accuracy,
+            source="gps",
+            recorded_at=now,
+            received_at=now,
+            reported_by=user.id,
+        ))
+
+        # WS-Broadcast (gedrosselt: handled by caller - hier immer senden, Frontend drosselt)
+        if active_lage:
+            from app.services.broadcast import broadcast_lage
+            import asyncio
+            from app.models.master import VehicleMaster as _VM
+            v = vehicle
+            label = v.code if v else str(device_token.vehicle_master_id)
+            asyncio.create_task(broadcast_lage(active_lage.id, {
+                "type": "vehicle:position",
+                "vehicle_id": device_token.vehicle_master_id,
+                "label": label,
+                "lat": lat,
+                "lng": lng,
+                "source": "gps",
+                "ts": now.isoformat(),
+            }))
+
     db.commit()
     return JSONResponse({"ok": True})
 
@@ -150,6 +204,17 @@ async def get_duty_state(request: Request, db: Session = Depends(get_db)):
             IncidentVehicle.removed_at.is_(None),
             Incident.status == "active",
         ).first() is not None
+
+        # GSL: Fahrzeug als LageEinheit in aktiver Großschadenslage?
+        if not incident_active:
+            from app.models.major_incident import MajorIncident, MajorIncidentStatus, LageEinheit
+            incident_active = db.query(MajorIncident).join(
+                LageEinheit, LageEinheit.lage_id == MajorIncident.id
+            ).filter(
+                LageEinheit.vehicle_id == device_token.vehicle_master_id,
+                LageEinheit.status == "eingesetzt",
+                MajorIncident.status == MajorIncidentStatus.active,
+            ).first() is not None
 
     return JSONResponse({
         "duty_active": device_token.duty_active,

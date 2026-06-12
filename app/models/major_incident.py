@@ -10,6 +10,55 @@ from sqlalchemy.types import TypeDecorator
 from app.db import Base
 
 
+# ── GSL Stab: SKKM-Besetzungsjournal ──────────────────────────────────────────
+
+class GslStaffRole(Base):
+    """SKKM-Stabsfunktionskatalog, systemweit + je Org erweiterbar."""
+    __tablename__ = "gsl_staff_role"
+
+    id:               Mapped[int] = mapped_column(Integer, primary_key=True)
+    code:             Mapped[str] = mapped_column(String(20))
+    name:             Mapped[str] = mapped_column(String(80))
+    sort_order:       Mapped[int] = mapped_column(Integer, default=0)
+    is_required:      Mapped[bool] = mapped_column(Boolean, default=False)
+    allows_multiple:  Mapped[bool] = mapped_column(Boolean, default=False)
+    org_id:           Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
+
+    assignments: Mapped[list[GslStaffAssignment]] = relationship(back_populates="role")
+
+
+class GslStaffAssignment(Base):
+    """Wer hat welche SKKM-Funktion von wann bis wann besetzt (inkl. Ablöse-Kette)."""
+    __tablename__ = "gsl_staff_assignment"
+
+    id:             Mapped[int] = mapped_column(Integer, primary_key=True)
+    incident_id:    Mapped[int] = mapped_column(
+        Integer, ForeignKey("major_incident.id", ondelete="CASCADE"), index=True)
+    role_id:        Mapped[int] = mapped_column(Integer, ForeignKey("gsl_staff_role.id"))
+    org_id:         Mapped[int] = mapped_column(BigInteger, index=True)
+    member_id:      Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("member.id", ondelete="SET NULL"), nullable=True)
+    person_name:    Mapped[str | None] = mapped_column(String(120), nullable=True)
+    is_lead:        Mapped[bool] = mapped_column(Boolean, default=True)
+    start_at:       Mapped[datetime] = mapped_column(DateTime)
+    end_at:         Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    predecessor_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("gsl_staff_assignment.id", ondelete="SET NULL"), nullable=True)
+    note:           Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by:     Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at:     Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    role:           Mapped[GslStaffRole] = relationship(back_populates="assignments")
+    incident:       Mapped[MajorIncident] = relationship(back_populates="gsl_staff")
+    predecessor:    Mapped[GslStaffAssignment | None] = relationship(
+        foreign_keys=[predecessor_id], remote_side="GslStaffAssignment.id")
+
+    @property
+    def display_name(self) -> str:
+        return self.person_name or "–"
+
+
 class _SitePriorityColType(TypeDecorator):
     """Maps SitePriority IntEnum ↔ INTEGER column in the database.
 
@@ -118,6 +167,8 @@ class MajorIncident(Base):
         back_populates="major_incident", cascade="all, delete-orphan")
     sectors:        Mapped[list[Sector]] = relationship(cascade="all, delete-orphan")
     staff:          Mapped[list[StaffAssignment]] = relationship(cascade="all, delete-orphan")
+    gsl_staff:      Mapped[list[GslStaffAssignment]] = relationship(
+        back_populates="incident", cascade="all, delete-orphan")
     comms:          Mapped[list[CommLogEntry]] = relationship(cascade="all, delete-orphan")
     journal_entries: Mapped[list[LageJournalEntry]] = relationship(cascade="all, delete-orphan")
     einheiten:      Mapped[list[LageEinheit]] = relationship(cascade="all, delete-orphan")
@@ -132,6 +183,10 @@ class Sector(Base):
     name:              Mapped[str] = mapped_column(String(80))
     leader_label:      Mapped[str | None] = mapped_column(String(80), nullable=True)
     color:             Mapped[str | None] = mapped_column(String(7), nullable=True)
+    geometry:          Mapped[str | None] = mapped_column(Text, nullable=True)     # GeoJSON Polygon
+    sort_order:        Mapped[int] = mapped_column(Integer, default=0)
+    leader_assignment_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("gsl_staff_assignment.id", ondelete="SET NULL"), nullable=True)
 
 
 class StaffAssignment(Base):
@@ -178,6 +233,7 @@ class IncidentSite(Base):
     danger_score:  Mapped[int | None] = mapped_column(Integer, nullable=True)
     urgency_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sort_index:    Mapped[int] = mapped_column(Integer, default=0)
+    section_assigned_mode: Mapped[str] = mapped_column(String(8), default="auto")  # auto|manual
 
     incident_id:  Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("incident.id", ondelete="SET NULL"), nullable=True)
@@ -333,3 +389,25 @@ class LageJournalEntry(Base):
     author_name:       Mapped[str | None] = mapped_column(String(120), nullable=True)
     user_id:           Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id"), nullable=True)
+
+
+# ── Fahrzeugpositions-Historie ─────────────────────────────────────────────────
+
+class VehiclePosition(Base):
+    """GPS- oder manuell erfasste Fahrzeugpositionen (Positionshistorie)."""
+    __tablename__ = "vehicle_position"
+
+    id:             Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    incident_id:    Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("major_incident.id", ondelete="SET NULL"), nullable=True, index=True)
+    org_id:         Mapped[int] = mapped_column(BigInteger, index=True)
+    vehicle_id:     Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("vehicle_master.id", ondelete="SET NULL"), nullable=True, index=True)
+    resource_label: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    lat:            Mapped[float] = mapped_column(Float)
+    lon:            Mapped[float] = mapped_column(Float)
+    accuracy_m:     Mapped[float | None] = mapped_column(Float, nullable=True)
+    source:         Mapped[str] = mapped_column(String(8), default="gps")   # gps|manual
+    recorded_at:    Mapped[datetime] = mapped_column(DateTime)
+    received_at:    Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    reported_by:    Mapped[int | None] = mapped_column(BigInteger, nullable=True)

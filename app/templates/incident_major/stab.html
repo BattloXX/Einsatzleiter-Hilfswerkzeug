@@ -7,7 +7,8 @@
 .lage-status--active  { background:rgba(34,197,94,.15); color:#4ade80; }
 .lage-status--closed  { background:rgba(107,114,128,.2); color:#9ca3af; }
 .lage-status--standby { background:rgba(245,158,11,.15); color:#fbbf24; }
-.stab-wrap { padding: 14px 16px; max-width: 1100px; margin: 0 auto; }
+
+.stab-wrap { padding: 14px 16px; max-width: 1200px; margin: 0 auto; }
 .stab-topbar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 8px 14px; border-bottom: 1px solid var(--border);
@@ -22,28 +23,50 @@
 .lage-subnav a.active { background: rgba(255,255,255,.1); color: var(--text); font-weight: 600; }
 @media (max-width: 900px) { .lage-subnav { display: none; } }
 
+/* Ampel-Banner */
+.ampel-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 14px; border-radius: 6px; margin-bottom: 14px;
+  font-size: .84rem; font-weight: 600;
+}
+.ampel-banner--red    { background: rgba(239,68,68,.15);  border: 1px solid rgba(239,68,68,.4);  color: #f87171; }
+.ampel-banner--yellow { background: rgba(234,179,8,.12);  border: 1px solid rgba(234,179,8,.4);  color: #facc15; }
+.ampel-banner--green  { background: rgba(34,197,94,.1);   border: 1px solid rgba(34,197,94,.3);  color: #4ade80; }
+
+/* Tafel-Grid */
 .fn-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
+.fn-card--el { grid-column: 1 / -1; }
+
 .fn-card {
   background: var(--surface-elevated, #1e2130);
-  border: 1px solid var(--border); border-radius: 8px;
-  overflow: hidden;
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
 }
-.fn-card--lageleitung { grid-column: 1 / -1; }
+.fn-card--red    { border-color: rgba(239,68,68,.5); }
+.fn-card--yellow { border-color: rgba(234,179,8,.5); }
+.fn-card--green  { border-color: rgba(34,197,94,.3); }
+
 .fn-card__header {
-  padding: 8px 12px;
-  background: rgba(255,255,255,.04);
-  border-bottom: 1px solid var(--border);
-  font-size: .82rem; font-weight: 600;
+  padding: 7px 12px;
+  background: rgba(255,255,255,.04); border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
+  font-size: .82rem; font-weight: 600;
 }
-.fn-badge {
+.fn-card__code {
   font-size: .65rem; font-weight: 700; padding: 1px 6px;
-  border-radius: 10px; background: rgba(147,197,253,.15); color: #93c5fd;
+  border-radius: 8px; background: rgba(147,197,253,.15); color: #93c5fd;
+  white-space: nowrap;
 }
+.fn-card__ampel {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.fn-card__ampel--red    { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
+.fn-card__ampel--yellow { background: #eab308; box-shadow: 0 0 5px #eab308; }
+.fn-card__ampel--green  { background: #22c55e; }
+
 .fn-card__body { padding: 8px 12px; }
 
 .asgn-row {
@@ -53,10 +76,50 @@
 }
 .asgn-row:first-child { border-top: none; }
 .asgn-label { flex: 1; font-weight: 500; }
-.asgn-since { font-size: .7rem; color: var(--text-muted); white-space: nowrap; }
+.asgn-since { font-size: .68rem; color: var(--text-muted); white-space: nowrap; }
+.asgn-duration {
+  font-size: .68rem; font-family: var(--font-mono, monospace);
+  color: var(--text-muted); white-space: nowrap;
+}
+.asgn-actions { display: flex; gap: 4px; }
 
-.fn-add-form { margin-top: 10px; display: flex; gap: 6px; }
 .fn-empty { font-size: .78rem; color: var(--text-muted); padding: 6px 0; }
+.fn-warn  { font-size: .72rem; color: #facc15; padding: 3px 0; }
+
+/* Modal */
+.stab-modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px; min-width: 320px; max-width: 450px;
+}
+.stab-modal::backdrop { background: rgba(0,0,0,.6); }
+.stab-modal h3 { font-size: .92rem; margin: 0 0 14px; }
+
+/* Zeitstrahl */
+.timeline-wrap { margin-top: 16px; }
+.timeline-header {
+  font-size: .78rem; font-weight: 600; color: var(--text-muted);
+  letter-spacing: .04em; margin-bottom: 10px;
+}
+.tl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: .78rem; }
+.tl-label { width: 80px; flex-shrink: 0; font-size: .72rem; font-weight: 600; color: var(--text-muted); }
+.tl-track { flex: 1; position: relative; height: 20px; background: rgba(255,255,255,.05);
+  border-radius: 4px; overflow: visible; }
+.tl-bar {
+  position: absolute; top: 0; height: 100%;
+  border-radius: 4px; font-size: .65rem; display: flex; align-items: center;
+  padding: 0 5px; overflow: hidden; white-space: nowrap; cursor: default;
+  color: rgba(255,255,255,.9);
+}
+.tl-bar--current { opacity: 1; }
+.tl-bar--ended   { opacity: .65; }
+
+/* Tab-Nav */
+.stab-tabs { display: flex; gap: 2px; margin-bottom: 14px; }
+.stab-tab {
+  font-size: .8rem; padding: 5px 14px; border-radius: 4px; border: none;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.stab-tab.active { background: rgba(255,255,255,.1); color: var(--text); font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -83,7 +146,7 @@
 
 <div class="stab-topbar">
   <a href="/lage/{{ lage.id }}" class="btn btn--ghost btn--sm" title="Zurück zum Board">←</a>
-  <div class="stab-topbar__title" title="{{ lage.name }}">{{ lage.name }}</div>
+  <div class="stab-topbar__title">{{ lage.name }}</div>
   <span class="lage-status lage-status--{{ lage.status.value }}">{{ lage.status.value }}</span>
   <nav class="lage-subnav">
     <a href="/lage/{{ lage.id }}">📋 Board{% if open_count %} ({{ open_count }}){% endif %}</a>
@@ -99,135 +162,59 @@
   </nav>
 </div>
 
-<div class="stab-wrap">
-  <div class="fn-grid">
+<div class="stab-wrap" x-data="stabApp()">
 
-    {% for fn in staff_functions %}
-    {% set assignments = staff_by_fn[fn] %}
-    <div class="fn-card {% if fn.value == 'lageleitung' %}fn-card--lageleitung{% endif %}">
-
-      <div class="fn-card__header">
-        <span>{{ staff_fn_label[fn] }}</span>
-        {% if assignments %}
-        <span class="fn-badge">{{ assignments|length }}</span>
-        {% endif %}
-      </div>
-
-      <div class="fn-card__body">
-
-        {% if assignments %}
-        {% for a in assignments %}
-        <div class="asgn-row">
-          <span class="asgn-label">{{ a.label or '–' }}</span>
-          <span class="asgn-since">{{ a.assigned_at|local_time }}</span>
-          {% if can_edit %}
-          <form hx-post="/lage/{{ lage.id }}/stab/{{ a.id }}/freigeben"
-                hx-swap="none"
-                hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
-                hx-confirm="Person freigeben?"
-                hx-on::after-request="if(event.detail.successful){location.reload();}">
-            <button type="submit" class="btn btn--xs btn--ghost">✕</button>
-          </form>
-          {% endif %}
-        </div>
-        {% endfor %}
-        {% else %}
-        <div class="fn-empty">Nicht besetzt</div>
-        {% endif %}
-
-        {% if can_edit and lage.status.value == 'active' %}
-        <form class="fn-add-form"
-              hx-post="/lage/{{ lage.id }}/stab/zuweisen"
-              hx-swap="none"
-              hx-vals='{"_csrf":"{{ request.state.csrf_token }}","function":"{{ fn.value }}"}'
-              hx-on::after-request="if(event.detail.successful){this.reset();location.reload();}">
-          <input type="text" name="label" class="form-input" placeholder="Name / Rufname…"
-                 required maxlength="120" autocomplete="off" style="flex:1;">
-          <button type="submit" class="btn btn--secondary btn--sm">+</button>
-        </form>
-        {% endif %}
-
-      </div>
-    </div>
-    {% endfor %}
-
-  </div>
-
-  {# ── Lage-Journal ────────────────────────────────────────────────────────── #}
-  <div class="dash-section" style="margin-top:16px;background:var(--surface-elevated,#1e2130);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
-    <div style="font-size:.78rem;font-weight:600;color:var(--text-muted);letter-spacing:.04em;margin-bottom:10px;">
-      LAGE-JOURNAL
-    </div>
-
-    {% if can_edit and lage.status.value == 'active' %}
-    <form hx-post="/lage/{{ lage.id }}/journal"
-          hx-swap="none"
-          hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
-          hx-on::after-request="if(event.detail.successful){this.reset();location.reload();}"
-          style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
-      <textarea name="text" class="form-input" rows="2" required maxlength="2000"
-                placeholder="Entscheidung, Lagemeldung oder Anweisung…"
-                style="resize:vertical;font-size:.84rem;"></textarea>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <select name="category" class="form-input" style="flex:1;font-size:.82rem;padding:4px 8px;">
-          {% for cat_key, cat_label in journal_categories.items() %}
-          <option value="{{ cat_key }}">{{ cat_label }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="btn btn--secondary btn--sm">Eintragen</button>
-      </div>
-    </form>
-    {% endif %}
-
-    {% if journal_entries %}
-    <div style="display:flex;flex-direction:column;gap:6px;">
-      {% for entry in journal_entries %}
-      {% set cat_color = journal_category_color.get(entry.category, 'muted') %}
-      <div style="padding:8px 10px;background:var(--surface-high,#252a3a);border-radius:6px;
-                  border-left:3px solid {% if cat_color == 'purple' %}#a855f7{% elif cat_color == 'orange' %}#f97316{% elif cat_color == 'blue' %}#60a5fa{% else %}#4b5563{% endif %};">
-        <div style="display:flex;align-items:flex-start;gap:6px;">
-          <span style="font-size:.62rem;font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap;margin-top:2px;
-            {% if cat_color == 'purple' %}background:rgba(168,85,247,.2);color:#c4b5fd;
-            {% elif cat_color == 'orange' %}background:rgba(249,115,22,.2);color:#fdba74;
-            {% elif cat_color == 'blue' %}background:rgba(59,130,246,.2);color:#93c5fd;
-            {% else %}background:rgba(107,114,128,.2);color:#9ca3af;{% endif %}">
-            {{ journal_categories.get(entry.category, entry.category)|upper }}
-          </span>
-          <span style="font-size:.84rem;flex:1;line-height:1.45;">{{ entry.text }}</span>
-          {% if can_manage %}
-          <form hx-post="/lage/{{ lage.id }}/journal/{{ entry.id }}/loeschen"
-                hx-swap="none"
-                hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
-                hx-confirm="Eintrag löschen?"
-                hx-on::after-request="if(event.detail.successful){location.reload();}"
-                style="margin:0;flex-shrink:0;">
-            <button type="submit" class="btn btn--xs btn--ghost" title="Löschen">✕</button>
-          </form>
-          {% endif %}
-        </div>
-        <div style="font-size:.68rem;color:var(--text-muted);margin-top:4px;padding-left:0;">
-          {{ entry.ts|local_datetime }}{% if entry.author_name %} · {{ entry.author_name }}{% endif %}
-        </div>
-      </div>
-      {% endfor %}
-    </div>
+  {# ── Ampel-Banner ─────────────────────────────────────────────────────────── #}
+  {% set overall = check.overall %}
+  <div class="ampel-banner ampel-banner--{{ overall }}"
+       id="ampel-banner"
+       hx-get="/lage/{{ lage.id }}/stab/tafel"
+       hx-trigger="staffChanged from:body"
+       hx-target="#stab-tafel"
+       hx-swap="innerHTML">
+    {% if overall == 'red' %}
+      🔴 Pflichtfunktion(en) unbesetzt — Lage kritisch
+    {% elif overall == 'yellow' %}
+      🟡 Hinweise: Ablösebedarf oder Mehrfachbesetzung
     {% else %}
-    <div style="font-size:.78rem;color:var(--text-muted);padding:6px 0;">Noch keine Einträge.</div>
+      🟢 Stab vollständig besetzt
     {% endif %}
+    <span style="font-size:.72rem;font-weight:400;margin-left:auto;">
+      {% set red_count = check.roles | selectattr('status', 'equalto', 'red') | list | length %}
+      {% set yellow_count = check.roles | selectattr('status', 'equalto', 'yellow') | list | length %}
+      {% if red_count %}{{ red_count }} unbesetzt{% endif %}
+      {% if red_count and yellow_count %} · {% endif %}
+      {% if yellow_count %}{{ yellow_count }} Hinweis{% if yellow_count != 1 %}e{% endif %}{% endif %}
+    </span>
   </div>
 
-  {# ── KI-Pressemeldung (S5) ───────────────────────────────────────────────── #}
+  {# ── Tab-Navigation ────────────────────────────────────────────────────────── #}
+  <div class="stab-tabs">
+    <button class="stab-tab" :class="{active: tab==='tafel'}" @click="tab='tafel'">Besetzungstafel</button>
+    <button class="stab-tab" :class="{active: tab==='journal'}" @click="tab='journal'; loadJournal()">Personenjournal</button>
+  </div>
+
+  {# ── Besetzungstafel ───────────────────────────────────────────────────────── #}
+  <div x-show="tab==='tafel'" id="stab-tafel">
+    {% include "incident_major/_stab_tafel.html" %}
+  </div>
+
+  {# ── Personenjournal ───────────────────────────────────────────────────────── #}
+  <div x-show="tab==='journal'"
+       id="stab-journal"
+       hx-get="/lage/{{ lage.id }}/stab/journal"
+       hx-trigger="load once">
+    <div style="color:var(--text-muted);font-size:.8rem;padding:16px 0;">Lade Journal…</div>
+  </div>
+
+  {# ── KI-Pressemeldung (S5) ─────────────────────────────────────────────────── #}
   <div class="dash-section" style="margin-top:16px;background:var(--surface-elevated,#1e2130);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <span style="font-size:.78rem;font-weight:600;color:var(--text-muted);letter-spacing:.04em;">
-        KI-PRESSEMELDUNG (S5)
-      </span>
+      <span style="font-size:.78rem;font-weight:600;color:var(--text-muted);letter-spacing:.04em;">KI-PRESSEMELDUNG (S5)</span>
       <form hx-post="/lage/{{ lage.id }}/pressemeldung"
-            hx-target="#presse-result"
-            hx-swap="innerHTML"
+            hx-target="#presse-result" hx-swap="innerHTML"
             hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
-            hx-indicator="#presse-spin"
-            style="margin:0;">
+            hx-indicator="#presse-spin" style="margin:0;">
         <button type="submit" class="btn btn--ghost btn--sm">
           ✨ Entwurf erstellen
           <span id="presse-spin" class="htmx-indicator" style="font-size:.75rem;"> …</span>
@@ -240,4 +227,147 @@
   </div>
 
 </div>
+
+{# ── Besetzungs-Modal ──────────────────────────────────────────────────────── #}
+<dialog id="modal-besetzen" class="stab-modal">
+  <h3 id="modal-besetzen-title">Funktion besetzen</h3>
+  <form id="form-besetzen" method="post">
+    <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+    <input type="hidden" name="role_id" id="modal-role-id">
+    <div class="form-group">
+      <label class="form-label">Person / Rufname</label>
+      <input type="text" name="person_name" id="modal-person-name" class="form-input"
+             placeholder="Vor- und Zuname oder Rufname" maxlength="120" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Zeitpunkt (leer = jetzt)</label>
+      <input type="datetime-local" name="start_at" id="modal-start-at" class="form-input">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Leiter</label>
+      <select name="is_lead" class="form-input" style="font-size:.82rem;padding:4px 8px;">
+        <option value="true">Ja – Leitungsfunktion</option>
+        <option value="false">Nein – Mitarbeiter</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notiz (optional)</label>
+      <input type="text" name="note" class="form-input" placeholder="Zusatzinfo…" maxlength="120">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button type="button" onclick="document.getElementById('modal-besetzen').close()" class="btn btn--ghost btn--sm">Abbrechen</button>
+      <button type="submit" class="btn btn--primary btn--sm">Besetzen</button>
+    </div>
+  </form>
+</dialog>
+
+{# ── Ablöse-Modal ────────────────────────────────────────────────────────────── #}
+<dialog id="modal-abloesen" class="stab-modal">
+  <h3>Ablösung erfassen</h3>
+  <form id="form-abloesen" method="post">
+    <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+    <div class="form-group">
+      <label class="form-label">Abgelöst durch</label>
+      <input type="text" name="person_name" id="modal-abloes-person" class="form-input"
+             placeholder="Name der ablösenden Person" maxlength="120" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Zeitpunkt der Ablösung</label>
+      <input type="datetime-local" name="at" id="modal-abloes-at" class="form-input">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notiz (optional)</label>
+      <input type="text" name="note" class="form-input" placeholder="Übergabe-Hinweise…" maxlength="120">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button type="button" onclick="document.getElementById('modal-abloesen').close()" class="btn btn--ghost btn--sm">Abbrechen</button>
+      <button type="submit" class="btn btn--primary btn--sm">Ablösen</button>
+    </div>
+  </form>
+</dialog>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function stabApp() {
+  return {
+    tab: 'tafel',
+    loadJournal() {
+      // htmx trigger on first show handles loading
+    }
+  };
+}
+
+// Öffnet das Besetzen-Modal
+function openBesetzen(roleId, roleName) {
+  document.getElementById('modal-role-id').value = roleId;
+  document.getElementById('modal-besetzen-title').textContent = roleName + ' besetzen';
+  document.getElementById('form-besetzen').action = '/lage/{{ lage.id }}/stab/besetzen';
+  // Zeitpunkt vorbelegen (jetzt, auf Minute gerundet)
+  var now = new Date();
+  now.setSeconds(0, 0);
+  document.getElementById('modal-start-at').value = now.toISOString().slice(0,16);
+  document.getElementById('modal-besetzen').showModal();
+}
+
+// Öffnet das Ablöse-Modal
+function openAbloesen(asgnId, roleName) {
+  document.getElementById('form-abloesen').action = '/lage/{{ lage.id }}/stab/' + asgnId + '/abloesen';
+  var now = new Date();
+  now.setSeconds(0, 0);
+  document.getElementById('modal-abloes-at').value = now.toISOString().slice(0,16);
+  document.getElementById('modal-abloesen').showModal();
+}
+
+// Beenden ohne Ablöse
+async function beendeAsgn(asgnId) {
+  if (!confirm('Besetzung beenden?')) return;
+  var r = await fetch('/lage/{{ lage.id }}/stab/' + asgnId + '/beenden', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: '_csrf={{ request.state.csrf_token }}&at=',
+  });
+  if (r.ok) {
+    htmx.trigger(document.body, 'staffChanged');
+    location.reload();
+  }
+}
+
+// Form-Submissions via fetch → Reload
+document.addEventListener('DOMContentLoaded', function() {
+  ['form-besetzen', 'form-abloesen'].forEach(function(id) {
+    var form = document.getElementById(id);
+    if (!form) return;
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var data = new URLSearchParams(new FormData(form));
+      var r = await fetch(form.action, { method: 'POST', body: data });
+      if (r.ok) {
+        form.closest('dialog').close();
+        htmx.trigger(document.body, 'staffChanged');
+        location.reload();
+      } else {
+        var j = await r.json().catch(() => ({detail: 'Fehler'}));
+        alert(j.detail || 'Fehler beim Speichern');
+      }
+    });
+  });
+});
+
+// WS: staff:changed → Banner + Tafel neu laden
+(function() {
+  var wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+  var ws = new WebSocket(wsProto + '://' + location.host + '/ws/lage/{{ lage.id }}');
+  ws.onmessage = function(ev) {
+    try {
+      var msg = JSON.parse(ev.data);
+      if (msg.type === 'staff:changed') {
+        htmx.ajax('GET', '/lage/{{ lage.id }}/stab/tafel', {target:'#stab-tafel', swap:'innerHTML'});
+      }
+    } catch(e) {}
+  };
+  ws.onclose = function() { setTimeout(arguments.callee, 3000); };
+})();
+</script>
 {% endblock %}

@@ -55,6 +55,8 @@ dependencies = [
     "openpyxl>=3.1",
     # KI-Integration (Anthropic Claude)
     "anthropic>=0.50",
+    # Geodienste: Point-in-Polygon (GSL Abschnittszuweisung)
+    "shapely>=2.0",
 ]
 
 [project.optional-dependencies]

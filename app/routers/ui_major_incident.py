@@ -353,6 +353,9 @@ async def site_create(
         ))
         write_audit(db, "major_incident.site.created", user_id=user.id,
                     payload={"lage_id": lage_id, "site_id": site.id, "bezeichnung": site.bezeichnung})
+        # Auto-Abschnitts-Zuweisung nach Geocoding
+        from app.services.geo_service import auto_assign_section
+        auto_assign_section(db, site)
         db.commit()
     except Exception:
         logger.exception("Fehler beim Anlegen der Einsatzstelle lage_id=%s", lage_id)
@@ -775,6 +778,9 @@ async def site_pin_save(
         user_id=user.id,
         author_name=get_author_name(request),
     ))
+    # Auto-Abschnitts-Zuweisung nach Pin-Setzen
+    from app.services.geo_service import auto_assign_section
+    auto_assign_section(db, site)
     db.commit()
     await broadcast_lage(lage_id, {"type": "site_updated", "site_id": site_id, "reload_board": True})
 
@@ -1112,10 +1118,9 @@ async def lage_stab(
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
 
-    staff_by_fn: dict[StaffFunction, list] = {fn: [] for fn in StaffFunction}
-    for s in lage.staff:
-        if not s.released_at:
-            staff_by_fn[s.function].append(s)
+    from app.services.gsl_staff_service import soll_check, get_roles
+    check = soll_check(db, lage_id, lage.org_id)
+    roles = get_roles(db, lage.org_id)
 
     journal_entries = (
         db.query(LageJournalEntry)
@@ -1127,9 +1132,8 @@ async def lage_stab(
     return templates.TemplateResponse(request, "incident_major/stab.html", {
         "user": user,
         "lage": lage,
-        "staff_by_fn": staff_by_fn,
-        "staff_fn_label": STAFF_FUNCTION_LABEL,
-        "staff_functions": list(StaffFunction),
+        "check": check,
+        "roles": roles,
         "journal_entries": journal_entries,
         "journal_categories": JOURNAL_CATEGORIES,
         "journal_category_color": JOURNAL_CATEGORY_COLOR,
@@ -2195,9 +2199,258 @@ async def site_sektor_assign(
         raise HTTPException(status_code=404)
 
     site.sector_id = sector_id or None
+    site.section_assigned_mode = "manual"  # manuell → sticky
     db.commit()
     await broadcast_lage(lage_id, {"type": "site_updated", "site_id": site_id, "reload_board": True})
     return Response(status_code=204)
+
+
+# ── Abschnitt-Polygon-API ──────────────────────────────────────────────────────
+
+@router.put("/lage/{lage_id}/sektoren/{sektor_id}/geometrie")
+async def sektor_geometry_update(
+    request: Request,
+    lage_id: int,
+    sektor_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin")),
+):
+    """Speichert GeoJSON-Polygon eines Abschnitts und löst Auto-Zuweisung aus."""
+    import json as _json
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    sector = db.get(Sector, sektor_id)
+    if not sector or sector.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+
+    data = await request.json()
+    geometry = data.get("geometry")  # GeoJSON Polygon oder null
+
+    if geometry is not None:
+        from app.services.geo_service import validate_geojson_polygon
+        err = validate_geojson_polygon(geometry)
+        if err:
+            raise HTTPException(status_code=400, detail=err)
+        sector.geometry = _json.dumps(geometry)
+    else:
+        sector.geometry = None
+
+    db.commit()
+
+    # Auto-Zuweisung neu berechnen
+    from app.services.geo_service import bulk_reassign_section
+    changed = bulk_reassign_section(db, lage_id)
+    if changed:
+        db.commit()
+
+    await broadcast_lage(lage_id, {"type": "section:changed", "sector_id": sektor_id, "reload_board": False})
+    return Response(status_code=204)
+
+
+@router.delete("/lage/{lage_id}/sektoren/{sektor_id}/geometrie")
+async def sektor_geometry_delete(
+    request: Request,
+    lage_id: int,
+    sektor_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    sector = db.get(Sector, sektor_id)
+    if not sector or sector.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+
+    sector.geometry = None
+
+    # Stellen ohne Polygon → "kein Abschnitt"
+    from app.services.geo_service import bulk_reassign_section
+    bulk_reassign_section(db, lage_id)
+    db.commit()
+
+    await broadcast_lage(lage_id, {"type": "section:changed", "sector_id": sektor_id, "reload_board": False})
+    return Response(status_code=204)
+
+
+# ── Einsatz-Detail-Panel (Karte) ───────────────────────────────────────────────
+
+@router.get("/lage/{lage_id}/stellen/{site_id}/panel", response_class=HTMLResponse)
+async def site_panel(
+    request: Request,
+    lage_id: int,
+    site_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    site = db.get(IncidentSite, site_id)
+    if not site or site.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+
+    sectors = sorted(lage.sectors, key=lambda s: s.id)
+
+    return templates.TemplateResponse(request, "incident_major/_site_panel.html", {
+        "user": user,
+        "lage": lage,
+        "site": site,
+        "sectors": sectors,
+        "phase_labels": PHASE_LABELS,
+        "phase_order": PHASE_ORDER,
+        "prio_color": SITE_PRIORITY_COLOR,
+        "prio_label": SITE_PRIORITY_LABEL,
+        "can_edit": _can_edit(user),
+    })
+
+
+# ── Fahrzeugpositionen (Karten-API) ───────────────────────────────────────────
+
+@router.get("/lage/{lage_id}/fahrzeuge/positionen")
+async def vehicle_positions(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    """Gibt aktuelle Fahrzeugpositionen (letzte je Fahrzeug) als JSON zurück."""
+    import json as _json
+    from datetime import timedelta
+    from app.models.major_incident import VehiclePosition
+    from app.models.user import DeviceToken
+    from app.models.master import VehicleMaster, OrgSettings
+
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    settings = db.query(OrgSettings).filter(OrgSettings.org_id == lage.org_id).first()
+    stale_minutes = (settings.vehicle_stale_minutes if settings else 5) or 5
+
+    now = datetime.now(UTC)
+    stale_threshold = now - timedelta(minutes=stale_minutes)
+
+    # Letzte Position je Fahrzeug aus der Historie
+    from sqlalchemy import func
+    subq = (
+        db.query(
+            VehiclePosition.vehicle_id,
+            func.max(VehiclePosition.received_at).label("last_received"),
+        )
+        .filter(
+            VehiclePosition.incident_id == lage_id,
+            VehiclePosition.vehicle_id.isnot(None),
+        )
+        .group_by(VehiclePosition.vehicle_id)
+        .subquery()
+    )
+    positions = (
+        db.query(VehiclePosition)
+        .join(subq, (VehiclePosition.vehicle_id == subq.c.vehicle_id) &
+                    (VehiclePosition.received_at == subq.c.last_received))
+        .all()
+    )
+
+    # Zusätzlich: manuelle Pins (source=manual) der letzten 24h ohne GPS-Duplikat
+    manual_positions = (
+        db.query(VehiclePosition)
+        .filter(
+            VehiclePosition.incident_id == lage_id,
+            VehiclePosition.vehicle_id.is_(None),
+            VehiclePosition.source == "manual",
+        )
+        .order_by(VehiclePosition.received_at.desc())
+        .all()
+    )
+
+    result = []
+    for p in positions:
+        vehicle = db.get(VehicleMaster, p.vehicle_id) if p.vehicle_id else None
+        is_stale = p.received_at.replace(tzinfo=UTC) < stale_threshold if p.received_at.tzinfo is None else p.received_at < stale_threshold
+        result.append({
+            "id": p.id,
+            "vehicle_id": p.vehicle_id,
+            "label": vehicle.code if vehicle else p.resource_label or "?",
+            "name": vehicle.name if vehicle else (p.resource_label or ""),
+            "lat": p.lat,
+            "lng": p.lon,
+            "source": p.source,
+            "is_stale": is_stale,
+            "ts": p.received_at.isoformat() if p.received_at else None,
+        })
+
+    for p in manual_positions:
+        result.append({
+            "id": p.id,
+            "vehicle_id": None,
+            "label": p.resource_label or "?",
+            "name": p.resource_label or "",
+            "lat": p.lat,
+            "lng": p.lon,
+            "source": "manual",
+            "is_stale": False,
+            "ts": p.received_at.isoformat() if p.received_at else None,
+        })
+
+    from fastapi.responses import JSONResponse
+    return JSONResponse(result)
+
+
+@router.post("/lage/{lage_id}/fahrzeuge/manuell")
+async def vehicle_manual_pin(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    """Setzt einen manuellen Fahrzeug-Pin (Ressource ohne GPS)."""
+    from app.models.major_incident import VehiclePosition
+
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    data = await request.json()
+    try:
+        lat = float(data["lat"])
+        lng = float(data["lng"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="lat/lng fehlen")
+
+    label = (data.get("label") or "").strip()[:120] or None
+    vehicle_id = data.get("vehicle_id")
+
+    now = datetime.now(UTC)
+    db.add(VehiclePosition(
+        incident_id=lage_id,
+        org_id=lage.org_id,
+        vehicle_id=vehicle_id,
+        resource_label=label,
+        lat=lat,
+        lon=lng,
+        source="manual",
+        recorded_at=now,
+        received_at=now,
+        reported_by=user.id,
+    ))
+    db.commit()
+
+    await broadcast_lage(lage_id, {
+        "type": "vehicle:position",
+        "vehicle_id": vehicle_id,
+        "label": label or str(vehicle_id or "?"),
+        "lat": lat,
+        "lng": lng,
+        "source": "manual",
+        "ts": now.isoformat(),
+    })
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"ok": True})
 
 
 # ── Lagekarte ────────────────────────────────────────────────────────────────
@@ -2243,6 +2496,7 @@ async def lage_karte(
         "id": s.id,
         "name": s.name,
         "color": s.color or "#6b7280",
+        "geometry": json.loads(s.geometry) if s.geometry else None,
     } for s in sectors])
 
     from app.core.timezones import format_local_datetime

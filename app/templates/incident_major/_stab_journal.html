@@ -1,0 +1,112 @@
+{# HTMX-Partial: Personenjournal (chronologisch + Zeitstrahl) #}
+{# Kontext: lage, assignments, roles (dict id→role), can_edit #}
+
+{% if not assignments %}
+<div style="color:var(--text-muted);font-size:.82rem;padding:12px 0;">Noch keine Besetzungseinträge.</div>
+{% else %}
+
+{# ── Chronologische Tabelle ──────────────────────────────────────────────── #}
+<div style="overflow-x:auto;margin-bottom:20px;">
+  <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border);color:var(--text-muted);font-size:.72rem;">
+        <th style="text-align:left;padding:4px 8px;">Funktion</th>
+        <th style="text-align:left;padding:4px 8px;">Person</th>
+        <th style="text-align:left;padding:4px 8px;">Von</th>
+        <th style="text-align:left;padding:4px 8px;">Bis</th>
+        <th style="text-align:left;padding:4px 8px;">Dauer</th>
+        <th style="text-align:left;padding:4px 8px;">Abgelöst von</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in assignments | sort(attribute='start_at') %}
+      {% set role = roles.get(a.role_id) %}
+      <tr style="border-bottom:1px solid rgba(255,255,255,.04);">
+        <td style="padding:5px 8px;font-weight:600;white-space:nowrap;">
+          {% if role %}{{ role.code }} – {{ role.name }}{% else %}?{% endif %}
+        </td>
+        <td style="padding:5px 8px;">{{ a.display_name }}</td>
+        <td style="padding:5px 8px;white-space:nowrap;font-family:var(--font-mono,monospace);font-size:.72rem;">
+          {{ a.start_at|local_datetime }}
+        </td>
+        <td style="padding:5px 8px;white-space:nowrap;font-family:var(--font-mono,monospace);font-size:.72rem;">
+          {% if a.end_at %}{{ a.end_at|local_datetime }}{% else %}<span style="color:#4ade80;">aktiv</span>{% endif %}
+        </td>
+        <td style="padding:5px 8px;font-family:var(--font-mono,monospace);font-size:.72rem;color:var(--text-muted);">
+          {% if a.end_at %}
+            {% set secs = (a.end_at - a.start_at).total_seconds() | int %}
+            {{ '%d:%02d'|format(secs // 3600, (secs % 3600) // 60) }}h
+          {% else %}—{% endif %}
+        </td>
+        <td style="padding:5px 8px;font-size:.72rem;color:var(--text-muted);">
+          {% if a.predecessor_id %}Ablösung{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Zeitstrahl je Funktion ───────────────────────────────────────────────── #}
+{% if assignments %}
+{# Zeitstrahl-Spanne wird clientseitig via JS berechnet #}
+
+<div class="timeline-wrap">
+  <div class="timeline-header">ZEITSTRAHL JE FUNKTION</div>
+
+  {% set seen = namespace(ids=[]) %}
+  {% for a in assignments | sort(attribute='role_id') %}
+  {% if a.role_id not in seen.ids %}
+  {% set seen.ids = seen.ids + [a.role_id] %}
+  {% set role = roles.get(a.role_id) %}
+  {% set role_assignments = assignments | selectattr('role_id', 'equalto', a.role_id) | list %}
+
+  <div class="tl-row">
+    <div class="tl-label">{{ role.code if role else '?' }}</div>
+    <div class="tl-track" id="tl-{{ a.role_id }}">
+      {% for ra in role_assignments %}
+      <div title="{{ ra.display_name }} — {{ ra.start_at|local_datetime }}{% if ra.end_at %} bis {{ ra.end_at|local_datetime }}{% endif %}"
+           style="position:absolute;top:0;height:100%;border-radius:4px;
+             background:{% if ra.end_at is none %}rgba(34,197,94,.6){% else %}rgba(147,197,253,.4){% endif %};
+             font-size:.6rem;display:flex;align-items:center;padding:0 3px;overflow:hidden;white-space:nowrap;color:rgba(255,255,255,.9);"
+           data-start="{{ ra.start_at.isoformat() }}"
+           data-end="{{ ra.end_at.isoformat() if ra.end_at else '' }}"
+           data-name="{{ ra.display_name }}">
+        {{ ra.display_name[:15] }}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+
+<script>
+(function() {
+  var rows = document.querySelectorAll('.tl-track');
+  var now = new Date();
+  // Gesamtspanne ermitteln
+  var minTs = null, maxTs = now;
+  rows.forEach(function(track) {
+    track.querySelectorAll('[data-start]').forEach(function(bar) {
+      var s = new Date(bar.dataset.start);
+      if (!minTs || s < minTs) minTs = s;
+    });
+  });
+  if (!minTs) return;
+  var totalMs = maxTs - minTs || 1;
+
+  rows.forEach(function(track) {
+    track.querySelectorAll('[data-start]').forEach(function(bar) {
+      var s = new Date(bar.dataset.start);
+      var e = bar.dataset.end ? new Date(bar.dataset.end) : now;
+      var left = ((s - minTs) / totalMs * 100).toFixed(2);
+      var width = ((e - s) / totalMs * 100).toFixed(2);
+      bar.style.left = left + '%';
+      bar.style.width = Math.max(parseFloat(width), 0.5) + '%';
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endif %}
