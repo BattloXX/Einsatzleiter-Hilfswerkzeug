@@ -90,7 +90,9 @@ async def _trigger_ai_task_suggestions(
     suggestions = await suggest_tasks(meldung, einsatzart, org_id=org_id)
     if not suggestions:
         return
+    from app.core.tenant import set_tenant_context
     db = SessionLocal()
+    set_tenant_context(db, None)
     try:
         incident = db.get(Incident, incident_id)
         if not incident:

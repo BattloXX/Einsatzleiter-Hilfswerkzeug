@@ -11,7 +11,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings, validate_startup_secrets
+from app.core.dependencies import _resolve_current_org
 from app.core.security import unsign_session
+from app.core.tenant import set_tenant_context
 from app.db import SessionLocal
 from app.models.incident import Incident, IncidentToken
 from app.models.user import Role, User
@@ -90,6 +92,7 @@ async def lifespan(app: FastAPI):
 
 def _bootstrap_admin() -> None:
     db = SessionLocal()
+    set_tenant_context(db, None)
     try:
         from app.models.user import User as U
         from app.seed_data import _upsert_roles
@@ -129,6 +132,7 @@ def _bootstrap_admin() -> None:
 app = FastAPI(
     title="Einsatzleiter-Hilfswerkzeug",
     version=settings.APP_VERSION,
+    dependencies=[Depends(_resolve_current_org)],
     description=(
         "REST-API des Einsatzleiter-Hilfswerkzeugs.\n\n"
         "**Authentifizierung:** API-Key via Header `X-API-Key`.\n\n"
@@ -189,6 +193,7 @@ async def session_middleware(request: Request, call_next):
         if session_data:
             user_id, is_qr, qr_incident_id, is_device, display_name = session_data
             db = SessionLocal()
+            set_tenant_context(db, None)
             try:
                 user = db.query(User).filter(User.id == user_id, User.active == True).first()  # noqa: E712
                 if user and is_qr:

@@ -231,7 +231,9 @@ async def _enrich_with_ai_suggestions(
     if not suggestions:
         return
 
+    from app.core.tenant import set_tenant_context
     db = SessionLocal()
+    set_tenant_context(db, None)
     try:
         incident = db.get(Incident, incident_id)
         if not incident:
@@ -282,7 +284,9 @@ async def _enrich_with_ai_hints(
     if not hints:
         return
 
+    from app.core.tenant import set_tenant_context
     db = SessionLocal()
+    set_tenant_context(db, None)
     try:
         incident = db.get(Incident, incident_id)
         if not incident:
@@ -303,11 +307,13 @@ async def _apply_ai_prio_to_site(site_id: int) -> None:
 
     Only sets priority when none exists — never overwrites a manually set value.
     """
+    from app.core.tenant import set_tenant_context
     from app.db import SessionLocal
     from app.models.major_incident import IncidentSite, SitePriority
     from app.services.ai_service import analyze_site_reconnaissance
 
     db = SessionLocal()
+    set_tenant_context(db, None)
     try:
         site = db.get(IncidentSite, site_id)
         text = site.einsatzgrund or site.bezeichnung if site else None
@@ -622,11 +628,13 @@ class LageSiteCreatedResponse(BaseModel):
 
 async def _site_post_create_tasks(site_id: int) -> None:
     """Background task: geocode address and apply AI priority on a newly created site."""
+    from app.core.tenant import set_tenant_context
     from app.db import SessionLocal
     from app.models.major_incident import IncidentSite, MajorIncident, SitePriority
     from app.services.geocoding import geocode_address
     from app.services.ai_service import analyze_site_reconnaissance, is_enabled
     db = SessionLocal()
+    set_tenant_context(db, None)
     try:
         site = db.get(IncidentSite, site_id)
         if not site:
@@ -673,6 +681,7 @@ async def _enrich_site_from_alarm(
     org_id: int | None = None,
 ) -> None:
     """Background: geocode, AI priority, name/telefon notes."""
+    from app.core.tenant import set_tenant_context
     from app.db import SessionLocal
     from app.models.major_incident import IncidentSite, SiteLogEntry, SitePriority
     from app.services.geocoding import geocode_address
@@ -682,6 +691,7 @@ async def _enrich_site_from_alarm(
     )
 
     db = SessionLocal()
+    set_tenant_context(db, None)
     try:
         site = db.get(IncidentSite, site_id)
         if not site:
