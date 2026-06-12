@@ -929,7 +929,15 @@ function lageTicker(hints, aiFlags) {
       if (e.data === 'pong') return;
       try {
         const msg = JSON.parse(e.data);
-        if (msg.type === 'columns_reordered') location.reload();
+        if (msg.type === 'columns_reordered') {
+          location.reload();
+        } else if (msg.type === 'message_due') {
+          const state = window.Alpine && Alpine.$data(document.body);
+          if (state && state.addToast) {
+            state.addToast('Meldung fällig: ' + msg.title, 'warn');
+          }
+          try { new Audio('/static/audio/alarm.mp3').play().catch(function(){}); } catch(_) {}
+        }
       } catch (_) {}
     };
     _bws.onclose = function () { setTimeout(_connectBoardWs, 3000); };

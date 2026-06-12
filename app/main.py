@@ -75,17 +75,26 @@ async def lifespan(app: FastAPI):
     from app.services.breathing_service import _breathing_watchdog_loop
     watchdog_task = asyncio.create_task(_breathing_watchdog_loop())
 
+    # Background-Loop für fällige Meldungen (alle 30 Sekunden)
+    from app.services.task_reminder import task_reminder_loop
+    reminder_task = asyncio.create_task(task_reminder_loop())
+
     try:
         yield
     finally:
         autoclose_task.cancel()
         watchdog_task.cancel()
+        reminder_task.cancel()
         try:
             await autoclose_task
         except (asyncio.CancelledError, Exception):
             pass
         try:
             await watchdog_task
+        except (asyncio.CancelledError, Exception):
+            pass
+        try:
+            await reminder_task
         except (asyncio.CancelledError, Exception):
             pass
 
