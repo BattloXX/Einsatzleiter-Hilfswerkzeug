@@ -68,6 +68,20 @@ Falls die Datenbank in einem inkonsistenten Zustand ist:
 alembic stamp head
 ```
 
+### errno 150 „Foreign key constraint is incorrectly formed"
+
+Ursache: FK-Spalte hat falschen Typ (häufig `INT` statt `BIGINT`) oder eine andere Tabelle hat noch einen FK auf die zu ändernde Tabelle.
+
+- Alle FK-Spalten auf `fire_dept.id` müssen `BIGINT` sein.
+- Vor `ALTER TABLE` auf einer referenzierten Tabelle müssen alle eingehenden FKs per `INFORMATION_SCHEMA` gefunden und entfernt werden.
+- Referenz: [MIGRATION_RUNBOOK.md](../MIGRATION_RUNBOOK.md)
+
+### errno 1060 „Duplicate column name"
+
+Ursache: Migration wurde nach einem Teilfehler erneut ausgeführt, `ADD COLUMN` scheitert weil die Spalte schon existiert.
+
+Lösung: Neue Migrationen verwenden `ADD COLUMN IF NOT EXISTS` (MariaDB 10.11+). Bei älteren Migrationen: Spalten-Existenz über `INFORMATION_SCHEMA.COLUMNS` prüfen, dann bedingt anlegen.
+
 ## Push-Benachrichtigungen werden nicht zugestellt
 
 1. VAPID-Keys in `.env` korrekt gesetzt?

@@ -7,14 +7,14 @@
 ```bash
 # Als CloudPanel-Site-User (z.B. clp-einsatz):
 cd /home/clp-einsatz/htdocs/
-git clone https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug.git einsatzleiter
+git clone https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug.git einsatzleiter
 cd einsatzleiter
 ```
 
 ## 2. Virtuelle Umgebung anlegen
 
 ```bash
-python3.12 -m venv .venv
+python3.14 -m venv .venv
 source .venv/bin/activate
 ```
 

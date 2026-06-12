@@ -15,15 +15,16 @@ curl -sS https://installer.cloudpanel.io/ce/v2/install.sh -o install.sh
 sudo bash install.sh
 ```
 
-## Python 3.12
+## Python 3.14
 
 ```bash
-# Prüfen ob Python 3.12 vorhanden:
-python3.12 --version
+# Prüfen ob Python 3.14 vorhanden:
+python3.14 --version
 
-# Falls nicht:
+# Falls nicht (Deadsnakes PPA für Debian/Ubuntu):
 sudo apt-get update
-sudo apt-get install -y python3.12 python3.12-venv python3.12-dev
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt-get install -y python3.14 python3.14-venv python3.14-dev
 ```
 
 ## Systempakete für WeasyPrint und MariaDB

@@ -10,7 +10,7 @@ Sie werden beim ersten Start automatisch aus `app/seed_data.py` befüllt.
 
 **Admin** → **Fahrzeuge**
 
-### Fahrzeuge der eigenen Wehr
+Fahrzeuge sind org-spezifisch: jede Organisation verwaltet ihre eigenen Fahrzeuge.
 
 | Feld | Beschreibung |
 |------|-------------|
@@ -21,28 +21,17 @@ Sie werden beim ersten Start automatisch aus `app/seed_data.py` befüllt.
 | Reihenfolge | Sortierung im Board |
 | Aktiv | Inaktive Fahrzeuge erscheinen nicht mehr |
 
-### Nachbarwehren und deren Fahrzeuge
+### Nachbarwehren (Multi-Org)
 
-Unter **Wehren** können die Nachbarwehren mit ihren Fahrzeugen gepflegt werden.
+In einer Multi-Org-Instanz werden Nachbarwehren als eigene Organisationen angelegt und verwalten ihre Fahrzeuge selbst. Bei einem kollaborativen Einsatz erscheinen die Fahrzeuge der beteiligten Orgs automatisch im Board (mit der Org-Farbe als linkem Streifen).
 
-Jede Wehr hat:
-- **Slug**: Eindeutige Kennung (z.B. `lauterach`)
-- **Name**: Anzeigename
-- **Farbe**: Hex-Farbcode für den seitlichen Streifen auf den Karten
-
-Voreingestellte Org-Farben:
-| Wehr | Farbe |
-|------|-------|
-| Wolfurt | `#b71921` (Rot) |
-| Lauterach | `#1877f2` (Blau) |
-| Schwarzach | `#8e44ad` (Lila) |
-| Bildstein | `#2e9d55` (Grün) |
-| Bregenz | `#e67e22` (Orange) |
-| Kennelbach | `#00a6a6` (Türkis) |
+Für Single-Org-Betrieb mit vordefinierten Nachbar-Fahrzeugen: Fahrzeuge anderer Wehren direkt anlegen und ihrer `dept_id` zuordnen (System-Admin).
 
 ## Alarm-Stichwörter
 
 **Admin** → **Stichwörter**
+
+Stichwörter sind org-spezifisch (TenantScoped). Jede Organisation hat ihren eigenen Satz.
 
 Jedes Stichwort hat:
 - **Code**: z.B. `T1`, `F3`

@@ -4,21 +4,21 @@
 
 ## Voraussetzungen
 
-- Python 3.12
+- Python 3.14
 - Docker (für lokale MariaDB) oder eine lokale MariaDB-Installation
 - Git
 
 ## Repository klonen
 
 ```bash
-git clone https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug.git
-cd FWWO-Einsatzleiter-Hilfswerkzeug
+git clone https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug.git
+cd Einsatzleiter-Hilfswerkzeug
 ```
 
 ## Virtuelle Umgebung
 
 ```bash
-python3.12 -m venv .venv
+python3.14 -m venv .venv
 source .venv/bin/activate      # Linux/Mac
 # oder:
 .venv\Scripts\activate         # Windows
@@ -60,6 +60,10 @@ BOOTSTRAP_ADMIN_PASSWORD=admin123
 # VAPID-Keys optional für lokale Entwicklung:
 VAPID_PRIVATE_KEY=
 VAPID_PUBLIC_KEY=
+# Rate-Limits (optional, Defaults passen für Entwicklung):
+# LOGIN_RATELIMIT=10/minute
+# API_ALARM_RATELIMIT=60/minute
+# UPLOAD_RATELIMIT=20/minute
 ```
 
 ## Datenbank initialisieren

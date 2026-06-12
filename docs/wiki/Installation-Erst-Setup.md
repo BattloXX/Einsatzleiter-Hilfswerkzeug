@@ -54,6 +54,15 @@ python -m app.seed_data
 2. Benutzername: `admin`, Passwort: aus `.env`
 3. Nach Login: Startseite mit leerer Einsatzliste
 
+## Heimwehr-Org prüfen
+
+Beim App-Start wird automatisch eine **Heimwehr** angelegt (`is_home_org = true`). Sie bildet die Basis-Organisation für alle Stammdaten.
+
+Prüfen:
+```bash
+python -m app.cli list-orgs
+```
+
 ## Weitere Benutzer anlegen
 
 In der Webapp: **Admin** → **Benutzer** → **Neuer Benutzer**
@@ -63,7 +72,9 @@ Oder per CLI:
 python -m app.cli create-user --username stefan --password passwort --role incident_leader
 ```
 
-Verfügbare Rollen: `admin`, `incident_leader`, `breathing_supervisor`, `recorder`, `readonly`
+Verfügbare Rollen: `system_admin`, `org_admin`, `admin`, `incident_leader`, `breathing_supervisor`, `recorder`, `readonly`
+
+Für Multi-Org-Betrieb: den künftigen Org-Admin über einen Einladungslink einrichten (→ [Organisationen verwalten](Administration-Organisations-verwalten)).
 
 ## Passwort ändern
 

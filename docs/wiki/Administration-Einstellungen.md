@@ -48,6 +48,20 @@ Der Fallback-Standort bestimmt, wo der Karten-Picker im Adress-Bearbeitungs-Dial
 
 Details zur Lagekarte.info-Integration: [Lagekarte.info](Anwender-Lagekarte)
 
+## Auto-Schließen (Einsatz automatisch beenden)
+
+Einsätze können automatisch geschlossen werden, wenn sie für eine konfigurierbare Zeit inaktiv waren.
+
+| Einstellung | Beschreibung |
+|-------------|-------------|
+| **Auto-Schließen aktiviert** | Einschalten für diese Org (NULL = globaler Standard) |
+| **Nach Stunden** | Einsatz nach X Stunden ohne Aktivität schließen |
+| **Toleranzzeit (Minuten)** | Zusätzliche Karenzzeit vor dem Schließen |
+
+Wenn die Org-Einstellung auf NULL steht, gelten die globalen Werte aus den System-Einstellungen.
+
+> Einsätze mit aktiver Atemschutzüberwachung werden nie automatisch geschlossen.
+
 ## System-Einstellungen (nur system_admin)
 
 Auf der Einstellungsseite sieht der System-Admin zusätzlich:
@@ -55,11 +69,11 @@ Auf der Einstellungsseite sieht der System-Admin zusätzlich:
 - **Aktuelle App-Version**
 - **Schnelllinks**: Organisationen verwalten, System-Update, About
 
+Globale Auto-Schließ-Defaults (gelten für alle Orgs, die kein eigenes Limit gesetzt haben) werden in den System-Einstellungen konfiguriert.
+
 ## System-Update (nur system_admin)
 
 Neue Versionen können über `/admin/system/update` per ZIP-Upload eingespielt werden.
-
-Details: [System-Update](Administration-System-Update)
 
 ## About-Seite
 

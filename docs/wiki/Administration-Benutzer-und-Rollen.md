@@ -39,28 +39,34 @@ Der Benutzer kann sich nicht mehr einloggen. Alle historischen Einträge (Audit-
 
 | Rolle | Code | Beschreibung |
 |-------|------|-------------|
-| **Administrator** | `admin` | Vollzugriff auf alles |
+| **System-Administrator** | `system_admin` | Zugriff auf alle Organisationen, System-Konsole |
+| **Organisations-Administrator** | `org_admin` | Eigene Org verwalten (Einstellungen, Mitglieder, Fahrzeuge) |
+| **Administrator** | `admin` | Vollzugriff innerhalb der eigenen Org |
 | **Einsatzleiter** | `incident_leader` | Einsatz und Atemschutz steuern |
 | **AS-Überwacher** | `breathing_supervisor` | Nur Atemschutzüberwachung |
 | **Schriftführer** | `recorder` | Journal-Einträge und Meldungen |
 | **Beobachter** | `readonly` | Nur lesend |
 
+`system_admin` und `org_admin` sind Multi-Tenancy-Rollen (ab v2.2.0). Der erste Admin-User der Heimwehr erhält automatisch `org_admin`.
+
 ### Berechtigungsmatrix
 
-| Aktion | admin | incident_leader | breathing_supervisor | recorder | readonly |
-|--------|:-----:|:---------------:|:--------------------:|:--------:|:--------:|
-| Einsatz anlegen (manuell) | ✓ | ✓ | – | – | – |
-| Fahrzeuge verschieben | ✓ | ✓ | – | – | – |
-| Aufträge anlegen/bearbeiten | ✓ | ✓ | – | – | – |
-| Meldungen anlegen | ✓ | ✓ | – | ✓ | – |
-| Personen erfassen | ✓ | ✓ | – | ✓ | – |
-| Atemschutz steuern | ✓ | ✓ | ✓ | – | – |
-| Einsatz abschließen | ✓ | ✓ | – | – | – |
-| PDF herunterladen | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Stammdaten pflegen | ✓ | – | – | – | – |
-| Benutzer verwalten | ✓ | – | – | – | – |
-| API-Keys verwalten | ✓ | – | – | – | – |
-| Audit-Log einsehen | ✓ | – | – | – | – |
+| Aktion | system_admin | org_admin / admin | incident_leader | breathing_supervisor | recorder | readonly |
+|--------|:------------:|:-----------------:|:---------------:|:--------------------:|:--------:|:--------:|
+| Einsatz anlegen (manuell) | ✓ | ✓ | ✓ | – | – | – |
+| Fahrzeuge verschieben | ✓ | ✓ | ✓ | – | – | – |
+| Aufträge anlegen/bearbeiten | ✓ | ✓ | ✓ | – | – | – |
+| Meldungen anlegen | ✓ | ✓ | ✓ | – | ✓ | – |
+| Personen erfassen | ✓ | ✓ | ✓ | – | ✓ | – |
+| Atemschutz steuern | ✓ | ✓ | ✓ | ✓ | – | – |
+| Einsatz abschließen | ✓ | ✓ | ✓ | – | – | – |
+| PDF herunterladen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Stammdaten pflegen | ✓ | ✓ | – | – | – | – |
+| Benutzer verwalten | ✓ | ✓ | – | – | – | – |
+| API-Keys verwalten | ✓ | ✓ | – | – | – | – |
+| Audit-Log einsehen | ✓ | ✓ | – | – | – | – |
+| Organisationen verwalten | ✓ | – | – | – | – | – |
+| System-Konsole | ✓ | – | – | – | – | – |
 
 ### Rollen zuweisen
 
@@ -70,6 +76,8 @@ Ein Benutzer kann mehrere Rollen haben (z.B. `incident_leader` + `breathing_supe
 
 ## Hinweise
 
-- Der erste Admin-User wird automatisch beim App-Start aus `.env` (`BOOTSTRAP_ADMIN_*`) angelegt.
+- Der erste Admin-User wird automatisch beim App-Start aus `.env` (`BOOTSTRAP_ADMIN_*`) angelegt und erhält die Rollen `admin` und `org_admin`.
 - Mindestens ein aktiver Admin-User muss immer vorhanden sein.
 - Die Anzahl der Benutzer ist nicht begrenzt.
+- Benutzer ohne `org_id` (NULL) sind System-Administratoren und sehen alle Organisationen.
+- `org_admin` kann Einladungen an neue Org-Admins versenden: [Organisationen verwalten](Administration-Organisations-verwalten).

@@ -95,9 +95,21 @@ Die generierte Datei in `alembic/versions/` überprüfen (autogenerate erkennt n
 - **Keine Mocks in Tests**: Echte Datenbank-Tests verhindern Divergenz.
 - **Server is Source of Truth**: Client-State ist nur für UI-Komfort, nie für Entscheidungen.
 
+## Datenbankmigrationen — Regeln
+
+Beim Schreiben neuer Migrationen immer beachten:
+
+**BIGINT-Regel:** `fire_dept.id` und alle anderen PKs sind `BIGINT`. FK-Spalten, die darauf zeigen, müssen ebenfalls `BIGINT` sein — nicht `INT`. MariaDB erzeugt bei Typabweichung errno 150.
+
+**Idempotenz:** Migrationen müssen bei Retry-Ausführung nicht scheitern. `ADD COLUMN IF NOT EXISTS` verwenden, FK-Anlage mit INFORMATION_SCHEMA-Prüfung absichern. Referenzbeispiel: `0044_multitenancy_pr1_infrastructure.py`.
+
+**FK-Cleanup vor ALTER TABLE:** Wenn eine referenzierte Tabelle strukturell geändert wird (DROP PRIMARY KEY, Spaltentyp ändern), müssen vorher alle FKs, die auf sie zeigen, entfernt werden — sonst errno 150 beim internen Table-Rename. Muster: `_drop_all_fks_referencing(conn, "tabellenname")` über `INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_NAME = :t`.
+
+Detaillierte Hinweise: [docs/MIGRATION_RUNBOOK.md](../MIGRATION_RUNBOOK.md)
+
 ## Issues und Bugs
 
-Issues auf GitHub: https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug/issues
+Issues auf GitHub: https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/issues
 
 Bug-Report enthält:
 1. Beschreibung was erwartet wird
