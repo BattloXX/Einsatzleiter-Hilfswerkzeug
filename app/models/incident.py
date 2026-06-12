@@ -71,6 +71,8 @@ class Incident(Base):
     ai_report_draft: Mapped[str | None] = mapped_column(Text, nullable=True)
     # KI-generierte Lage-Hinweise als JSON-Array von Strings
     ai_lage_hints: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Bcrypt-Hash eines optionalen Gäste-PINs für QR-Zugang ohne Account
+    access_pin_hash: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     columns: Mapped[list[IncidentColumn]] = relationship(
         back_populates="incident", order_by="IncidentColumn.display_order", cascade="all, delete-orphan"

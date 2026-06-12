@@ -13,7 +13,14 @@ from sqlalchemy.orm import Session
 
 from app.core.permissions import can_access_incident, has_role, require_role
 from app.core.queries import visible_incidents_q
-from app.core.security import get_author_name, sign_qr_token
+from app.core.security import (
+    get_author_name,
+    hash_pin,
+    sign_pin_access_token,
+    sign_qr_token,
+    unsign_pin_access_token,
+    verify_pin,
+)
 from app.core.templating import templates
 from app.db import get_db
 from app.models.breathing import BreathingTroop
@@ -1412,6 +1419,82 @@ async def qr_print(incident_id: int, request: Request, db: Session = Depends(get
     })
 
 
+# ── Gäste-PIN für QR-Zugang ──────────────────────────────────────────────────
+
+_PIN_COOKIE = "board_pin"
+_PIN_COOKIE_MAX_AGE = 86400  # 24 h
+
+
+def _set_pin_cookie(response: Response, incident_id: int) -> None:
+    from app.config import settings as _cfg
+    token = sign_pin_access_token(incident_id)
+    response.set_cookie(
+        _PIN_COOKIE, token,
+        httponly=True, secure=_cfg.COOKIE_SECURE,
+        samesite="lax", max_age=_PIN_COOKIE_MAX_AGE,
+    )
+
+
+def _check_pin_cookie(request: Request) -> int | None:
+    """Gibt incident_id zurück wenn ein gültiges PIN-Zugangscookie vorhanden."""
+    token = request.cookies.get(_PIN_COOKIE)
+    if not token:
+        return None
+    return unsign_pin_access_token(token)
+
+
+@router.post("/einsatz/{incident_id}/pin")
+async def set_incident_pin(
+    incident_id: int, request: Request,
+    pin: str = Form(""),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin")),
+):
+    """Setzt oder löscht den Gäste-PIN für QR-Zugang ohne Account."""
+    incident = _incident_or_404(incident_id, db)
+    if pin.strip():
+        incident.access_pin_hash = hash_pin(pin.strip()[:16])
+    else:
+        incident.access_pin_hash = None
+    db.commit()
+    return RedirectResponse(f"/einsatz/{incident_id}", status_code=302)
+
+
+@router.get("/einsatz/{incident_id}/pin-zugang", response_class=HTMLResponse)
+async def pin_entry_page(incident_id: int, request: Request, db: Session = Depends(get_db)):
+    """Öffentliche PIN-Eingabeseite für Gäste – kein Login erforderlich."""
+    incident = db.get(Incident, incident_id)
+    if not incident or incident.status != "active" or not incident.access_pin_hash:
+        return RedirectResponse("/login", status_code=302)
+    error = request.query_params.get("error")
+    return templates.TemplateResponse(request, "incident/pin_entry.html", {
+        "incident": incident,
+        "error": error,
+    })
+
+
+from app.core.rate_limit import limiter as _limiter  # noqa: E402
+
+@(_limiter.limit("5/15minutes") if _limiter else lambda f: f)
+@router.post("/einsatz/{incident_id}/pin-zugang", response_class=HTMLResponse)
+async def pin_verify(
+    incident_id: int, request: Request,
+    pin: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Prüft den PIN und setzt bei Erfolg ein signiertes Zugangscookie."""
+    incident = db.get(Incident, incident_id)
+    if not incident or incident.status != "active" or not incident.access_pin_hash:
+        return RedirectResponse("/login", status_code=302)
+    if not verify_pin(pin.strip(), incident.access_pin_hash):
+        return RedirectResponse(
+            f"/einsatz/{incident_id}/pin-zugang?error=wrong_pin", status_code=302
+        )
+    redirect = RedirectResponse(f"/einsatz/{incident_id}/screensaver", status_code=302)
+    _set_pin_cookie(redirect, incident_id)
+    return redirect
+
+
 # ── Bildschirmschoner ─────────────────────────────────────────────────────────
 
 @router.get("/einsatz/{incident_id}/screensaver", response_class=HTMLResponse)
@@ -1422,8 +1505,11 @@ async def screensaver(incident_id: int, request: Request, db: Session = Depends(
     (oder Web Screen Wake Lock API im Browser). Live-Update via WebSocket.
     """
     user = getattr(request.state, "user", None)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
+    pin_incident_id = _check_pin_cookie(request)
+    if not user and pin_incident_id != incident_id:
+        return RedirectResponse(
+            f"/einsatz/{incident_id}/pin-zugang", status_code=302
+        )
     incident = _incident_or_404(incident_id, db)
     return templates.TemplateResponse(request, "incident/screensaver.html", {
         "user": user,
