@@ -474,7 +474,7 @@ def assign_task_to_vehicle(
     if vehicle.vehicle_master_id:
         from app.services.push_service import notify_vehicle
         notify_vehicle(db, vehicle.vehicle_master_id, "📋 Neuer Auftrag", task.title,
-                       url=f"/einsatz/{task.incident_id}")
+                       url=f"/einsatz/{task.incident_id}?open_task={task.id}")
     return task
 
 
@@ -852,7 +852,7 @@ def move_card(
             if v.vehicle_master_id:
                 from app.services.push_service import notify_vehicle
                 notify_vehicle(db, v.vehicle_master_id, "📋 Neuer Auftrag", task.title,
-                               url=f"/einsatz/{incident_id}")
+                               url=f"/einsatz/{incident_id}?open_task={uid}")
         elif column_id:
             # Drop on a column — reorder siblings first
             siblings = (
@@ -897,7 +897,7 @@ def move_card(
             if v.vehicle_master_id:
                 from app.services.push_service import notify_vehicle
                 notify_vehicle(db, v.vehicle_master_id, "📩 Neue Meldung", msg.title,
-                               url=f"/einsatz/{incident_id}")
+                               url=f"/einsatz/{incident_id}?open_msg={uid}")
         elif column_id:
             # Drop on a column — reorder siblings first
             siblings = (
