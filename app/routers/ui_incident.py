@@ -1217,7 +1217,7 @@ async def set_message_ampel(
 @router.post("/einsatz/{incident_id}/person")
 async def create_person(
     incident_id: int, request: Request,
-    gender: str = Form(...), person_group: str = Form(...),
+    gender: str = Form("Unbekannt"), person_group: str = Form("Erwachsen"),
     age_range: str = Form(""), name: str = Form(""), location: str = Form(""),
     vehicle_id: int | None = Form(None),
     note: str = Form(""),

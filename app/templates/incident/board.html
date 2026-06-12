@@ -677,7 +677,26 @@
     <form method="post" action="/einsatz/{{ incident.id }}/person">
       <input type="hidden" name="gender" :value="gender">
       <input type="hidden" name="person_group" :value="group">
+      <input type="hidden" name="name" :value="quickName">
       <div class="modal__body">
+        <!-- Step 0: Quick-Erfassung (nur Name) -->
+        <div x-show="step === 0">
+          <p class="wizard-label" style="margin-bottom:12px;">Schnellerfassung – nur Name erforderlich</p>
+          <div class="form-group">
+            <label class="form-label">Name (optional)</label>
+            <input type="text" x-model="quickName" class="form-input" placeholder="z. B. Max Muster" autofocus>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fundort (optional)</label>
+            <input type="text" name="location" class="form-input" placeholder="z. B. Wohnung 1. OG">
+          </div>
+          <button type="button"
+                  @click="step=1"
+                  class="btn btn--ghost btn--sm"
+                  style="margin-top:4px; font-size:.8rem; opacity:.7;">
+            ＋ Mehr Details (Geschlecht, Alter, Fahrzeug)
+          </button>
+        </div>
         <!-- Step 1: Geschlecht -->
         <div x-show="step === 1">
           <p class="wizard-label">Schritt 1 / 4 – Geschlecht</p>
@@ -696,7 +715,7 @@
             <button type="button" @click="group='Ältere Person'; step=3" class="wizard-pill">Ältere Person</button>
           </div>
         </div>
-        <!-- Step 3: Name + Fundort -->
+        <!-- Step 3: Name + Fundort (vollständige Erfassung) -->
         <div x-show="step === 3">
           <p class="wizard-label">Schritt 3 / 4 – Details</p>
           <div class="form-group">
@@ -708,7 +727,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Name (falls bekannt)</label>
-            <input type="text" name="name" class="form-input">
+            <input type="text" x-model="quickName" class="form-input">
           </div>
           <div class="form-group">
             <label class="form-label">Fundort</label>
@@ -736,9 +755,10 @@
         </div>
       </div>
       <div class="modal__footer">
-        <button type="button" @click="step > 1 ? step-- : $el.closest('dialog').close()" class="btn btn--ghost">
-          <span x-text="step > 1 ? '← Zurück' : 'Abbrechen'"></span>
+        <button type="button" @click="step > 0 ? step-- : $el.closest('dialog').close()" class="btn btn--ghost">
+          <span x-text="step > 0 ? '← Zurück' : 'Abbrechen'"></span>
         </button>
+        <button x-show="step === 0" type="submit" class="btn btn--primary">Speichern</button>
         <button x-show="step === 3" type="button" @click="step=4" class="btn btn--secondary">Weiter →</button>
         <button x-show="step === 4" type="submit" class="btn btn--primary">Speichern</button>
       </div>
@@ -853,7 +873,7 @@ function openQuickAddTask(colId) {
 
 function personWizard() {
   return {
-    step: 1, gender: '', group: '',
+    step: 0, gender: '', group: '', quickName: '',
     get ageOptions() {
       if (this.group === 'Kind') return ['0–4 Jahre','5–9 Jahre','10–14 Jahre','15–17 Jahre'];
       if (this.group === 'Ältere Person') return ['65–69 Jahre','70–74 Jahre','75–79 Jahre','80+ Jahre'];
