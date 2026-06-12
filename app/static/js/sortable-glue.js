@@ -228,51 +228,10 @@
     });
   }
 
-  // ── Spalten-Drag (ganze Kanban-Spalten verschieben) ─────────────────────────
-  function initColumnSortable() {
-    const kanban = document.getElementById('kanban');
-    if (!kanban) return;
-    const incidentId = getIncidentId();
-    if (!incidentId) return;
-
-    if (kanban._columnSortableInstance) {
-      try { kanban._columnSortableInstance.destroy(); } catch (e) { /* noop */ }
-      kanban._columnSortableInstance = null;
-    }
-
-    kanban._columnSortableInstance = new Sortable(kanban, {
-      group:          'kanban-columns',
-      animation:      150,
-      handle:         '.kanban-col__header',
-      draggable:      '.kanban-col[data-col-id]',
-      filter:         'button, a, select, input, .kanban-col__add-btn',
-      preventOnFilter: true,
-      ghostClass:     'kanban-col--ghost',
-      chosenClass:    'kanban-col--chosen',
-      delay:          150,
-      delayOnTouchOnly: false,
-      touchStartThreshold: 8,
-      fallbackTolerance: 5,
-      fallbackOnBody: true,
-      onEnd: function () {
-        const cols = Array.from(kanban.querySelectorAll('.kanban-col[data-col-id]'));
-        const ids = cols.map(function (c) { return parseInt(c.dataset.colId, 10); });
-        fetch('/einsatz/' + incidentId + '/spalten/reihenfolge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'column_order=' + encodeURIComponent(JSON.stringify(ids)),
-          credentials: 'same-origin',
-        }).catch(function (err) {
-          console.warn('[sortable-glue] Spalten-Reihenfolge fehlgeschlagen:', err);
-        });
-      },
-    });
-  }
-
   // ── Startpunkt ───────────────────────────────────────────────────────────────
   function initAll() {
     initSortable();
-    initColumnSortable();
+    // Spalten-Drag ist deaktiviert – Spalten werden nicht verschoben.
   }
 
   if (document.readyState === 'loading') {

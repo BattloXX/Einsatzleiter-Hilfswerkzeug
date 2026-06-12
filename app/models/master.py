@@ -64,6 +64,9 @@ class VehicleMaster(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     bos_override: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    is_adhoc: Mapped[bool] = mapped_column(Boolean, default=False)
+    adhoc_org_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    adhoc_org_short: Mapped[str | None] = mapped_column(String(3), nullable=True)
 
     dept: Mapped[FireDept] = relationship(back_populates="vehicles")
 
@@ -74,6 +77,9 @@ class VehicleMaster(Base):
     @property
     def display_label(self) -> str:
         """Fahrzeug-Code + Organisations-Kürzel, z.B. 'RLF WOL'. Ohne Kürzel nur 'RLF'."""
+        if self.is_adhoc:
+            kuerzel = self.adhoc_org_short or None
+            return f"{self.code} - {kuerzel}" if kuerzel else self.code
         kuerzel = self.dept.short_code if self.dept and self.dept.short_code else None
         return f"{self.code} - {kuerzel}" if kuerzel else self.code
 

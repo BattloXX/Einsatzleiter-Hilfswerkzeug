@@ -35,4 +35,28 @@
       <button type="submit" class="btn btn--primary">Speichern</button>
     </div>
   </form>
+
+  <hr style="margin:1.25rem 0; border:0; border-top:1px solid var(--border);">
+
+  <div x-data="{pinSaved: false}">
+    <div class="form-group" style="margin-bottom:.5rem">
+      <label class="form-label">🔒 QR-Zugang PIN</label>
+      <p style="font-size:.8rem; color:var(--text-muted); margin-bottom:.5rem;">
+        {% if incident.access_pin_hash %}PIN ist gesetzt.{% else %}Kein PIN – QR-Zugang ohne PIN.{% endif %}
+        Leer lassen zum Entfernen.
+      </p>
+    </div>
+    <form hx-post="/einsatz/{{ incident.id }}/pin"
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful){pinSaved=true; this.reset();}">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="password" name="pin" class="form-input"
+               placeholder="Neuer PIN (max. 16 Zeichen)" maxlength="16"
+               inputmode="numeric" style="flex:1;">
+        <button type="submit" class="btn btn--secondary btn--sm">PIN setzen</button>
+      </div>
+      <p x-show="pinSaved" style="color:#22c55e; font-size:.8rem; margin-top:4px;">✓ PIN gespeichert</p>
+    </form>
+  </div>
 </div>

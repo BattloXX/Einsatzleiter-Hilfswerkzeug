@@ -1019,6 +1019,7 @@ async def vehicle_suggestions(
     }
     base_q = db.query(VehicleMaster).filter(
         VehicleMaster.active == True,  # noqa: E712
+        VehicleMaster.is_adhoc == False,  # noqa: E712
     )
     if q:
         like = f"%{q.strip()}%"
@@ -1051,6 +1052,8 @@ async def attach_vehicle_to_incident(
     new_code: str = Form(""),
     new_name: str = Form(""),
     new_type: str = Form(""),
+    new_org_name: str = Form(""),
+    new_org_short: str = Form(""),
     commander_member_id: int | None = Form(None),
     commander_free_text: str = Form(""),
     note: str = Form(""),
@@ -1080,6 +1083,9 @@ async def attach_vehicle_to_incident(
             is_first_train=False,
             active=True,
             display_order=999,
+            is_adhoc=True,
+            adhoc_org_name=new_org_name.strip()[:150] or None,
+            adhoc_org_short=new_org_short.strip()[:3] or None,
         )
         db.add(vm)
         db.flush()
@@ -1478,6 +1484,8 @@ async def set_incident_pin(
     else:
         incident.access_pin_hash = None
     db.commit()
+    if request.headers.get("HX-Request"):
+        return Response(status_code=204)
     return RedirectResponse(f"/einsatz/{incident_id}", status_code=302)
 
 
