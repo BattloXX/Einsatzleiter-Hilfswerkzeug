@@ -33,6 +33,7 @@ from app.routers import (
     ui_major_incident,
     ui_media,
     ui_password_reset,
+    ui_profile,
     ui_push,
     ui_settings,
     ui_stats,
@@ -321,6 +322,7 @@ app.include_router(ui_push.router)
 app.include_router(ui_settings.router)
 app.include_router(ui_sysadmin.router)
 app.include_router(ui_ai_prompts.router)
+app.include_router(ui_profile.router)
 
 
 @app.exception_handler(HTTPException)
