@@ -396,16 +396,17 @@
 </div>
 
 <!-- Quick-Add Auftrag Dialog -->
-<dialog class="modal" id="quickAddTaskDialog" x-data="{colId: null}">
+<dialog class="modal" id="quickAddTaskDialog" x-data="{colId: null, vehicleId: null}">
   <div class="modal__content" style="min-width:min(400px,90vw);">
     <div class="modal__header">
       <h3 class="modal__title">Auftrag anlegen</h3>
       <button type="button" @click="$el.closest('dialog').close()" class="modal__close">×</button>
     </div>
     <form hx-post="/einsatz/{{ incident.id }}/aufgabe" hx-swap="none"
-          @htmx:after-request="if(event.detail.successful){$el.reset();$el.closest('dialog').close();location.reload();}">
+          @htmx:after-request="if(event.detail.successful){$el.reset();vehicleId=null;$el.closest('dialog').close();location.reload();}">
       <div class="modal__body">
         <input type="hidden" name="column_id" :value="colId">
+        <input type="hidden" name="vehicle_id" :value="vehicleId || ''">
         {% if task_suggestions %}
         <div class="task-suggestions" style="margin-bottom:10px;">
           {% for ts in task_suggestions %}
@@ -445,7 +446,7 @@
 </dialog>
 
 <!-- Quick-Add Meldung Dialog -->
-<dialog class="modal" id="quickAddMsgDialog">
+<dialog class="modal" id="quickAddMsgDialog" x-data="{vehicleId: null}">
   <div class="modal__content" style="min-width:min(400px,90vw);">
     <div class="modal__header">
       <h3 class="modal__title">Meldung anlegen</h3>
@@ -453,8 +454,9 @@
     </div>
     <form hx-post="/einsatz/{{ incident.id }}/meldung" hx-swap="none"
           hx-encoding="multipart/form-data"
-          @htmx:after-request="if(event.detail.successful){$el.reset();document.getElementById('newMsgPreview').innerHTML='';$el.closest('dialog').close();location.reload();}">
+          @htmx:after-request="if(event.detail.successful){$el.reset();vehicleId=null;document.getElementById('newMsgPreview').innerHTML='';$el.closest('dialog').close();location.reload();}">
       <div class="modal__body">
+        <input type="hidden" name="vehicle_id" :value="vehicleId || ''">
         {% if msg_suggestions %}
         <div class="task-suggestions" style="margin-bottom:10px;">
           {% for ms in msg_suggestions %}
@@ -867,7 +869,23 @@ function openQuickAddTask(colId) {
   const dlg = document.getElementById('quickAddTaskDialog');
   if (!dlg) return;
   const comp = Alpine.$data(dlg);
-  if (comp) comp.colId = colId;
+  if (comp) { comp.colId = colId; comp.vehicleId = null; }
+  dlg.showModal();
+}
+
+function openQuickAddTaskForVehicle(vehicleId, colId) {
+  const dlg = document.getElementById('quickAddTaskDialog');
+  if (!dlg) return;
+  const comp = Alpine.$data(dlg);
+  if (comp) { comp.colId = colId; comp.vehicleId = vehicleId; }
+  dlg.showModal();
+}
+
+function openQuickAddMsgForVehicle(vehicleId) {
+  const dlg = document.getElementById('quickAddMsgDialog');
+  if (!dlg) return;
+  const comp = Alpine.$data(dlg);
+  if (comp) comp.vehicleId = vehicleId;
   dlg.showModal();
 }
 
