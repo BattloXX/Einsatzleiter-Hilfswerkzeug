@@ -28,6 +28,7 @@ from app.routers import (
     ui_archive,
     ui_backup,
     ui_breathing,
+    ui_gsl_staff,
     ui_incident,
     ui_invitation,
     ui_major_incident,
@@ -313,6 +314,7 @@ app.include_router(ui_incident.router)
 app.include_router(ui_invitation.router)
 app.include_router(ui_backup.router)
 app.include_router(ui_major_incident.router)
+app.include_router(ui_gsl_staff.router)
 app.include_router(ui_media.router)
 app.include_router(ui_breathing.router)
 app.include_router(ui_archive.router)

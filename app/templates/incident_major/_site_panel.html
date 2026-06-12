@@ -1,0 +1,138 @@
+{# Side-Panel: Einsatz-Details in der Lagekarte #}
+{# Kontext: lage, site, sectors, phase_labels, phase_order, prio_color, prio_label, can_edit #}
+
+{% set prio_c = prio_color.get(site.priority) if site.priority else 'muted' %}
+{% set prio_l = prio_label.get(site.priority, '') if site.priority else '' %}
+{% set sector = sectors | selectattr('id', 'equalto', site.sector_id) | first if site.sector_id else none %}
+
+<div style="padding:12px 14px;border-bottom:1px solid var(--border);">
+  <div style="display:flex;align-items:flex-start;gap:8px;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:700;font-size:.92rem;margin-bottom:2px;
+                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        {{ site.bezeichnung }}
+      </div>
+      <div style="font-size:.72rem;color:var(--text-muted);">
+        {% if site.ort %}{{ site.ort }}{% if site.strasse %}, {% endif %}{% endif %}
+        {% if site.strasse %}{{ site.strasse }}{% if site.hausnr %} {{ site.hausnr }}{% endif %}{% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+      {# Prio-Badge #}
+      {% if prio_l %}
+      <span style="font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:8px;white-space:nowrap;
+        {% if prio_c=='red' %}background:rgba(239,68,68,.2);color:#f87171;
+        {% elif prio_c=='orange' %}background:rgba(249,115,22,.2);color:#fb923c;
+        {% elif prio_c=='yellow' %}background:rgba(234,179,8,.2);color:#facc15;
+        {% else %}background:rgba(107,114,128,.2);color:#9ca3af;{% endif %}">
+        {{ prio_l }}
+      </span>
+      {% endif %}
+      {# Abschnitt-Badge #}
+      {% if sector %}
+      <span style="font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:8px;white-space:nowrap;
+                   background:{{ sector.color or '#6b7280' }}22;color:{{ sector.color or '#6b7280' }};
+                   border:1px solid {{ sector.color or '#6b7280' }}55;">
+        {{ sector.name }}
+      </span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Alarmzeit + Phase #}
+  <div style="font-size:.72rem;color:var(--text-muted);margin-top:5px;display:flex;gap:10px;flex-wrap:wrap;">
+    <span>{{ site.created_at|local_datetime }}</span>
+    <span style="font-weight:600;">{{ phase_labels.get(site.phase, site.phase.value) }}</span>
+  </div>
+</div>
+
+{# ── Statuswechsel ───────────────────────────────────────────────────────── #}
+{% if can_edit and lage.status.value == 'active' %}
+<div style="padding:8px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;">
+  {% for phase in phase_order %}
+  {% if phase != site.phase %}
+  <form hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/phase"
+        hx-vals='{"_csrf":"{{ request.state.csrf_token }}","phase":"{{ phase.value }}"}'
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful){document.getElementById('site-panel').remove();}"
+        style="margin:0;">
+    <button type="submit" class="btn btn--xs btn--ghost">→ {{ phase_labels.get(phase, phase.value) }}</button>
+  </form>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── Abschnitt zuweisen ──────────────────────────────────────────────────── #}
+{% if can_edit and lage.status.value == 'active' %}
+<div style="padding:8px 14px;border-bottom:1px solid var(--border);">
+  <form hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/sektor"
+        hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
+        hx-swap="none" hx-on::after-request="if(event.detail.successful){}" style="display:flex;gap:6px;align-items:center;margin:0;">
+    <select name="sector_id" class="form-input" style="flex:1;font-size:.78rem;padding:3px 7px;">
+      <option value="">Kein Abschnitt</option>
+      {% for sec in sectors %}
+      <option value="{{ sec.id }}" {% if site.sector_id == sec.id %}selected{% endif %}>
+        {{ sec.name }}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn--xs btn--secondary">Zuweisen</button>
+  </form>
+</div>
+{% endif %}
+
+{# ── Ressourcen ──────────────────────────────────────────────────────────── #}
+{% set active_res = site.resources | rejectattr('released_at') | list %}
+{% if active_res %}
+<div style="padding:8px 14px;border-bottom:1px solid var(--border);">
+  <div style="font-size:.7rem;color:var(--text-muted);font-weight:600;margin-bottom:5px;">RESSOURCEN</div>
+  {% for r in active_res %}
+  <div style="font-size:.78rem;padding:2px 0;color:var(--text);">
+    {{ r.label or r.resource_type }}
+    {% if r.committed_at %}<span style="color:#4ade80;font-size:.65rem;"> ✓ eingesetzt</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── Letzte Meldungen ────────────────────────────────────────────────────── #}
+{% set recent_logs = site.log_entries[-5:] | reverse | list %}
+{% if recent_logs %}
+<div style="padding:8px 14px;border-bottom:1px solid var(--border);">
+  <div style="font-size:.7rem;color:var(--text-muted);font-weight:600;margin-bottom:5px;">MELDUNGEN</div>
+  {% for entry in recent_logs %}
+  <div style="font-size:.78rem;padding:3px 0;border-top:1px solid rgba(255,255,255,.04);">
+    <span style="font-size:.65rem;color:var(--text-muted);">{{ entry.ts|local_time }}</span>
+    {{ entry.text[:80] }}{% if entry.text|length > 80 %}…{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── Meldung erfassen ────────────────────────────────────────────────────── #}
+{% if can_edit and lage.status.value == 'active' %}
+<div style="padding:8px 14px;">
+  <form hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/log"
+        hx-vals='{"_csrf":"{{ request.state.csrf_token }}","kind":"note"}'
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful){this.reset();}"
+        style="display:flex;gap:6px;align-items:center;margin:0;">
+    <input type="text" name="text" class="form-input" placeholder="Meldung…"
+           required maxlength="500" style="flex:1;font-size:.8rem;padding:4px 8px;">
+    <button type="submit" class="btn btn--xs btn--secondary">↵</button>
+  </form>
+</div>
+{% endif %}
+
+{# ── Footer-Link ─────────────────────────────────────────────────────────── #}
+<div style="padding:8px 14px;border-top:1px solid var(--border);">
+  <a href="/lage/{{ lage.id }}" style="font-size:.75rem;color:#93c5fd;text-decoration:none;">
+    → Im Board öffnen
+  </a>
+  {% if site.lat and site.lng %}
+  <span style="font-size:.68rem;color:var(--text-muted);margin-left:10px;">
+    {{ '%.5f'|format(site.lat) }}, {{ '%.5f'|format(site.lng) }}
+  </span>
+  {% endif %}
+</div>

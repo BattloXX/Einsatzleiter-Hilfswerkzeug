@@ -289,6 +289,13 @@ class OrgSettings(Base):
     autoclose_grace_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     default_access_pin_hash: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
+    # GSL: konfigurierbare Pflicht-Rollen (JSON-Liste von Role-Codes, NULL = Default EL…S6)
+    gsl_required_staff_roles: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Fahrzeugposition gilt als "veraltet" nach N Minuten ohne Update
+    vehicle_stale_minutes: Mapped[int] = mapped_column(Integer, default=5)
+    # GPS-Positionshistorie Aufbewahrungsdauer
+    position_retention_days: Mapped[int] = mapped_column(Integer, default=30)
+
     org: Mapped[FireDept] = relationship(back_populates="settings")
 
 
