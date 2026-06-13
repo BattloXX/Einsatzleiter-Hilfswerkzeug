@@ -165,11 +165,12 @@
       <img src="/lage/{{ lage.id }}/meldungen/{{ r.id }}/foto" alt="Foto" class="mel-photo"
            style="cursor:zoom-in;" @click="lbOpen=true">
       <div x-show="lbOpen" x-cloak @keydown.escape.window="lbOpen=false"
-           style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);
-                  display:flex;align-items:center;justify-content:center;"
-           @click.self="lbOpen=false">
-        <img src="/lage/{{ lage.id }}/meldungen/{{ r.id }}/foto"
-             style="max-width:92vw;max-height:92vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.8);">
+           style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"
+             @click.self="lbOpen=false">
+          <img src="/lage/{{ lage.id }}/meldungen/{{ r.id }}/foto"
+               style="max-width:92vw;max-height:92vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.8);">
+        </div>
         <button @click="lbOpen=false"
                 style="position:fixed;top:16px;right:20px;background:rgba(0,0,0,.6);border:none;
                        color:#fff;font-size:28px;line-height:1;cursor:pointer;border-radius:50%;
@@ -190,6 +191,11 @@
             onsubmit="return confirm('Als Einsatzstelle übernehmen?')">
         <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
         <button type="submit" class="btn btn--secondary btn--sm">✓ Als Einsatzstelle anlegen</button>
+      </form>
+      <form method="post" action="/lage/{{ lage.id }}/meldungen/{{ r.id }}/als-lageinfo" style="margin:0;"
+            onsubmit="return confirm('Als übergreifende Lageinfo übernehmen?')">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        <button type="submit" class="btn btn--ghost btn--sm" style="color:#818cf8;border-color:rgba(129,140,248,.35);">📍 Als Lageinfo</button>
       </form>
       <form method="post" action="/lage/{{ lage.id }}/meldungen/{{ r.id }}/ablehnen" style="margin:0;"
             onsubmit="return confirm('Meldung ablehnen?')">

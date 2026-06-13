@@ -343,12 +343,16 @@
     {# ── Übergreifende Meldungen ─────────────────────────────────────────── #}
     {% if mi_features.uebergreifend %}
     <div class="phase-col" id="cross-marker-col">
-      <div class="phase-col__header" style="border-top-color:#6366f1;">
+      <div class="phase-col__header" style="border-top-color:#6366f1;flex-wrap:wrap;gap:4px;">
         <span style="flex:1;">📍 Übergreifend</span>
         <span class="phase-col__count">{{ cross_markers|length }}</span>
+        <button type="button" id="cm-hide-behoben-btn"
+                onclick="toggleCmHideBehoben()"
+                class="btn btn--xs btn--ghost" title="Behobene ein-/ausblenden"
+                style="padding:1px 6px;font-size:.62rem;margin-left:4px;">Beh. ☑</button>
         {% if can_edit %}
         <button type="button" onclick="openMeldungDialog()"
-                class="btn btn--xs btn--ghost" style="padding:1px 8px;margin-left:6px;">+</button>
+                class="btn btn--xs btn--ghost" style="padding:1px 8px;margin-left:4px;">+</button>
         {% endif %}
       </div>
       <div class="phase-col__body" id="cross-marker-col-body"
@@ -624,12 +628,35 @@ function applyBoardFilters() {
   if (_sectorSelected) applyBoardFilters();
 })();
 
+// Übergreifende Meldungen: "Behobene ausblenden"
+var _cmHideBehoben = localStorage.getItem('cm_hide_behoben_{{ lage.id }}') === '1';
+function _applyCmHideBehoben() {
+  var col = document.getElementById('cross-marker-col-body');
+  if (!col) return;
+  var cards = col.querySelectorAll('[data-cm-status]');
+  var visible = 0;
+  cards.forEach(function(c) {
+    var hide = _cmHideBehoben && c.dataset.cmStatus === 'behoben';
+    c.style.display = hide ? 'none' : '';
+    if (!hide) visible++;
+  });
+  var btn = document.getElementById('cm-hide-behoben-btn');
+  if (btn) btn.textContent = _cmHideBehoben ? 'Beh. ☐' : 'Beh. ☑';
+  var badge = document.querySelector('#cross-marker-col .phase-col__count');
+  if (badge) badge.textContent = visible;
+}
+window.toggleCmHideBehoben = function() {
+  _cmHideBehoben = !_cmHideBehoben;
+  localStorage.setItem('cm_hide_behoben_{{ lage.id }}', _cmHideBehoben ? '1' : '0');
+  _applyCmHideBehoben();
+};
+// Apply on initial load
+document.addEventListener('DOMContentLoaded', _applyCmHideBehoben);
+
 // Update cross-marker column count after HTMX body reload
 document.body.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'cross-marker-col-body') {
-    var count = e.detail.target.querySelectorAll('.site-card').length;
-    var badge = document.querySelector('#cross-marker-col .phase-col__count');
-    if (badge) badge.textContent = count;
+    _applyCmHideBehoben();
   }
 });
 

@@ -1394,6 +1394,27 @@ async def lage_journal_delete(
     return Response(status_code=204)
 
 
+@router.get("/lage/{lage_id}/journal/{entry_id}/detail", response_class=HTMLResponse)
+async def lage_journal_entry_detail(
+    request: Request,
+    lage_id: int,
+    entry_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    entry = db.get(LageJournalEntry, entry_id)
+    if not entry or entry.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(request, "incident_major/_journal_entry_detail.html", {
+        "lage": lage,
+        "entry": entry,
+        "journal_categories": JOURNAL_CATEGORIES,
+    })
+
+
 # ── Übergreifende Meldungen (CrossSiteMarker) ────────────────────────────────
 
 @router.post("/lage/{lage_id}/uebergreifend")
@@ -1402,7 +1423,7 @@ async def cross_marker_create(
     lage_id: int,
     title: str = Form(...),
     marker_type: str = Form("sonstiges"),
-    status: str = Form("gemeldet"),
+    status: str = Form("aktiv"),
     description: str = Form(""),
     strasse: str = Form(""),
     hausnr: str = Form(""),
@@ -1416,7 +1437,7 @@ async def cross_marker_create(
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
     if status not in CROSS_MARKER_STATUS_LABEL:
-        status = "gemeldet"
+        status = "aktiv"
     if marker_type not in CROSS_MARKER_TYPE_LABEL:
         marker_type = "sonstiges"
     m = CrossSiteMarker(
@@ -2205,6 +2226,46 @@ async def meldung_ablehnen(
 
     report.status = "rejected"
     db.commit()
+    return RedirectResponse(f"/lage/{lage_id}/meldungen", status_code=303)
+
+
+@router.post("/lage/{lage_id}/meldungen/{report_id}/als-lageinfo")
+async def meldung_als_lageinfo(
+    request: Request,
+    lage_id: int,
+    report_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    """Bürgermeldung als übergreifende Lageinfo übernehmen (CrossSiteMarker, status=unbestaetigt)."""
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    report = db.get(CitizenReport, report_id)
+    if not report or report.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+
+    title = f"Bürgermeldung – {report.ort or report.strasse or 'unbekannt'}"
+    m = CrossSiteMarker(
+        major_incident_id=lage_id,
+        org_id=lage.org_id,
+        title=title[:160],
+        marker_type="sonstiges",
+        status="unbestaetigt",
+        source="buerger",
+        description=(report.description or None),
+        strasse=report.strasse,
+        ort=report.ort,
+        lat=report.lat,
+        lng=report.lng,
+        created_by=getattr(user, "id", None),
+        author_name=get_author_name(request),
+    )
+    db.add(m)
+    report.status = "accepted"
+    db.commit()
+    await broadcast_lage(lage_id, {"type": "cross_marker:changed", "marker_id": m.id, "reload_board": False})
     return RedirectResponse(f"/lage/{lage_id}/meldungen", status_code=303)
 
 

@@ -474,19 +474,19 @@ CROSS_MARKER_TYPE_ICON: dict[str, str] = {
 }
 
 CROSS_MARKER_STATUS_LABEL: dict[str, str] = {
-    "gemeldet":       "Gemeldet",
-    "bestaetigt":     "Bestätigt",
+    "unbestaetigt":   "Unbestätigt",
+    "aktiv":          "Aktiv / Gefahr",
     "in_bearbeitung": "In Bearbeitung",
-    "behoben":        "Behoben",
-    "aufgehoben":     "Aufgehoben",
+    "beobachtung":    "An Dritte / Beobachtung",
+    "behoben":        "Behoben / Aufgehoben",
 }
 
 CROSS_MARKER_STATUS_COLOR: dict[str, str] = {
-    "gemeldet":       "#6b7280",
-    "bestaetigt":     "#ef4444",
-    "in_bearbeitung": "#f97316",
+    "unbestaetigt":   "#6b7280",
+    "aktiv":          "#ef4444",
+    "in_bearbeitung": "#f59e0b",
+    "beobachtung":    "#60a5fa",
     "behoben":        "#22c55e",
-    "aufgehoben":     "#374151",
 }
 
 
@@ -500,7 +500,7 @@ class CrossSiteMarker(Base):
     org_id:            Mapped[int | None] = mapped_column(BigInteger, ForeignKey("fire_dept.id"), nullable=True)
     title:             Mapped[str] = mapped_column(String(160))
     marker_type:       Mapped[str] = mapped_column(String(32), default="sonstiges")
-    status:            Mapped[str] = mapped_column(String(16), default="gemeldet")
+    status:            Mapped[str] = mapped_column(String(16), default="aktiv")
     description:       Mapped[str | None] = mapped_column(Text, nullable=True)
     ort:               Mapped[str | None] = mapped_column(String(120), nullable=True)
     strasse:           Mapped[str | None] = mapped_column(String(160), nullable=True)

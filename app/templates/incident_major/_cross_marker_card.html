@@ -1,11 +1,11 @@
 {# Karte für übergreifende Meldungen im Board #}
 {# Kontext: marker, lage, type_label, type_icon, status_label, status_color, can_edit #}
-<div class="site-card" data-marker-id="{{ marker.id }}"
+<div class="site-card" data-marker-id="{{ marker.id }}" data-cm-status="{{ marker.status }}"
      hx-get="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/panel"
      hx-target="#siteDetailContent"
      hx-swap="innerHTML"
      hx-trigger="click[!event.target.closest('select,button,a')]"
-     style="border-left:3px solid {{ marker.status_color }};">
+     style="border-left:3px {{ 'dashed' if marker.status == 'unbestaetigt' else 'solid' }} {{ marker.status_color }};">
   <div class="site-card__body">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
       <span style="font-size:1rem;">{{ marker.type_icon }}</span>

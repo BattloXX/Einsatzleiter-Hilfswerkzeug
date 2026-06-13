@@ -12,9 +12,23 @@
             class="btn btn--xs btn--ghost" style="flex-shrink:0;font-size:1rem;padding:0 6px;" title="Schließen">✕</button>
   </div>
 
-  <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ marker.status_color }};"></span>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ marker.status_color }};flex-shrink:0;"></span>
+    {% if can_edit %}
+    <select style="font-size:.78rem;padding:3px 6px;border-radius:4px;border:1px solid var(--border);
+                   background:var(--surface-elevated,#1e2130);color:{{ marker.status_color }};font-weight:600;"
+            hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/status"
+            hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
+            hx-swap="none"
+            name="status"
+            hx-trigger="change">
+      {% for val, label in status_label.items() %}
+      <option value="{{ val }}" {% if marker.status == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
     <span style="font-size:.8rem;font-weight:600;color:{{ marker.status_color }};">{{ marker.status_label }}</span>
+    {% endif %}
   </div>
 
   {% if marker.address_line %}

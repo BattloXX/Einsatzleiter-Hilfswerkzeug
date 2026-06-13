@@ -232,6 +232,10 @@
     <input type="checkbox" id="cross-toggle" checked onchange="toggleCrossMarkers(this.checked)">
     📍 Übergreifend
   </label>
+  <label style="color:#818cf8;margin-left:4px;" title="Behobene Meldungen ausblenden">
+    <input type="checkbox" id="cross-hide-behoben" onchange="renderCrossMarkers()">
+    Beh. ausbl.
+  </label>
   {% endif %}
   {% if can_edit %}
   <div class="karte-controls__sep"></div>
@@ -523,13 +527,20 @@
 
   function renderCrossMarkers() {
     crossMarkerGroup.clearLayers();
+    var hideBehoben = document.getElementById('cross-hide-behoben');
+    var doHideBehoben = hideBehoben && hideBehoben.checked;
     CROSS_MARKERS.forEach(function(m) {
       if (!m.lat || !m.lng) return;
+      if (doHideBehoben && m.status === 'behoben') return;
+      var isUnconf = m.status === 'unbestaetigt';
+      var borderStyle = isUnconf
+        ? 'border:2px dashed rgba(255,255,255,.7);'
+        : 'border:2px solid #fff;';
       var icon = L.divIcon({
         className: '',
         html: '<div style="background:' + m.status_color + ';border-radius:50%;width:28px;height:28px;'
             + 'display:flex;align-items:center;justify-content:center;font-size:14px;'
-            + 'border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);">' + m.type_icon + '</div>',
+            + borderStyle + 'box-shadow:0 1px 4px rgba(0,0,0,.4);">' + m.type_icon + '</div>',
         iconSize: [28, 28],
         iconAnchor: [14, 14],
       });
