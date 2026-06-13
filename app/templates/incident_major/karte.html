@@ -328,6 +328,7 @@
 <script src="/static/js/leaflet.min.js"></script>
 <script src="/static/js/leaflet-geoman.min.js"></script>
 <script src="/static/js/leaflet.markercluster.js"></script>
+<script src="/static/js/weather_layer.js"></script>
 <script>
 (function () {
   var SITES   = {{ map_sites_json | safe }};
@@ -358,6 +359,11 @@
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap', subdomains: 'abc', maxZoom: 19,
   }).addTo(map);
+
+  // Wetter-Layer-Control (🌧 Toggle-Button, oben links)
+  if (typeof WeatherLayer !== 'undefined') {
+    WeatherLayer.init(map, lageId);
+  }
 
   var markers = [];
   var reportMarkers = [];

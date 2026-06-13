@@ -625,6 +625,17 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
         .limit(20)
         .all()
     )
+    _org_settings = db.query(OrgSettings).filter(
+        OrgSettings.org_id == incident.primary_org_id
+    ).first() if incident.primary_org_id else None
+    _weather_enabled = (
+        settings.WEATHER_ENABLED
+        and (
+            _org_settings is None
+            or _org_settings.weather_enabled is None
+            or bool(_org_settings.weather_enabled)
+        )
+    )
     return templates.TemplateResponse(request, "incident/board.html", {
         "user": user, "incident": incident,
         "alarm_types": alarm_types, "lage_hints": lage_hints, "lage_hints_ai": lage_hints_ai,
@@ -637,6 +648,7 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
         "ai_enabled": ai_is_enabled(),
         "breathing_enabled": breathing_enabled,
         "lage_sprueche": lage_sprueche,
+        "weather_enabled": _weather_enabled,
     })
 
 
