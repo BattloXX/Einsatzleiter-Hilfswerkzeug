@@ -21,7 +21,8 @@
             hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
             hx-swap="none"
             name="status"
-            hx-trigger="change">
+            hx-trigger="change"
+            hx-on::after-request="if(event.detail.successful) htmx.trigger(document.body,'crossMarkerChanged')">
       {% for val, label in status_label.items() %}
       <option value="{{ val }}" {% if marker.status == val %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
@@ -48,26 +49,121 @@
   </div>
   {% endif %}
 
-  <div style="font-size:.68rem;color:var(--text-muted);margin-top:8px;">
+  <div style="font-size:.68rem;color:var(--text-muted);margin-top:4px;margin-bottom:10px;">
     {% if marker.author_name %}{{ marker.author_name }} · {% endif %}
     {{ marker.created_at | local_datetime }}
   </div>
+</div>
 
-  {% if can_edit %}
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-    <form hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/loeschen"
-          hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
-          hx-confirm="Meldung wirklich löschen?"
-          hx-on::after-request="if(event.detail.successful){
-            var pw=document.getElementById('site-panel-wrap');
-            if(pw) pw.classList.remove('open');
-            var dm=document.getElementById('siteDetailModal');
-            if(dm) dm.close();
-            htmx.trigger(document.body,'crossMarkerChanged');
-          }"
-          style="margin:0;">
-      <button type="submit" class="btn btn--ghost btn--sm" style="color:#f87171;border-color:rgba(239,68,68,.3);">Löschen</button>
-    </form>
+{# ── Medien ─────────────────────────────────────────────────────────────────── #}
+{% if marker.media or can_edit %}
+<div style="padding:8px 14px;border-top:1px solid var(--border);">
+  <div style="font-size:.7rem;color:var(--text-muted);font-weight:600;margin-bottom:7px;">BILDER</div>
+  {% if marker.media %}
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+    {% for m in marker.media %}
+    <div x-data="{lbOpen:false}" style="position:relative;display:inline-block;">
+      <img src="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/medien/{{ m.id }}/bild?thumb=1"
+           alt="{{ m.original_filename }}"
+           style="width:64px;height:64px;object-fit:cover;border-radius:4px;
+                  border:1px solid var(--border);cursor:zoom-in;"
+           @click="lbOpen=true">
+      <div x-show="lbOpen" x-cloak @keydown.escape.window="lbOpen=false"
+           style="position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.92);">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"
+             @click.self="lbOpen=false">
+          <img src="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/medien/{{ m.id }}/bild"
+               style="max-width:92vw;max-height:92vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.8);">
+        </div>
+        <button @click="lbOpen=false"
+                style="position:fixed;top:16px;right:20px;background:rgba(0,0,0,.6);border:none;
+                       color:#fff;font-size:28px;line-height:1;cursor:pointer;border-radius:50%;
+                       width:40px;height:40px;display:flex;align-items:center;justify-content:center;">×</button>
+      </div>
+      {% if can_edit %}
+      <form hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/medien/{{ m.id }}/loeschen"
+            hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
+            hx-confirm="Bild löschen?"
+            hx-on::after-request="if(event.detail.successful){this.closest('[x-data]').remove()}"
+            style="margin:0;position:absolute;top:1px;right:1px;">
+        <button type="submit" class="btn btn--xs btn--ghost"
+                style="background:rgba(0,0,0,.7);color:#f87171;padding:0 3px;font-size:.6rem;line-height:1.4;">✕</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
   </div>
   {% endif %}
+  {% if can_edit %}
+  <form hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/medien"
+        hx-encoding="multipart/form-data"
+        hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful){this.reset();htmx.ajax('GET','/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/panel',{target:this.closest('#site-panel-content,#siteDetailContent'),swap:'innerHTML'})}"
+        style="display:flex;gap:6px;align-items:center;margin:0;">
+    <input type="file" name="file" accept="image/*" required
+           style="flex:1;font-size:.72rem;color:var(--text);">
+    <button type="submit" class="btn btn--xs btn--secondary">↑</button>
+  </form>
+  {% endif %}
 </div>
+{% endif %}
+
+{# ── Notizen/Log ────────────────────────────────────────────────────────────── #}
+<div style="padding:8px 14px;border-top:1px solid var(--border);">
+  <div style="font-size:.7rem;color:var(--text-muted);font-weight:600;margin-bottom:6px;">MELDUNGEN / NOTIZEN</div>
+  {% if marker.log_entries %}
+  {% for entry in marker.log_entries[-8:] | reverse %}
+  <div style="display:flex;align-items:flex-start;gap:6px;padding:4px 0;
+              border-top:1px solid rgba(255,255,255,.04);">
+    <span style="flex-shrink:0;font-size:.65rem;color:var(--text-muted);font-family:monospace;padding-top:1px;white-space:nowrap;">
+      {{ entry.ts | local_time }}
+    </span>
+    <span style="flex:1;font-size:.78rem;">{{ entry.text }}</span>
+    {% if can_edit %}
+    <form hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/log/{{ entry.id }}/loeschen"
+          hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
+          hx-confirm="Eintrag löschen?"
+          hx-on::after-request="if(event.detail.successful){this.closest('div').remove()}"
+          style="margin:0;">
+      <button type="submit" class="btn btn--xs btn--ghost"
+              style="opacity:.5;padding:0 4px;font-size:.6rem;">✕</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <div style="font-size:.75rem;color:var(--text-muted);padding:4px 0;">Noch keine Einträge.</div>
+  {% endif %}
+  {% if can_edit %}
+  <form hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/log"
+        hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful){this.reset();htmx.ajax('GET','/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/panel',{target:this.closest('#site-panel-content,#siteDetailContent'),swap:'innerHTML'})}"
+        style="display:flex;gap:6px;align-items:center;margin-top:6px;">
+    <input type="text" name="text" class="form-input"
+           placeholder="Notiz / Meldung…" required maxlength="500"
+           style="flex:1;font-size:.78rem;padding:4px 8px;">
+    <button type="submit" class="btn btn--xs btn--secondary">↵</button>
+  </form>
+  {% endif %}
+</div>
+
+{# ── Aktionen ───────────────────────────────────────────────────────────────── #}
+{% if can_edit %}
+<div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--border);">
+  <form hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/loeschen"
+        hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
+        hx-confirm="Meldung wirklich löschen?"
+        hx-on::after-request="if(event.detail.successful){
+          var pw=document.getElementById('site-panel-wrap');
+          if(pw) pw.classList.remove('open');
+          var dm=document.getElementById('siteDetailModal');
+          if(dm) dm.close();
+          htmx.trigger(document.body,'crossMarkerChanged');
+        }"
+        style="margin:0;">
+    <button type="submit" class="btn btn--ghost btn--sm" style="color:#f87171;border-color:rgba(239,68,68,.3);">Löschen</button>
+  </form>
+</div>
+{% endif %}

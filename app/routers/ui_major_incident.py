@@ -19,6 +19,8 @@ from app.models.major_incident import (
     CROSS_MARKER_STATUS_LABEL,
     CROSS_MARKER_TYPE_ICON,
     CROSS_MARKER_TYPE_LABEL,
+    CrossMarkerLogEntry,
+    CrossMarkerMedia,
     CrossSiteMarker,
     JOURNAL_CATEGORIES,
     JOURNAL_CATEGORY_COLOR,
@@ -1604,6 +1606,126 @@ async def cross_marker_panel(
         "status_color": CROSS_MARKER_STATUS_COLOR,
         "can_edit": _can_edit(user),
     })
+
+
+@router.post("/lage/{lage_id}/uebergreifend/{mid}/log")
+async def cross_marker_log_add(
+    request: Request,
+    lage_id: int,
+    mid: int,
+    text: str = Form(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    m = db.get(CrossSiteMarker, mid)
+    if not m or m.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+    db.add(CrossMarkerLogEntry(
+        marker_id=mid,
+        text=text.strip()[:500],
+        user_id=getattr(user, "id", None),
+        author_name=get_author_name(request),
+    ))
+    db.commit()
+    await broadcast_lage(lage_id, {"type": "cross_marker:changed", "marker_id": mid, "reload_board": False})
+    return Response(status_code=204)
+
+
+@router.post("/lage/{lage_id}/uebergreifend/{mid}/log/{eid}/loeschen")
+async def cross_marker_log_delete(
+    request: Request,
+    lage_id: int,
+    mid: int,
+    eid: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    e = db.get(CrossMarkerLogEntry, eid)
+    if not e or e.marker_id != mid:
+        raise HTTPException(status_code=404)
+    db.delete(e)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/lage/{lage_id}/uebergreifend/{mid}/medien")
+async def cross_marker_media_upload(
+    request: Request,
+    lage_id: int,
+    mid: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    m = db.get(CrossSiteMarker, mid)
+    if not m or m.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+    from app.services.lage_media_service import upload_cross_media
+    media = await upload_cross_media(
+        file, mid,
+        org_id=lage.org_id,
+        user_id=getattr(user, "id", None),
+        author_name=get_author_name(request),
+        db=db,
+    )
+    db.add(media)
+    db.commit()
+    await broadcast_lage(lage_id, {"type": "cross_marker:changed", "marker_id": mid, "reload_board": False})
+    return Response(status_code=204)
+
+
+@router.get("/lage/{lage_id}/uebergreifend/{mid}/medien/{media_id}/bild")
+async def cross_marker_media_serve(
+    request: Request,
+    lage_id: int,
+    mid: int,
+    media_id: int,
+    thumb: bool = False,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    media = db.get(CrossMarkerMedia, media_id)
+    if not media or media.marker_id != mid:
+        raise HTTPException(status_code=404)
+    from app.services.lage_media_service import cross_media_path, cross_media_thumb_path
+    p = cross_media_thumb_path(media) if thumb else cross_media_path(media)
+    if not p.exists():
+        raise HTTPException(status_code=404)
+    return FileResponse(str(p), media_type="image/jpeg")
+
+
+@router.post("/lage/{lage_id}/uebergreifend/{mid}/medien/{media_id}/loeschen")
+async def cross_marker_media_delete(
+    request: Request,
+    lage_id: int,
+    mid: int,
+    media_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    media = db.get(CrossMarkerMedia, media_id)
+    if not media or media.marker_id != mid:
+        raise HTTPException(status_code=404)
+    from app.services.lage_media_service import delete_cross_media_files
+    delete_cross_media_files(media)
+    db.delete(media)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/lage/{lage_id}/karte-cross-markers")

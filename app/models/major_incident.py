@@ -531,6 +531,10 @@ class CrossSiteMarker(Base):
     def status_color(self) -> str:
         return CROSS_MARKER_STATUS_COLOR.get(self.status, "#6b7280")
 
+    log_entries: Mapped[list["CrossMarkerLogEntry"]] = relationship(
+        cascade="all, delete-orphan", order_by="CrossMarkerLogEntry.ts")
+    media: Mapped[list["CrossMarkerMedia"]] = relationship(cascade="all, delete-orphan")
+
     @property
     def address_line(self) -> str:
         parts = []
@@ -539,6 +543,37 @@ class CrossSiteMarker(Base):
         if self.ort:
             parts.append(self.ort)
         return ", ".join(parts) if parts else ""
+
+
+class CrossMarkerLogEntry(Base):
+    """Notizen / Statusmeldungen zu einer übergreifenden Meldung."""
+    __tablename__ = "cross_marker_log_entry"
+
+    id:          Mapped[int] = mapped_column(Integer, primary_key=True)
+    marker_id:   Mapped[int] = mapped_column(
+        Integer, ForeignKey("cross_site_marker.id", ondelete="CASCADE"), index=True)
+    ts:          Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    user_id:     Mapped[int | None] = mapped_column(BigInteger, ForeignKey("user.id"), nullable=True)
+    author_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    text:        Mapped[str] = mapped_column(Text)
+
+
+class CrossMarkerMedia(Base):
+    """Bilder zu einer übergreifenden Meldung."""
+    __tablename__ = "cross_marker_media"
+
+    id:                Mapped[int] = mapped_column(Integer, primary_key=True)
+    marker_id:         Mapped[int] = mapped_column(
+        Integer, ForeignKey("cross_site_marker.id", ondelete="CASCADE"), index=True)
+    stored_filename:   Mapped[str] = mapped_column(String(64))
+    original_filename: Mapped[str] = mapped_column(String(255))
+    media_type:        Mapped[str] = mapped_column(String(12))  # image
+    uploaded_at:       Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    uploaded_by:       Mapped[int | None] = mapped_column(BigInteger, ForeignKey("user.id"), nullable=True)
+    author_name:       Mapped[str | None] = mapped_column(String(120), nullable=True)
+    bytes:             Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    org_id:            Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fire_dept.id"), nullable=True, index=True)
 
 
 # ── Fahrzeugpositions-Historie ─────────────────────────────────────────────────

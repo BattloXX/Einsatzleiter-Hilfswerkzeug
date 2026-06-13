@@ -31,8 +31,8 @@
               hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
               hx-swap="none"
               name="status"
-              onchange="this.form && this.form.dispatchEvent(new Event('submit'))"
-              hx-trigger="change">
+              hx-trigger="change"
+              hx-on::after-request="if(event.detail.successful) htmx.trigger(document.body,'crossMarkerChanged')">
         {% for val, label in status_label.items() %}
         <option value="{{ val }}" {% if marker.status == val %}selected{% endif %}>{{ label }}</option>
         {% endfor %}

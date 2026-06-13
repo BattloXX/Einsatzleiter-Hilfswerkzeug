@@ -1,4 +1,4 @@
-"""Bild-Upload für Einsatzstellen (SiteMedia) und Einsatzjournal (LageJournalMedia)."""
+"""Bild-Upload für Einsatzstellen (SiteMedia), Einsatzjournal (LageJournalMedia) und CrossSiteMarker (CrossMarkerMedia)."""
 from __future__ import annotations
 
 import io
@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 
 from app.config import settings
-from app.models.major_incident import LageJournalMedia, SiteMedia
+from app.models.major_incident import CrossMarkerMedia, LageJournalMedia, SiteMedia
 from app.services.media_service import IMAGE_MIMES, _detect_mime
 
 logger = logging.getLogger("einsatzleiter.lage_media")
@@ -240,3 +240,103 @@ async def upload_journal_media(
         bytes=stored_bytes,
         org_id=org_id,
     )
+
+
+# ── CrossSiteMarker-Medien ─────────────────────────────────────────────────────
+
+_CROSS_MEDIA_DIR = "app_storage/cross_marker_media"
+
+
+def _cross_media_dir(marker_id: int, org_id: int | None = None) -> Path:
+    if org_id is not None:
+        d = Path(_CROSS_MEDIA_DIR) / str(org_id) / str(marker_id)
+    else:
+        d = Path(_CROSS_MEDIA_DIR) / str(marker_id)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def cross_media_path(media: CrossMarkerMedia) -> Path:
+    org_id = getattr(media, "org_id", None)
+    if org_id is not None:
+        return Path(_CROSS_MEDIA_DIR) / str(org_id) / str(media.marker_id) / media.stored_filename
+    return Path(_CROSS_MEDIA_DIR) / str(media.marker_id) / media.stored_filename
+
+
+def cross_media_thumb_path(media: CrossMarkerMedia) -> Path:
+    fname = media.stored_filename.replace(".jpg", "_thumb.jpg")
+    org_id = getattr(media, "org_id", None)
+    if org_id is not None:
+        return Path(_CROSS_MEDIA_DIR) / str(org_id) / str(media.marker_id) / fname
+    return Path(_CROSS_MEDIA_DIR) / str(media.marker_id) / fname
+
+
+async def upload_cross_media(
+    file: UploadFile,
+    marker_id: int,
+    org_id: int | None = None,
+    user_id: int | None = None,
+    author_name: str | None = None,
+    db=None,
+) -> CrossMarkerMedia:
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Leere Datei")
+
+    mime = _detect_mime(data) or (file.content_type or "")
+    if mime not in IMAGE_MIMES:
+        raise HTTPException(status_code=400, detail=f"Nur Bilder erlaubt (erhalten: {mime})")
+
+    max_bytes = settings.MAX_UPLOAD_BYTES_IMAGE
+    if len(data) > max_bytes:
+        mb = max_bytes // (1024 * 1024)
+        raise HTTPException(status_code=413, detail=f"Datei zu groß (max {mb} MB)")
+
+    try:
+        from PIL import Image, ImageOps  # type: ignore
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Pillow nicht verfügbar")
+
+    img = Image.open(io.BytesIO(data))
+    img = ImageOps.exif_transpose(img)
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    img.thumbnail(
+        (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
+        Image.Resampling.LANCZOS,
+    )
+
+    dest = _cross_media_dir(marker_id, org_id)
+    uid = uuid.uuid4().hex
+    main_fn = f"{uid}.jpg"
+    thumb_fn = f"{uid}_thumb.jpg"
+
+    img.save(dest / main_fn, "JPEG", quality=85, optimize=True, progressive=True)
+    thumb = img.copy()
+    thumb.thumbnail((settings.MEDIA_THUMB_SIZE, settings.MEDIA_THUMB_SIZE), Image.Resampling.LANCZOS)
+    thumb.save(dest / thumb_fn, "JPEG", quality=80, optimize=True)
+
+    stored_bytes = (dest / main_fn).stat().st_size
+    if db is not None and org_id is not None:
+        from app.services.storage_service import reserve_storage
+        reserve_storage(db, org_id, stored_bytes)
+
+    return CrossMarkerMedia(
+        marker_id=marker_id,
+        stored_filename=main_fn,
+        original_filename=(file.filename or "foto.jpg")[:255],
+        media_type="image",
+        uploaded_by=user_id,
+        author_name=author_name,
+        bytes=stored_bytes,
+        org_id=org_id,
+    )
+
+
+def delete_cross_media_files(media: CrossMarkerMedia) -> None:
+    """Löscht Bild- und Thumbnail-Dateien vom Dateisystem (ignore errors)."""
+    for p in (cross_media_path(media), cross_media_thumb_path(media)):
+        try:
+            p.unlink(missing_ok=True)
+        except Exception:
+            pass
