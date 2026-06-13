@@ -3066,6 +3066,12 @@ async def lage_karte(
             return "#22c55e"
         return "#6b7280"
 
+    _prio_letter = {
+        SitePriority.sofort: "S",
+        SitePriority.dringend: "D",
+        SitePriority.normal: "N",
+        SitePriority.aufschiebbar: "A",
+    }
     active_sites = [s for s in lage.sites if s.phase != SitePhase.abgebrochen]
     map_sites_json = json.dumps([{
         "id": s.id,
@@ -3076,6 +3082,7 @@ async def lage_karte(
         "phase": s.phase.value,
         "phase_label": PHASE_LABELS.get(s.phase, s.phase.value),
         "priority_label": SITE_PRIORITY_LABEL.get(s.priority, "") if s.priority else "",
+        "priority_letter": _prio_letter.get(s.priority, "") if s.priority else "",
         "color": _site_color(s),
         "active_res": sum(1 for r in s.resources if not r.released_at),
         "sector_id": s.sector_id,

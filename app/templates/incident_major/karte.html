@@ -450,10 +450,26 @@
     return lines.join('<br>');
   }
 
+  function buildSiteIcon(s) {
+    var c = siteColor(s);
+    return L.divIcon({
+      className: '',
+      html: '<div style="background:' + c + ';border-radius:50%;width:26px;height:26px;'
+          + 'display:flex;align-items:center;justify-content:center;'
+          + 'font-size:11px;font-weight:800;color:#fff;letter-spacing:0;'
+          + 'border:2px solid rgba(255,255,255,.55);'
+          + 'box-shadow:0 1px 5px rgba(0,0,0,.45);">'
+          + (s.priority_letter || '') + '</div>',
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+      popupAnchor: [0, -13],
+      tooltipAnchor: [13, 0],
+    });
+  }
+
   function refreshMarkerColors() {
     markers.forEach(function(obj) {
-      var c = siteColor(obj.site);
-      obj.marker.setStyle({ color: c, fillColor: c });
+      obj.marker.setIcon(buildSiteIcon(obj.site));
       obj.marker.setPopupContent(buildPopup(obj.site));
       obj.marker.setTooltipContent(buildSiteTooltip(obj.site));
     });
@@ -574,11 +590,7 @@
 
   var allBounds = [];
   SITES.forEach(function(s) {
-    var c = siteColor(s);
-    var m = L.circleMarker([s.lat, s.lng], {
-      radius: 11, color: c, fillColor: c,
-      fillOpacity: 0.85, weight: 2,
-    });
+    var m = L.marker([s.lat, s.lng], { icon: buildSiteIcon(s) });
     m.bindPopup(buildPopup(s), { maxWidth: 260 });
     m.bindTooltip(buildSiteTooltip(s), { direction: 'top', sticky: true, opacity: 0.95, className: 'lk-tip' });
     markers.push({ marker: m, phase: s.phase, site: s });
