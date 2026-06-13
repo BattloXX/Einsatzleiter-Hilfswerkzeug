@@ -4,11 +4,6 @@ import random
 import secrets
 from datetime import UTC, datetime, timedelta
 
-logger = logging.getLogger("einsatzleiter.major_incident")
-
-# Pending phone verifications: verify_token → {pin, expires_at, ...}
-_pending_verifications: dict[str, dict] = {}
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -19,24 +14,24 @@ from app.core.security import get_author_name
 from app.core.templating import templates
 from app.db import get_db
 from app.models.major_incident import (
-    CitizenReport,
-    CommLogEntry,
-    IncidentSite,
-    LageEinheit,
-    LageJournalEntry,
-    Sector,
-    MajorIncident,
-    MajorIncidentStatus,
-    SiteLogEntry,
-    SitePhase,
-    SitePriority,
-    SiteResourceAssignment,
-    StaffAssignment,
     JOURNAL_CATEGORIES,
     JOURNAL_CATEGORY_COLOR,
     SITE_PRIORITY_COLOR,
     SITE_PRIORITY_LABEL,
     STAFF_FUNCTION_LABEL,
+    CitizenReport,
+    CommLogEntry,
+    IncidentSite,
+    LageEinheit,
+    LageJournalEntry,
+    MajorIncident,
+    MajorIncidentStatus,
+    Sector,
+    SiteLogEntry,
+    SitePhase,
+    SitePriority,
+    SiteResourceAssignment,
+    StaffAssignment,
     StaffFunction,
 )
 from app.models.master import FireDept, Member, VehicleMaster
@@ -50,6 +45,11 @@ from app.services.major_incident_service import (
 )
 
 router = APIRouter()
+
+logger = logging.getLogger("einsatzleiter.major_incident")
+
+# Pending phone verifications: verify_token → {pin, expires_at, ...}
+_pending_verifications: dict[str, dict] = {}
 
 _MI_FEATURE_KEYS: frozenset[str] = frozenset({
     "mi_feature_stab", "mi_feature_funkjournal", "mi_feature_meldungen",
@@ -206,7 +206,7 @@ async def lage_overview(
             .limit(50)
             .all()
         )
-        active_all = [l for l in all_lage if l.status == MajorIncidentStatus.active]
+        active_all = [li for li in all_lage if li.status == MajorIncidentStatus.active]
         if len(active_all) == 1:
             return RedirectResponse(f"/lage/{active_all[0].id}", status_code=302)
 
@@ -363,6 +363,66 @@ async def site_create(
         raise
     await broadcast_lage(lage_id, {"type": "site_created", "reload_board": True})
     return RedirectResponse(f"/lage/{lage_id}", status_code=303)
+
+
+@router.post("/lage/{lage_id}/stellen/via-karte")
+async def site_create_via_karte(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    """Erstellt eine Einsatzstelle aus einem Karten-Pin (JSON-Body)."""
+    from fastapi.responses import JSONResponse
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    if lage.status != MajorIncidentStatus.active:
+        raise HTTPException(status_code=400, detail="Lage nicht aktiv")
+
+    data = await request.json()
+    try:
+        lat = float(data["lat"])
+        lng = float(data["lng"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="lat/lng fehlen")
+
+    einsatzgrund = (data.get("einsatzgrund") or "").strip()[:200] or None
+    strasse = (data.get("strasse") or "").strip()[:120] or None
+    hausnr = (data.get("hausnr") or "").strip()[:20] or None
+    ort = (data.get("ort") or "").strip()[:120] or None
+    bezeichnung = einsatzgrund or "Einsatzstelle"
+
+    try:
+        site = create_site(
+            db, lage,
+            bezeichnung=bezeichnung,
+            einsatzgrund=einsatzgrund,
+            strasse=strasse,
+            hausnr=hausnr,
+            ort=ort,
+            lat=lat,
+            lng=lng,
+            source="manual",
+            created_by=user.id,
+        )
+        db.add(SiteLogEntry(
+            incident_site_id=site.id,
+            kind="status",
+            text="Einsatzstelle via Karten-Pin angelegt",
+            user_id=user.id,
+            author_name=get_author_name(request),
+        ))
+        from app.services.geo_service import auto_assign_section
+        auto_assign_section(db, site)
+        db.commit()
+    except Exception:
+        logger.exception("Fehler beim Anlegen via Karte lage_id=%s", lage_id)
+        db.rollback()
+        raise
+    await broadcast_lage(lage_id, {"type": "site_created", "reload_board": True})
+    return JSONResponse({"id": site.id, "bezeichnung": site.bezeichnung,
+                         "lat": site.lat, "lng": site.lng})
 
 
 # ── Phase ändern (Drag & Drop) ───────────────────────────────────────────────
@@ -887,7 +947,7 @@ async def lage_media_thumb(
     _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
 ):
     from app.models.major_incident import SiteMedia as _SiteMedia
-    from app.services.lage_media_service import site_thumb_path
+    from app.services.lage_media_service import site_media_path, site_thumb_path
     user = request.state.user
     media = db.get(_SiteMedia, media_id)
     if not media:
@@ -1082,6 +1142,13 @@ async def lage_dashboard(
         for s in lage.sites
     )
 
+    sectors_json = json.dumps([{
+        "id": s.id,
+        "name": s.name,
+        "color": s.color or "#6b7280",
+        "geometry": json.loads(s.geometry) if s.geometry else None,
+    } for s in sorted(lage.sectors, key=lambda s: s.id)])
+
     return templates.TemplateResponse(request, "incident_major/dashboard.html", {
         "user": user,
         "lage": lage,
@@ -1092,6 +1159,7 @@ async def lage_dashboard(
         "prio_color": SITE_PRIORITY_COLOR,
         "activity_feed": activity_feed,
         "map_sites_json": map_sites_json,
+        "sectors_json": sectors_json,
         "open_count": open_count,
         "done_count": phase_stats[SitePhase.erledigt],
         "active_res": active_res,
@@ -1118,7 +1186,7 @@ async def lage_stab(
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
 
-    from app.services.gsl_staff_service import soll_check, get_roles
+    from app.services.gsl_staff_service import get_roles, soll_check
     check = soll_check(db, lage_id, lage.org_id)
     roles = get_roles(db, lage.org_id)
 
@@ -1341,6 +1409,7 @@ async def meldungen_qr(
     _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
 ):
     import io
+
     import qrcode  # type: ignore
     import qrcode.image.svg  # type: ignore
 
@@ -1386,7 +1455,8 @@ async def funkjournal_handled(
 # ── Bürgermeldeportal – Hilfsfunktion ────────────────────────────────────────
 
 async def _save_citizen_photo(file: UploadFile) -> str | None:
-    import io, uuid
+    import io
+    import uuid
     from pathlib import Path
     data = await file.read()
     if not data:
@@ -1598,7 +1668,10 @@ async def buerger_verify_post(
     pending = _pending_verifications.get(verify_token)
 
     if not pending or pending["expires_at"] < now:
-        return HTMLResponse("<h2>Dieser Verifizierungslink ist abgelaufen. Bitte erneut versuchen.</h2>", status_code=410)
+        return HTMLResponse(
+            "<h2>Dieser Verifizierungslink ist abgelaufen. Bitte erneut versuchen.</h2>",
+            status_code=410,
+        )
 
     lage = db.get(MajorIncident, pending["lage_id"])
     if not lage:
@@ -2124,13 +2197,19 @@ async def sektor_create(
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
 
-    db.add(Sector(
+    safe_color = color[:7] if color.startswith("#") else "#6b7280"
+    sector = Sector(
         major_incident_id=lage_id,
         name=name.strip()[:80],
-        color=color[:7] if color.startswith("#") else "#6b7280",
+        color=safe_color,
         leader_label=leader_label.strip()[:80] or None,
-    ))
+    )
+    db.add(sector)
     db.commit()
+
+    if request.headers.get("accept", "").startswith("application/json"):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"id": sector.id, "name": sector.name, "color": sector.color})
     return RedirectResponse(f"/lage/{lage_id}/sektoren", status_code=303)
 
 
@@ -2319,11 +2398,10 @@ async def vehicle_positions(
     _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
 ):
     """Gibt aktuelle Fahrzeugpositionen (letzte je Fahrzeug) als JSON zurück."""
-    import json as _json
     from datetime import timedelta
+
     from app.models.major_incident import VehiclePosition
-    from app.models.user import DeviceToken
-    from app.models.master import VehicleMaster, OrgSettings
+    from app.models.master import OrgSettings, VehicleMaster
 
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
@@ -2371,7 +2449,8 @@ async def vehicle_positions(
     result = []
     for p in positions:
         vehicle = db.get(VehicleMaster, p.vehicle_id) if p.vehicle_id else None
-        is_stale = p.received_at.replace(tzinfo=UTC) < stale_threshold if p.received_at.tzinfo is None else p.received_at < stale_threshold
+        ts = p.received_at.replace(tzinfo=UTC) if p.received_at.tzinfo is None else p.received_at
+        is_stale = ts < stale_threshold
         result.append({
             "id": p.id,
             "vehicle_id": p.vehicle_id,
@@ -2469,10 +2548,14 @@ async def lage_karte(
 
     def _site_color(s: IncidentSite) -> str:
         c = SITE_PRIORITY_COLOR.get(s.priority) if s.priority else None
-        if c == "red":    return "#ef4444"
-        if c == "orange": return "#f97316"
-        if c == "yellow": return "#eab308"
-        if s.phase == SitePhase.erledigt: return "#22c55e"
+        if c == "red":
+            return "#ef4444"
+        if c == "orange":
+            return "#f97316"
+        if c == "yellow":
+            return "#eab308"
+        if s.phase == SitePhase.erledigt:
+            return "#22c55e"
         return "#6b7280"
 
     active_sites = [s for s in lage.sites if s.phase != SitePhase.abgebrochen]
@@ -2488,6 +2571,7 @@ async def lage_karte(
         "color": _site_color(s),
         "active_res": sum(1 for r in s.resources if not r.released_at),
         "sector_id": s.sector_id,
+        "incident_id": s.incident_id,
     } for s in active_sites if s.lat and s.lng])
 
     sectors = sorted(lage.sectors, key=lambda s: s.id)
@@ -2537,6 +2621,29 @@ async def lage_karte(
         "mi_features": _get_mi_features(db),
         **_nav_counts(lage_id, lage, db),
     })
+
+
+@router.get("/lage/{lage_id}/karte-sektoren")
+async def lage_karte_sektoren(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    """JSON-API: gibt aktuelle Sektoren für Live-Update der Lagekarte zurück."""
+    import json
+
+    from fastapi.responses import JSONResponse
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    sectors = sorted(lage.sectors, key=lambda s: s.id)
+    return JSONResponse([{
+        "id": s.id,
+        "name": s.name,
+        "color": s.color or "#6b7280",
+        "geometry": json.loads(s.geometry) if s.geometry else None,
+    } for s in sectors])
 
 
 # ── Ressourcenübersicht ───────────────────────────────────────────────────────
