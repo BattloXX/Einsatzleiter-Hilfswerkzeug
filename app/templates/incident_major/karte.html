@@ -403,7 +403,7 @@
     if (s.sector_id != null && sectorMap[s.sector_id]) {
       secLine = '<div class="lk-popup__sector">Abschnitt: ' + sectorMap[s.sector_id].name + '</div>';
     }
-    var links = '<a class="lk-popup__link" href="/lage/' + lageId + '" target="_blank">→ Board</a>';
+    var links = '<a class="lk-popup__link" href="/lage/' + lageId + '?open_site=' + s.id + '" target="_blank">→ Board</a>';
     if (s.incident_id) {
       links += '&nbsp;<a class="lk-popup__link" href="/einsatz/' + s.incident_id + '/karte" target="_blank">→ Einsatzkarte</a>';
     }
