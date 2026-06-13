@@ -844,7 +844,7 @@
     var einsatzgrund = inp.value.trim();
     document.getElementById('pin-modal').close();
 
-    fetch('/lage/' + lageId + '/karte/neue-stelle', {
+    fetch('/lage/' + lageId + '/stellen/via-karte', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

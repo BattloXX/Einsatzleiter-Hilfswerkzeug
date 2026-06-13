@@ -365,7 +365,7 @@ async def site_create(
     return RedirectResponse(f"/lage/{lage_id}", status_code=303)
 
 
-@router.post("/lage/{lage_id}/karte/neue-stelle")
+@router.post("/lage/{lage_id}/stellen/via-karte")
 async def site_create_via_karte(
     request: Request,
     lage_id: int,
