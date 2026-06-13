@@ -6,7 +6,7 @@
 [![CI](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions/workflows/ci.yml/badge.svg)](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green)
-![Version](https://img.shields.io/badge/version-2.3.0-orange)
+![Version](https://img.shields.io/badge/version-2.4.0-orange)
 
 ---
 
@@ -47,6 +47,7 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | **Org-Konfig-Backup** | JSON-Export/Import der Org-Konfiguration inkl. Dry-Run-Diff |
 | **System-Admin-Konsole** | Per-Org KPI-Übersicht mit Schnellzugriff für Systemadministratoren |
 | **Auto-Schließen** | Inaktive Einsätze werden nach konfigurierbarer Zeit automatisch geschlossen (systemweit und pro Org) |
+| **Wetterdaten-Integration** | Echtzeit-Nowcast (15-min), Ist-Werte, +6/+12/+24h-Vorhersage und Unwetterwarnungen via GeoSphere Austria (CC BY 4.0); Sturm- und Waldbrand-Szenario-Indikatoren; Radar-Overlay (RainViewer) auf der Lagekarte; globale `/wetter`-Seite; opt-out je Org |
 
 ---
 
@@ -71,6 +72,8 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | Rate-Limiting | **slowapi** (IP-basiert + API-Key-basiert) |
 | QR-Code | **qrcode[pil]** |
 | PWA | Service Worker + Web App Manifest |
+| HTTP-Client (async) | **httpx** (GeoSphere Austria & Open-Meteo Weather-APIs) |
+| Wetter-Daten | **GeoSphere Austria Data Hub** (CC BY 4.0, kein API-Key) + **Open-Meteo** (Fallback) + **RainViewer** (Radar) |
 | Deployment | Gunicorn + UvicornWorker, Port **8092**, NGINX, systemd |
 
 ---
@@ -308,6 +311,17 @@ AI_MODEL_FAST=claude-haiku-4-5-20251001
 
 # ── In-App-Update ──────────────────────────────────────────────────
 UPDATE_ZIP_REQUIRE_HASH=true
+
+# ── Wetter (GeoSphere Austria Data Hub — CC BY 4.0, kein API-Key) ──
+WEATHER_ENABLED=true
+# GEOSPHERE_BASE_URL=https://dataset.api.hub.geosphere.at/v1  # default
+# GEOSPHERE_WARN_URL=https://openapi.hub.geosphere.at/warnapi/v1  # default
+WEATHER_CACHE_TTL_NOWCAST=300    # Sekunden; Nowcast + Ist-Werte
+WEATHER_CACHE_TTL_NWP=1800       # Sekunden; NWP-Vorhersage
+WEATHER_CACHE_TTL_WARN=300       # Sekunden; Unwetterwarnungen
+WEATHER_HTTP_TIMEOUT=8           # Sekunden; externe API-Anfragen
+WEATHER_RADIUS_KM=15             # Fokus-Radius für Radarkarte
+WEATHER_FALLBACK_OPENMETEO=true  # Open-Meteo als Fallback wenn GeoSphere nicht erreichbar
 ```
 
 ---
@@ -343,6 +357,8 @@ alembic downgrade -1
 | `0053_multitenancy_pr6_storage_quota.py` | Speicher-Quotas |
 | `0054_multitenancy_pr7_invitations.py` | Einladungsmodell, QR-Tokens |
 | `0055_multitenancy_pr8_autoclose_backup.py` | Auto-Schließen je Org |
+| `0065_vehicle_position.py` | Fahrzeug-GPS-Positionshistorie |
+| `0066_weather_enabled.py` | `weather_enabled`-Flag in `OrgSettings` (Wetter-Opt-out je Org) |
 
 Vollständiger Migrationsleitfaden: [`docs/MIGRATION_RUNBOOK.md`](docs/MIGRATION_RUNBOOK.md)
 
@@ -763,6 +779,7 @@ app_storage/incident_media/  Medien-Dateien (Auth-geschützt, nicht im Repo)
 
 | Version | Datum | Highlights |
 |---------|-------|------------|
+| **2.4.0** | 2026-06-13 | Wetterdaten-Integration: Nowcast (15-min), Ist-Werte, +6/+12/+24h-Vorhersage, Unwetterwarnungen (GeoSphere Austria CC BY 4.0); Sturm- und Waldbrand-Szenario-Alerts; Radar-Layer (RainViewer) auf Lagekarte; Wetter-Panel in GSL-Board und Einzeleinsatz; globale `/wetter`-Seite; org-spezifisches Opt-out |
 | **2.3.0** | 2026-06-13 | Großschadenslage-Karte: Abschnitte live ohne Reload, Pin-Modus mit Reverse Geocoding, Geoman-Toolbar auf Deutsch; Stab: BMI SKKM-Einsatzjournal als erstes Tab; Dashboard: Abschnitt-Polygone auf Mini-Karte |
 | **2.2.0** | 2026-06-11 | Multi-Tenancy vollständig (12 PRs): Row-Level-Isolation, Org-Onboarding, KI je Org, Speicher-Quotas, Einladungsmodell, Auto-Schließen, Rate-Limiting, API-Härtung, System-Konsole, Migration-Runbook |
 | **2.0.0** | 2026-05-23 | Media-Upload + Galerie, System-Admin-Rolle, Zeitzone je Org, ZIP-Update, Python 3.14 |
