@@ -126,10 +126,12 @@ async def gsl_wetter_panel(
             },
         )
 
-    # Parallel fetch
-    nowcast, current = await asyncio.gather(
+    # Parallel fetch: nowcast, current conditions, forecast, warnings
+    nowcast, current, forecast, warnings = await asyncio.gather(
         weather_service.get_nowcast(lat, lng),
         weather_service.get_current(lat, lng),
+        weather_service.get_forecast(lat, lng),
+        weather_service.get_warnings(lat, lng),
         return_exceptions=True,
     )
     if isinstance(nowcast, Exception):
@@ -138,11 +140,21 @@ async def gsl_wetter_panel(
     if isinstance(current, Exception):
         logger.warning("Current-Fehler: %s", current)
         current = None
+    if isinstance(forecast, Exception):
+        logger.warning("Forecast-Fehler: %s", forecast)
+        forecast = None
+    if isinstance(warnings, Exception):
+        logger.warning("Warnings-Fehler: %s", warnings)
+        warnings = []
 
     # Pre-compute display data
     nowcast_bars = _build_nowcast_bars(nowcast) if nowcast else []
     peak_label = _peak_label(nowcast) if nowcast else None
     trend_de = _TREND_DE.get(nowcast.trend, nowcast.trend) if nowcast else None
+    top_warning = warnings[0] if warnings else None
+    warn_color = weather_service._WARN_LEVEL_COLORS.get(
+        top_warning.level, "#6b7280"
+    ) if top_warning else None
 
     return templates.TemplateResponse(
         request,
@@ -156,6 +168,10 @@ async def gsl_wetter_panel(
             "trend_de": trend_de,
             "current": current,
             "wind_dir_label": _wind_dir_label(current.wind_direction_deg if current else None),
+            "forecast": forecast,
+            "warnings": warnings,
+            "top_warning": top_warning,
+            "warn_color": warn_color,
             "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
             "lage_id": lage_id,
         },

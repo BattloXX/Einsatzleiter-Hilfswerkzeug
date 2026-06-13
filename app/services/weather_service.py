@@ -464,11 +464,79 @@ async def _fetch_geosphere_nwp(
     return ForecastResult(horizons=result_horizons, source="geosphere_nwp")
 
 
-# ── Warnings stub (PR 3) ──────────────────────────────────────────────────────
+# ── Warnings (GeoSphere Warn-API) ─────────────────────────────────────────────
+
+_WARN_LEVEL_COLORS = {1: "#fbbf24", 2: "#f97316", 3: "#ef4444", 4: "#a855f7"}
+_WARN_EVENT_DE = {
+    "RAIN": "Starkregen", "THUNDERSTORM": "Gewitter", "WIND": "Sturm",
+    "SNOW": "Schneefall", "FROST": "Frost", "FOG": "Nebel",
+    "AVALANCHE": "Lawinengefahr", "FLOOD": "Hochwasser",
+}
+
 
 async def get_warnings(lat: float, lng: float) -> list[WeatherWarning]:
-    """Active weather warnings from GeoSphere Warn-API. Full implementation in PR 3."""
-    return []
+    """Active weather warnings from GeoSphere Warn-API for the given location."""
+    if not settings.WEATHER_ENABLED:
+        return []
+
+    key = _cache_key("warn", lat, lng)
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+
+    result = await _fetch_geosphere_warnings(lat, lng)
+    _cache_set(key, result, settings.WEATHER_CACHE_TTL_WARN)
+    return result
+
+
+async def _fetch_geosphere_warnings(lat: float, lng: float) -> list[WeatherWarning]:
+    url = f"{settings.GEOSPHERE_WARN_URL}/warnings/byLocation"
+    try:
+        async with httpx.AsyncClient(
+            headers={"User-Agent": "Einsatzleiter-Hilfswerkzeug/2.x (warnings)"},
+            timeout=settings.WEATHER_HTTP_TIMEOUT,
+        ) as client:
+            resp = await client.get(url, params={"lat": lat, "lon": lng})
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.TimeoutException:
+        logger.warning("GeoSphere Warn-API Timeout: lat=%s lng=%s", lat, lng)
+        return []
+    except httpx.HTTPStatusError as exc:
+        logger.warning("GeoSphere Warn-API HTTP %s", exc.response.status_code)
+        return []
+    except Exception as exc:
+        logger.warning("GeoSphere Warn-API Fehler: %s", exc)
+        return []
+
+    warnings: list[WeatherWarning] = []
+    raw_list = data if isinstance(data, list) else data.get("warnings", [])
+    for item in raw_list:
+        try:
+            level = int(item.get("level", item.get("severity", 1)))
+            event = str(item.get("event", item.get("type", "UNKNOWN"))).upper()
+            text = item.get("text", item.get("description", _WARN_EVENT_DE.get(event, event)))
+            valid_from = datetime.fromisoformat(
+                str(item.get("onset", item.get("valid_from", ""))).replace("Z", "+00:00")
+            )
+            valid_to = datetime.fromisoformat(
+                str(item.get("expires", item.get("valid_to", ""))).replace("Z", "+00:00")
+            )
+            now = datetime.now(UTC)
+            if valid_to < now:
+                continue   # already expired
+            warnings.append(WeatherWarning(
+                level=level,
+                event_type=_WARN_EVENT_DE.get(event, event),
+                text=str(text),
+                valid_from=valid_from,
+                valid_to=valid_to,
+                region=str(item.get("region", item.get("regionName", ""))),
+            ))
+        except Exception as exc:
+            logger.warning("Warnung konnte nicht geparst werden: %s — %s", item, exc)
+
+    return sorted(warnings, key=lambda w: -w.level)
 
 
 # ── Nowcast grid stub (PR 4) ──────────────────────────────────────────────────

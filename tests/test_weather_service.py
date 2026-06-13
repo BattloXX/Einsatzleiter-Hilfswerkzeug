@@ -417,12 +417,89 @@ async def test_get_forecast_returns_none_on_error():
     assert result is None
 
 
-# ── get_warnings stub ──────────────────────────────────────────────────────────
+# ── get_warnings ──────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_get_warnings_returns_empty_list():
-    result = await get_warnings(LAT, LNG)
+async def test_get_warnings_returns_empty_list_on_timeout():
+    with patch("httpx.AsyncClient") as mock_cls:
+        import httpx as _httpx
+        mock_client = AsyncMock()
+        mock_client.get.side_effect = _httpx.TimeoutException("t", request=MagicMock())
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await get_warnings(LAT, LNG)
     assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_warnings_parses_response():
+    from datetime import timezone, timedelta
+    future = datetime.now(UTC) + timedelta(hours=3)
+    warn_data = {"warnings": [{
+        "level": 2,
+        "event": "RAIN",
+        "text": "Starkregen erwartet",
+        "onset": datetime.now(UTC).isoformat(),
+        "expires": future.isoformat(),
+        "regionName": "Bregenz",
+    }]}
+    mock_resp = _mock_httpx_response(warn_data)
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=mock_resp)
+
+    with patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await get_warnings(LAT, LNG)
+
+    assert len(result) == 1
+    assert result[0].level == 2
+    assert result[0].event_type == "Starkregen"
+    assert result[0].region == "Bregenz"
+
+
+@pytest.mark.asyncio
+async def test_get_warnings_skips_expired():
+    from datetime import timezone, timedelta
+    past = datetime.now(UTC) - timedelta(hours=1)
+    warn_data = {"warnings": [{
+        "level": 3,
+        "event": "WIND",
+        "text": "Sturm",
+        "onset": (datetime.now(UTC) - timedelta(hours=6)).isoformat(),
+        "expires": past.isoformat(),
+    }]}
+    mock_resp = _mock_httpx_response(warn_data)
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=mock_resp)
+
+    with patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await get_warnings(LAT, LNG)
+
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_warnings_sorted_by_level_desc():
+    from datetime import timezone, timedelta
+    future = datetime.now(UTC) + timedelta(hours=3)
+    warn_data = {"warnings": [
+        {"level": 1, "event": "FOG", "text": "", "onset": datetime.now(UTC).isoformat(), "expires": future.isoformat()},
+        {"level": 3, "event": "WIND", "text": "", "onset": datetime.now(UTC).isoformat(), "expires": future.isoformat()},
+        {"level": 2, "event": "RAIN", "text": "", "onset": datetime.now(UTC).isoformat(), "expires": future.isoformat()},
+    ]}
+    mock_resp = _mock_httpx_response(warn_data)
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=mock_resp)
+
+    with patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await get_warnings(LAT, LNG)
+
+    assert [w.level for w in result] == [3, 2, 1]
 
 
 # ── Empty feature edge cases ──────────────────────────────────────────────────
