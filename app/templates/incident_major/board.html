@@ -690,7 +690,7 @@ window.openMeldungDialog = function() {
   document.getElementById('neuMeldungDialog').showModal();
   if (!_meldungPinMap) {
     _meldungPinMap = L.map('meldung-pin-map', { zoomControl: true })
-                      .setView([47.41, 9.74], 11);
+                      .setView([{{ org_lat }}, {{ org_lng }}], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright" style="color:#9ca3af">OSM</a>',
       maxZoom: 19,

@@ -301,7 +301,7 @@ async def lage_board(
     )
 
     from app.config import settings as _cfg
-    from app.models.master import OrgSettings as _OS
+    from app.models.master import OrgSettings as _OS, FireDept as _FD
     _org_s = db.query(_OS).filter(_OS.org_id == lage.org_id).first() if lage.org_id else None
     _weather_enabled = (
         _cfg.WEATHER_ENABLED
@@ -311,6 +311,9 @@ async def lage_board(
             or bool(_org_s.weather_enabled)
         )
     )
+    _org = db.get(_FD, lage.org_id) if lage.org_id else None
+    _org_lat = getattr(_org, "fallback_lat", None) or 47.41
+    _org_lng = getattr(_org, "fallback_lng", None) or 9.74
 
     return templates.TemplateResponse(request, "incident_major/board.html", {
         "user": user,
@@ -338,6 +341,8 @@ async def lage_board(
         "now": datetime.now(UTC),
         "mi_features": _get_mi_features(db),
         "weather_enabled": _weather_enabled,
+        "org_lat": _org_lat,
+        "org_lng": _org_lng,
     })
 
 
