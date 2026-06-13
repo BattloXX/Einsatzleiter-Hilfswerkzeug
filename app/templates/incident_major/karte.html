@@ -559,44 +559,6 @@
   var pendingSectorId = null;  // null = neuer Abschnitt, int = bestehenden updaten
 
   if (canEdit && typeof L.PM !== 'undefined') { try {
-    // Deutsche Übersetzung für Geoman-Toolbar
-    L.PM.setLang('de', {
-      tooltips: {
-        placeMarker: 'Marker setzen',
-        firstVertex: 'Ersten Punkt klicken',
-        continueLine: 'Weiteren Punkt klicken',
-        finishLine: 'Letzten Punkt klicken zum Beenden',
-        finishPoly: 'Ersten Punkt klicken zum Schließen',
-        finishRect: 'Loslassen zum Fertigstellen',
-        startCircle: 'Mittelpunkt klicken',
-        finishCircle: 'Radius durch Klick festlegen',
-        placeCircleMarker: 'Kreis-Marker setzen',
-        placeText: 'Text platzieren',
-      },
-      actions: {
-        finish: 'Fertig',
-        cancel: 'Abbrechen',
-        removeLastVertex: 'Letzten Punkt entfernen',
-      },
-      buttonTitles: {
-        drawMarkerButton: 'Marker zeichnen',
-        drawPolyButton: 'Polygon zeichnen',
-        drawLineButton: 'Linie zeichnen',
-        drawCircleButton: 'Kreis zeichnen',
-        drawRectButton: 'Rechteck zeichnen',
-        drawCircleMarkerButton: 'Kreis-Marker zeichnen',
-        editButton: 'Formen bearbeiten',
-        dragButton: 'Formen verschieben',
-        cutButton: 'Formen ausschneiden',
-        deleteButton: 'Formen löschen',
-        drawTextButton: 'Text zeichnen',
-        rotateButton: 'Formen drehen',
-        snapButton: 'Einrasten',
-        pinningButton: 'Anheften',
-        snappingButton: 'Einrasten',
-      },
-    }, 'en');
-
     map.pm.addControls({
       position: 'topleft',
       drawMarker: false, drawCircle: false, drawCircleMarker: false,
@@ -882,7 +844,7 @@
     var einsatzgrund = inp.value.trim();
     document.getElementById('pin-modal').close();
 
-    fetch('/lage/' + lageId + '/stellen/via-karte', {
+    fetch('/lage/' + lageId + '/karte/neue-stelle', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
