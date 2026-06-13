@@ -218,7 +218,7 @@
   {% if can_edit %}
   <div class="karte-controls__sep"></div>
   <button class="karte-mode-btn" id="btn-pin-mode" onclick="togglePinMode()">
-    📍 Pin-Modus
+    📍 Neuer Einsatz
   </button>
   {% endif %}
 </div>
@@ -544,6 +544,8 @@
         });
         poly.bindTooltip(s.name, { permanent: true, direction: 'center',
           className: 'leaflet-tooltip', opacity: 0.85 });
+        // _sectorId auf Sublayer setzen → pm:edit kann Sektor direkt finden
+        poly.eachLayer(function(sub) { sub._sectorId = s.id; });
         poly.addTo(map);
         poly.sectorId = s.id;
         sectorLayers[s.id] = poly;
@@ -627,24 +629,19 @@
     // Bestehende Polygone editierbar machen
     map.on('pm:edit', function(e) {
       var layer = e.layer;
-      // Finde Sektor-ID
-      var sectorId = null;
-      Object.entries(sectorLayers).forEach(function(kv) {
-        if (kv[1] === layer || (layer.getLayers && layer.getLayers().includes(kv[1]))) {
-          sectorId = parseInt(kv[0]);
-        }
-      });
-      // Layer.getLayers() für GeoJSON-Gruppen
-      Object.entries(sectorLayers).forEach(function(kv) {
-        var gl = kv[1];
-        if (gl.getLayers) {
-          gl.getLayers().forEach(function(sub) {
-            if (sub === layer) sectorId = parseInt(kv[0]);
-          });
-        }
-      });
+      // _sectorId direkt am Sublayer (gesetzt in renderSectorPolygons)
+      var sectorId = layer._sectorId || null;
+      // Fallback: GeoJSON-Gruppe → Sublayer durchsuchen
+      if (!sectorId && layer.getLayers) {
+        layer.getLayers().forEach(function(sub) {
+          if (sub._sectorId) sectorId = sub._sectorId;
+        });
+      }
       if (!sectorId) return;
-      var geo = layer.toGeoJSON ? layer.toGeoJSON().geometry : null;
+      var gj = layer.toGeoJSON ? layer.toGeoJSON() : null;
+      if (!gj) return;
+      // Feature → .geometry; FeatureCollection → .features[0].geometry
+      var geo = gj.geometry || (gj.features && gj.features[0] && gj.features[0].geometry);
       if (!geo) return;
       saveSectorPolygon(sectorId, geo);
     });
@@ -899,7 +896,14 @@
         hausnr: inp.dataset.hausnr || '',
         ort: inp.dataset.ort || '',
       }),
-    }).then(function(r) { return r.json(); }).then(function(site) {
+    }).then(function(r) {
+      if (!r.ok) {
+        r.json().then(function(j) { alert('Fehler ' + r.status + ': ' + (j.detail || 'Unbekannt')); })
+                .catch(function() { alert('Fehler ' + r.status); });
+        return null;
+      }
+      return r.json();
+    }).then(function(site) {
       if (!site || !site.id) return;
       // Marker direkt hinzufügen
       var s = {

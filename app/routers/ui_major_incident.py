@@ -2292,7 +2292,7 @@ async def sektor_geometry_update(
     lage_id: int,
     sektor_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_role("incident_leader", "admin", "org_admin")),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
 ):
     """Speichert GeoJSON-Polygon eines Abschnitts und löst Auto-Zuweisung aus."""
     import json as _json
