@@ -37,6 +37,13 @@
 .karte-controls__sep {
   width: 1px; background: rgba(255,255,255,.15); align-self: stretch; margin: 0 2px;
 }
+#ctrl-toggle-btn { display: none; }
+.karte-controls-body { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+@media (max-width: 640px) {
+  .karte-controls { left: 8px; transform: none; flex-direction: column; align-items: flex-start; }
+  #ctrl-toggle-btn { display: inline-flex !important; align-items: center; gap: 4px; }
+  .karte-controls-body { flex-direction: column; align-items: flex-start; }
+}
 
 /* Mode toggle button */
 .karte-mode-btn {
@@ -204,45 +211,52 @@
 
 <div id="karte-map"></div>
 
-<div class="karte-controls" id="karte-controls">
-  <button class="karte-mode-btn active" id="btn-prio" onclick="setMode('priority')">
-    Priorität
+<div class="karte-controls" id="karte-controls"
+     x-data="{open: !window.matchMedia('(max-width:640px)').matches}">
+  <button id="ctrl-toggle-btn" @click="open=!open"
+          class="karte-mode-btn" :class="open ? 'active' : ''">
+    <span x-text="open ? '✕ Filter' : '☰ Filter'">☰ Filter</span>
   </button>
-  <button class="karte-mode-btn" id="btn-sektor" onclick="setMode('sector')">
-    Abschnitt
-  </button>
-  <div class="karte-controls__sep"></div>
-  {% for phase in ['eingegangen','erkundung','bewertet','disponiert','in_arbeit','erledigt'] %}
-  <label>
-    <input type="checkbox" class="phase-filter" checked value="{{ phase }}" onchange="applyFilter()">
-    {{ {'eingegangen':'Eingegangen','erkundung':'Erkundung','bewertet':'Bewertet',
-        'disponiert':'Disponiert','in_arbeit':'In Arbeit','erledigt':'Erledigt'}[phase] }}
-  </label>
-  {% endfor %}
-  {% if reports_count > 0 %}
-  <div class="karte-controls__sep"></div>
-  <label style="color:#fbbf24;">
-    <input type="checkbox" id="rep-toggle" checked onchange="toggleReports(this.checked)">
-    📥 Meldungen
-  </label>
-  {% endif %}
-  {% if mi_features.uebergreifend %}
-  <div class="karte-controls__sep"></div>
-  <label style="color:#818cf8;">
-    <input type="checkbox" id="cross-toggle" checked onchange="toggleCrossMarkers(this.checked)">
-    📍 Übergreifend
-  </label>
-  <label style="color:#818cf8;margin-left:4px;" title="Behobene Meldungen ausblenden">
-    <input type="checkbox" id="cross-hide-behoben" onchange="renderCrossMarkers()">
-    Beh. ausbl.
-  </label>
-  {% endif %}
-  {% if can_edit %}
-  <div class="karte-controls__sep"></div>
-  <button class="karte-mode-btn" id="btn-pin-mode" onclick="togglePinMode()">
-    📍 Neuer Einsatz
-  </button>
-  {% endif %}
+  <div class="karte-controls-body" x-show="open" x-cloak>
+    <button class="karte-mode-btn active" id="btn-prio" onclick="setMode('priority')">
+      Priorität
+    </button>
+    <button class="karte-mode-btn" id="btn-sektor" onclick="setMode('sector')">
+      Abschnitt
+    </button>
+    <div class="karte-controls__sep"></div>
+    {% for phase in ['eingegangen','erkundung','bewertet','disponiert','in_arbeit','erledigt'] %}
+    <label>
+      <input type="checkbox" class="phase-filter" checked value="{{ phase }}" onchange="applyFilter()">
+      {{ {'eingegangen':'Eingegangen','erkundung':'Erkundung','bewertet':'Bewertet',
+          'disponiert':'Disponiert','in_arbeit':'In Arbeit','erledigt':'Erledigt'}[phase] }}
+    </label>
+    {% endfor %}
+    {% if reports_count > 0 %}
+    <div class="karte-controls__sep"></div>
+    <label style="color:#fbbf24;">
+      <input type="checkbox" id="rep-toggle" checked onchange="toggleReports(this.checked)">
+      📥 Meldungen
+    </label>
+    {% endif %}
+    {% if mi_features.uebergreifend %}
+    <div class="karte-controls__sep"></div>
+    <label style="color:#818cf8;">
+      <input type="checkbox" id="cross-toggle" checked onchange="toggleCrossMarkers(this.checked)">
+      📍 Übergreifend
+    </label>
+    <label style="color:#818cf8;margin-left:4px;" title="Behobene Meldungen ausblenden">
+      <input type="checkbox" id="cross-hide-behoben" onchange="renderCrossMarkers()">
+      Beh. ausbl.
+    </label>
+    {% endif %}
+    {% if can_edit %}
+    <div class="karte-controls__sep"></div>
+    <button class="karte-mode-btn" id="btn-pin-mode" onclick="togglePinMode()">
+      📍 Neuer Einsatz
+    </button>
+    {% endif %}
+  </div>
 </div>
 
 <div class="karte-badge" id="karte-badge"></div>
@@ -264,11 +278,16 @@
 
 {# Abschnitt-Filter-Chips #}
 {% if sectors %}
-<div id="section-filters" style="position:fixed;top:var(--karte-offset,58px);right:8px;z-index:1001;
+<div id="section-filters" x-data="{open: !window.matchMedia('(max-width:640px)').matches}"
+     style="position:fixed;top:var(--karte-offset,58px);right:8px;z-index:1001;
      background:rgba(17,24,39,.85);border:1px solid var(--border);border-radius:8px;
      padding:6px 10px;backdrop-filter:blur(4px);max-width:200px;">
-  <div style="font-size:.65rem;color:var(--text-muted);margin-bottom:4px;">Abschnitt-Filter</div>
-  <div style="display:flex;flex-wrap:wrap;gap:4px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;"
+       @click="open=!open">
+    <div style="font-size:.65rem;color:var(--text-muted);white-space:nowrap;">Abschnitt-Filter</div>
+    <span style="font-size:.6rem;color:var(--text-muted);" x-text="open ? '▲' : '▼'">▼</span>
+  </div>
+  <div x-show="open" x-cloak style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">
     <button class="section-chip active" data-sector="all"
             style="font-size:.7rem;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.2);
                    background:rgba(255,255,255,.1);color:var(--text);cursor:pointer;">Alle</button>
