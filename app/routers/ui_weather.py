@@ -4,7 +4,7 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -175,4 +175,106 @@ async def gsl_wetter_panel(
             "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
             "lage_id": lage_id,
         },
+    )
+
+
+# ── Focus-Koordinaten für Karten-JS ──────────────────────────────────────────
+
+@router.get(
+    "/gsl/{lage_id}/wetter/focus.json",
+    include_in_schema=False,
+)
+async def gsl_wetter_focus(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    """JSON: Schwerpunkt-Koordinaten für den Wetter-Karten-Layer."""
+    if not settings.WEATHER_ENABLED:
+        raise HTTPException(status_code=404)
+
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org(user, lage.org_id)
+
+    from app.models.master import FireDept as _FD
+    focus = resolve_weather_focus(lage)
+    lat = lng = None
+    label = ""
+    if focus:
+        lat, lng = focus.lat, focus.lng
+        label = focus.label
+    else:
+        org = db.get(_FD, lage.org_id)
+        if org and org.fallback_lat and org.fallback_lng:
+            lat, lng = org.fallback_lat, org.fallback_lng
+            label = org.city or org.name or "Org-Standort"
+
+    if lat is None or lng is None:
+        return JSONResponse({"lat": None, "lng": None, "radius_km": settings.WEATHER_RADIUS_KM, "label": ""})
+
+    return JSONResponse({
+        "lat": lat,
+        "lng": lng,
+        "radius_km": settings.WEATHER_RADIUS_KM,
+        "label": label,
+    })
+
+
+# ── Warnzonen als GeoJSON ─────────────────────────────────────────────────────
+
+@router.get(
+    "/gsl/{lage_id}/wetter/warnungen.geojson",
+    include_in_schema=False,
+)
+async def gsl_wetter_warnungen_geojson(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    """GeoJSON: aktive Warnungen als Punkt-Features (Zentrum = Schwerpunkt)."""
+    if not settings.WEATHER_ENABLED:
+        return JSONResponse({"type": "FeatureCollection", "features": []},
+                            media_type="application/geo+json")
+
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org(user, lage.org_id)
+
+    from app.models.master import FireDept as _FD
+    focus = resolve_weather_focus(lage)
+    lat = lng = None
+    if focus:
+        lat, lng = focus.lat, focus.lng
+    else:
+        org = db.get(_FD, lage.org_id)
+        if org and org.fallback_lat and org.fallback_lng:
+            lat, lng = org.fallback_lat, org.fallback_lng
+
+    if lat is None or lng is None:
+        return JSONResponse({"type": "FeatureCollection", "features": []},
+                            media_type="application/geo+json")
+
+    warnings = await weather_service.get_warnings(lat, lng)
+    features = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [lng, lat]},
+            "properties": {
+                "level":       w.level,
+                "event_type":  w.event_type,
+                "text":        w.text[:120],
+                "region":      w.region,
+                "level_color": weather_service._WARN_LEVEL_COLORS.get(w.level, "#fbbf24"),
+                "valid_from":  w.valid_from.isoformat(),
+                "valid_to":    w.valid_to.isoformat(),
+            },
+        }
+        for w in warnings
+    ]
+    return JSONResponse(
+        {"type": "FeatureCollection", "features": features},
+        media_type="application/geo+json",
     )
