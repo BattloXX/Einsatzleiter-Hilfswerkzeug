@@ -38,12 +38,23 @@
     {% if entry.media %}
     <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;">
       {% for m in entry.media %}
-      <a href="/lage/{{ lage.id }}/journal/{{ entry.id }}/medien/{{ m.id }}/bild"
-         target="_blank" rel="noopener">
+      <div x-data="{lbOpen:false}" style="display:inline-block;">
         <img src="/lage/{{ lage.id }}/journal/{{ entry.id }}/medien/{{ m.id }}/bild?thumb=true"
              alt="{{ m.original_filename }}"
-             style="width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--border);">
-      </a>
+             style="width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--border);cursor:zoom-in;"
+             @click="lbOpen=true">
+        <div x-show="lbOpen" x-cloak @keydown.escape.window="lbOpen=false"
+             style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);
+                    display:flex;align-items:center;justify-content:center;"
+             @click.self="lbOpen=false">
+          <img src="/lage/{{ lage.id }}/journal/{{ entry.id }}/medien/{{ m.id }}/bild"
+               style="max-width:92vw;max-height:92vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.8);">
+          <button @click="lbOpen=false"
+                  style="position:fixed;top:16px;right:20px;background:rgba(0,0,0,.6);border:none;
+                         color:#fff;font-size:28px;line-height:1;cursor:pointer;border-radius:50%;
+                         width:40px;height:40px;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+      </div>
       {% endfor %}
     </div>
     {% endif %}

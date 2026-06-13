@@ -161,9 +161,21 @@
     <div class="mel-body">{{ r.description }}</div>
 
     {% if r.photo_filename %}
-    <a href="/lage/{{ lage.id }}/meldungen/{{ r.id }}/foto" target="_blank">
-      <img src="/lage/{{ lage.id }}/meldungen/{{ r.id }}/foto" alt="Foto" class="mel-photo">
-    </a>
+    <div x-data="{lbOpen:false}" style="margin-top:6px;display:inline-block;">
+      <img src="/lage/{{ lage.id }}/meldungen/{{ r.id }}/foto" alt="Foto" class="mel-photo"
+           style="cursor:zoom-in;" @click="lbOpen=true">
+      <div x-show="lbOpen" x-cloak @keydown.escape.window="lbOpen=false"
+           style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);
+                  display:flex;align-items:center;justify-content:center;"
+           @click.self="lbOpen=false">
+        <img src="/lage/{{ lage.id }}/meldungen/{{ r.id }}/foto"
+             style="max-width:92vw;max-height:92vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.8);">
+        <button @click="lbOpen=false"
+                style="position:fixed;top:16px;right:20px;background:rgba(0,0,0,.6);border:none;
+                       color:#fff;font-size:28px;line-height:1;cursor:pointer;border-radius:50%;
+                       width:40px;height:40px;display:flex;align-items:center;justify-content:center;">×</button>
+      </div>
+    </div>
     {% endif %}
 
     <div class="mel-meta">
