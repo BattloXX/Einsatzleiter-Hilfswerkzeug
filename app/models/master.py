@@ -295,6 +295,8 @@ class OrgSettings(Base):
     vehicle_stale_minutes: Mapped[int] = mapped_column(Integer, default=5)
     # GPS-Positionshistorie Aufbewahrungsdauer
     position_retention_days: Mapped[int] = mapped_column(Integer, default=30)
+    # Wetter-Integration: NULL = globale Einstellung nutzen, True/False = org-spezifisch
+    weather_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     org: Mapped[FireDept] = relationship(back_populates="settings")
 

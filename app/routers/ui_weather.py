@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.permissions import require_role, same_org_or_system_admin
+from app.core.permissions import can_access_incident, require_role, same_org_or_system_admin
 from app.core.templating import templates
 from app.db import get_db
 from app.models.major_incident import MajorIncident
@@ -46,6 +46,22 @@ def _check_org(user, org_id: int) -> None:
         raise HTTPException(status_code=403, detail="Kein Zugriff")
 
 
+def _org_weather_enabled(org_id: int | None, db: Session) -> bool:
+    """Returns False only if org has explicitly disabled weather in OrgSettings.
+
+    NULL in org_settings.weather_enabled means "use global default" (True).
+    """
+    if not settings.WEATHER_ENABLED:
+        return False
+    if org_id is None:
+        return True
+    from app.models.master import OrgSettings as _OS
+    s = db.query(_OS).filter(_OS.org_id == org_id).first()
+    if s is None or s.weather_enabled is None:
+        return True
+    return bool(s.weather_enabled)
+
+
 def _build_nowcast_bars(now: "weather_service.NowcastResult") -> list[dict]:
     """Pre-computes bar chart data for the Nowcast sparkline in the template."""
     max_rr = max((s.precipitation_mm for s in now.steps), default=0.0) or 0.1
@@ -77,57 +93,14 @@ def _peak_label(now: "weather_service.NowcastResult") -> str | None:
     return f"in ca. {delta_min} min"
 
 
-# ── GSL Wetter-Panel ──────────────────────────────────────────────────────────
-
-@router.get(
-    "/gsl/{lage_id}/wetter/panel",
-    response_class=HTMLResponse,
-    include_in_schema=False,
-)
-async def gsl_wetter_panel(
+async def _render_weather_panel(
     request: Request,
-    lage_id: int,
-    db: Session = Depends(get_db),
-    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
-):
-    """HTMX-Partial: Wetter-Panel für das GSL-Board."""
-    if not settings.WEATHER_ENABLED:
-        return HTMLResponse("")
-
-    user = request.state.user
-    lage = _lage_or_404(lage_id, db)
-    _check_org(user, lage.org_id)
-
-    # Resolve reference coordinates
-    focus = resolve_weather_focus(lage)
-    lat: float | None = None
-    lng: float | None = None
-    focus_label = "Schwerpunkt"
-
-    if focus:
-        lat, lng = focus.lat, focus.lng
-        focus_label = focus.label
-    else:
-        # Fallback: org location
-        org = lage.org_id and db.get(
-            __import__("app.models.master", fromlist=["FireDept"]).FireDept,
-            lage.org_id,
-        )
-        if org and org.fallback_lat and org.fallback_lng:
-            lat, lng = org.fallback_lat, org.fallback_lng
-            focus_label = org.city or org.name or "Org-Standort"
-
-    if lat is None or lng is None:
-        return templates.TemplateResponse(
-            request,
-            "incident_major/_weather_panel.html",
-            {
-                "no_location": True,
-                "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
-            },
-        )
-
-    # Parallel fetch: nowcast, current conditions, forecast, warnings
+    lat: float,
+    lng: float,
+    focus_label: str,
+    extra_ctx: dict,
+) -> HTMLResponse:
+    """Shared rendering logic for all weather panel endpoints."""
     nowcast, current, forecast, warnings = await asyncio.gather(
         weather_service.get_nowcast(lat, lng),
         weather_service.get_current(lat, lng),
@@ -148,7 +121,6 @@ async def gsl_wetter_panel(
         logger.warning("Warnings-Fehler: %s", warnings)
         warnings = []
 
-    # Pre-compute display data
     nowcast_bars = _build_nowcast_bars(nowcast) if nowcast else []
     peak_label = _peak_label(nowcast) if nowcast else None
     trend_de = _TREND_DE.get(nowcast.trend, nowcast.trend) if nowcast else None
@@ -158,26 +130,74 @@ async def gsl_wetter_panel(
     ) if top_warning else None
     scenarios = analyze_weather(current, forecast, nowcast)
 
-    return templates.TemplateResponse(
-        request,
-        "incident_major/_weather_panel.html",
-        {
-            "no_location": False,
-            "focus_label": focus_label,
-            "nowcast": nowcast,
-            "nowcast_bars": nowcast_bars,
-            "peak_label": peak_label,
-            "trend_de": trend_de,
-            "current": current,
-            "wind_dir_label": _wind_dir_label(current.wind_direction_deg if current else None),
-            "forecast": forecast,
-            "warnings": warnings,
-            "top_warning": top_warning,
-            "warn_color": warn_color,
-            "scenarios": scenarios,
-            "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
-            "lage_id": lage_id,
-        },
+    ctx = {
+        "no_location": False,
+        "focus_label": focus_label,
+        "nowcast": nowcast,
+        "nowcast_bars": nowcast_bars,
+        "peak_label": peak_label,
+        "trend_de": trend_de,
+        "current": current,
+        "wind_dir_label": _wind_dir_label(current.wind_direction_deg if current else None),
+        "forecast": forecast,
+        "warnings": warnings,
+        "top_warning": top_warning,
+        "warn_color": warn_color,
+        "scenarios": scenarios,
+        "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
+    }
+    ctx.update(extra_ctx)
+    return templates.TemplateResponse(request, "incident_major/_weather_panel.html", ctx)
+
+
+# ── GSL Wetter-Panel ──────────────────────────────────────────────────────────
+
+@router.get(
+    "/gsl/{lage_id}/wetter/panel",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def gsl_wetter_panel(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    """HTMX-Partial: Wetter-Panel für das GSL-Board."""
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org(user, lage.org_id)
+
+    if not _org_weather_enabled(lage.org_id, db):
+        return HTMLResponse("")
+
+    focus = resolve_weather_focus(lage)
+    lat: float | None = None
+    lng: float | None = None
+    focus_label = "Schwerpunkt"
+
+    if focus:
+        lat, lng = focus.lat, focus.lng
+        focus_label = focus.label
+    else:
+        from app.models.master import FireDept as _FD
+        org = db.get(_FD, lage.org_id)
+        if org and org.fallback_lat and org.fallback_lng:
+            lat, lng = org.fallback_lat, org.fallback_lng
+            focus_label = org.city or org.name or "Org-Standort"
+
+    if lat is None or lng is None:
+        return templates.TemplateResponse(
+            request,
+            "incident_major/_weather_panel.html",
+            {
+                "no_location": True,
+                "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
+            },
+        )
+
+    return await _render_weather_panel(
+        request, lat, lng, focus_label, {"lage_id": lage_id}
     )
 
 
@@ -194,12 +214,12 @@ async def gsl_wetter_focus(
     _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
 ):
     """JSON: Schwerpunkt-Koordinaten für den Wetter-Karten-Layer."""
-    if not settings.WEATHER_ENABLED:
-        raise HTTPException(status_code=404)
-
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
     _check_org(user, lage.org_id)
+
+    if not _org_weather_enabled(lage.org_id, db):
+        raise HTTPException(status_code=404)
 
     from app.models.master import FireDept as _FD
     focus = resolve_weather_focus(lage)
@@ -238,13 +258,13 @@ async def gsl_wetter_warnungen_geojson(
     _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
 ):
     """GeoJSON: aktive Warnungen als Punkt-Features (Zentrum = Schwerpunkt)."""
-    if not settings.WEATHER_ENABLED:
-        return JSONResponse({"type": "FeatureCollection", "features": []},
-                            media_type="application/geo+json")
-
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
     _check_org(user, lage.org_id)
+
+    if not _org_weather_enabled(lage.org_id, db):
+        return JSONResponse({"type": "FeatureCollection", "features": []},
+                            media_type="application/geo+json")
 
     from app.models.master import FireDept as _FD
     focus = resolve_weather_focus(lage)
@@ -280,4 +300,65 @@ async def gsl_wetter_warnungen_geojson(
     return JSONResponse(
         {"type": "FeatureCollection", "features": features},
         media_type="application/geo+json",
+    )
+
+
+# ── Einzeleinsatz Wetter-Panel ────────────────────────────────────────────────
+
+@router.get(
+    "/einsatz/{incident_id}/wetter/panel",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def einsatz_wetter_panel(
+    request: Request,
+    incident_id: int,
+    db: Session = Depends(get_db),
+):
+    """HTMX-Partial: Wetter-Panel für den Einzeleinsatz-Board."""
+    from app.models.incident import Incident as _Inc
+
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401)
+
+    incident = db.get(_Inc, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Einsatz nicht gefunden")
+
+    if not can_access_incident(user, incident):
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+
+    org_id = incident.primary_org_id
+    if not _org_weather_enabled(org_id, db):
+        return HTMLResponse("")
+
+    lat: float | None = incident.lat
+    lng: float | None = incident.lng
+    focus_label = "Einsatzort"
+
+    if (lat is None or lng is None) and org_id:
+        from app.models.master import FireDept as _FD
+        org = db.get(_FD, org_id)
+        if org and org.fallback_lat and org.fallback_lng:
+            lat, lng = org.fallback_lat, org.fallback_lng
+            focus_label = org.city or org.name or "Org-Standort"
+
+    if incident.address_street:
+        parts = [p for p in [incident.address_street, incident.address_city] if p]
+        if parts:
+            focus_label = ", ".join(parts)
+
+    if lat is None or lng is None:
+        return templates.TemplateResponse(
+            request,
+            "incident_major/_weather_panel.html",
+            {
+                "no_location": True,
+                "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
+            },
+        )
+
+    return await _render_weather_panel(
+        request, lat, lng, focus_label, {"incident_id": incident_id}
     )
