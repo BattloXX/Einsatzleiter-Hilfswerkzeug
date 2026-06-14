@@ -64,5 +64,9 @@
     </div>
     {% endif %}
 
+    {% if marker.media %}
+    <div style="font-size:.7rem;color:#a78bfa;margin-top:4px;" title="{{ marker.media|length }} Foto(s)">📷 {{ marker.media|length }}</div>
+    {% endif %}
+
   </div>
 </div>

@@ -285,6 +285,9 @@
       {% if show_abgebrochen and abgebrochen_sites %}
       <option value="abgebrochen">Abgebrochen ({{ abgebrochen_sites|length }})</option>
       {% endif %}
+      {% if mi_features.uebergreifend %}
+      <option value="uebergreifend">📍 Übergreifend ({{ cross_markers|length }})</option>
+      {% endif %}
     </select>
   </div>
 
@@ -662,8 +665,13 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
 
 function lageSwitchPhase(phase) {
   document.querySelectorAll('.phase-col').forEach(function(col) { col.classList.remove('lage-col-active'); });
-  var body = document.querySelector('.phase-col__body[data-phase="' + phase + '"]');
-  if (body) body.closest('.phase-col').classList.add('lage-col-active');
+  if (phase === 'uebergreifend') {
+    var cm = document.getElementById('cross-marker-col');
+    if (cm) cm.classList.add('lage-col-active');
+  } else {
+    var body = document.querySelector('.phase-col__body[data-phase="' + phase + '"]');
+    if (body) body.closest('.phase-col').classList.add('lage-col-active');
+  }
   var sel = document.getElementById('lage-phase-select');
   if (sel && sel.value !== phase) sel.value = phase;
   try { sessionStorage.setItem('lage_phase_{{ lage.id }}', phase); } catch(e) {}

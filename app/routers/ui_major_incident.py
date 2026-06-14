@@ -1,4 +1,7 @@
 """UI-Router: Großschadenslage – Phasen-Board, Stellen-CRUD, Abschluss."""
+import base64
+import hashlib
+import io
 import logging
 import random
 import secrets
@@ -6,11 +9,11 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.audit import write_audit
 from app.core.permissions import has_role, require_role, same_org_or_system_admin
-from app.core.security import get_author_name
+from app.core.security import get_author_name, sign_lage_qr_token, sign_session, unsign_lage_qr_token
 from app.core.templating import templates
 from app.db import get_db
 from app.core.html_utils import sanitize_html
@@ -35,6 +38,7 @@ from app.models.major_incident import (
     LageEinheitLeader,
     LageJournalEntry,
     LageJournalMedia,
+    LageToken,
     MajorIncident,
     MajorIncidentStatus,
     Sector,
@@ -46,6 +50,7 @@ from app.models.major_incident import (
     StaffFunction,
 )
 from app.models.master import FireDept, Member, VehicleMaster
+from app.models.user import User
 from app.services import resource_service
 from app.services.ai_service import is_enabled as ai_is_enabled
 from app.services.broadcast import broadcast_lage, manager
@@ -623,6 +628,35 @@ async def site_detail(
     })
 
 
+# ── Karten-Partial (Board-Karte) ────────────────────────────────────────────
+
+@router.get("/lage/{lage_id}/stellen/{site_id}/card", response_class=HTMLResponse)
+async def site_card_partial(
+    request: Request,
+    lage_id: int,
+    site_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    site = db.get(IncidentSite, site_id)
+    if not site or site.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+    sectors = sorted(lage.sectors, key=lambda s: s.id)
+    sectors_by_id = {s.id: s for s in sectors}
+    return templates.TemplateResponse(request, "incident_major/_site_card.html", {
+        "lage": lage,
+        "site": site,
+        "prio_color": SITE_PRIORITY_COLOR,
+        "prio_label": SITE_PRIORITY_LABEL,
+        "sectors": sectors,
+        "sectors_by_id": sectors_by_id,
+        "can_edit": _can_edit(user),
+    })
+
+
 # ── Einzeldruck (Einsatzstelle) ─────────────────────────────────────────────
 
 @router.get("/lage/{lage_id}/stellen/{site_id}/druck", response_class=HTMLResponse)
@@ -674,6 +708,7 @@ async def site_log_add(
         author_name=get_author_name(request),
     ))
     db.commit()
+    await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
     return Response(status_code=204)
 
 
@@ -717,6 +752,7 @@ async def site_resource_assign(
         author_name=get_author_name(request),
     ))
     db.commit()
+    await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
     return Response(status_code=204)
 
 
@@ -747,6 +783,7 @@ async def site_resource_commit(
         author_name=get_author_name(request),
     ))
     db.commit()
+    await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
     return Response(status_code=204)
 
 
@@ -777,6 +814,7 @@ async def site_resource_release(
         author_name=get_author_name(request),
     ))
     db.commit()
+    await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
     return Response(status_code=204)
 
 
@@ -950,6 +988,34 @@ async def site_media_upload(
     return Response(status_code=204)
 
 
+@router.post("/lage/{lage_id}/stellen/{site_id}/medien/{media_id}/loeschen")
+async def site_media_delete(
+    request: Request,
+    lage_id: int,
+    site_id: int,
+    media_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    from app.models.major_incident import SiteMedia as _SiteMedia
+    from app.services.lage_media_service import site_media_path, site_thumb_path
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    site = db.get(IncidentSite, site_id)
+    if not site or site.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+    media = db.get(_SiteMedia, media_id)
+    if not media or media.incident_site_id != site_id:
+        raise HTTPException(status_code=404)
+    for p in (site_media_path(media), site_thumb_path(media)):
+        if p and p.exists():
+            p.unlink(missing_ok=True)
+    db.delete(media)
+    db.commit()
+    return Response(status_code=204)
+
+
 # ── Foto ausliefern ──────────────────────────────────────────────────────────
 
 @router.get("/lage-medien/{media_id}")
@@ -1052,6 +1118,18 @@ async def lage_beenden(
 
 # ── Lage editieren ───────────────────────────────────────────────────────────
 
+def _generate_lage_qr(request: Request, lage_id: int, user_id: int) -> tuple[str, str]:
+    """Erstellt QR-Token + base64-PNG für die Lage. Gibt (url, img_b64) zurück."""
+    import qrcode
+    token = sign_lage_qr_token(lage_id, user_id)
+    base = str(request.base_url).rstrip("/")
+    url = f"{base}/lage/{lage_id}/qr-login?token={token}"
+    img = qrcode.make(url, box_size=4, border=1)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return url, base64.b64encode(buf.getvalue()).decode()
+
+
 @router.get("/lage/{lage_id}/bearbeiten", response_class=HTMLResponse)
 async def lage_bearbeiten_form(
     request: Request,
@@ -1062,10 +1140,13 @@ async def lage_bearbeiten_form(
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
+    qr_url, qr_img = _generate_lage_qr(request, lage_id, getattr(user, "id", 0))
     return templates.TemplateResponse(request, "incident_major/lage_bearbeiten.html", {
         "user": user,
         "lage": lage,
         "can_manage": _can_manage(user),
+        "qr_url": qr_url,
+        "qr_img": qr_img,
     })
 
 
@@ -1093,6 +1174,123 @@ async def lage_bearbeiten_save(
                 payload={"lage_id": lage_id, "name": lage.name})
     await broadcast_lage(lage_id, {"type": "lage_updated", "reload_board": True})
     return RedirectResponse(f"/lage/{lage_id}", status_code=303)
+
+
+# ── Lage-QR-Zugang ────────────────────────────────────────────────────────────
+
+@router.get("/lage/{lage_id}/qr", response_class=HTMLResponse)
+async def lage_qr_page(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin")),
+):
+    """Vollbild-QR-Seite für die Lage (zum Drucken / auf Tablet anzeigen)."""
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    qr_url, qr_img = _generate_lage_qr(request, lage_id, user.id)
+    return templates.TemplateResponse(request, "incident_major/lage_qr.html", {
+        "lage": lage,
+        "qr_url": qr_url,
+        "qr_img": qr_img,
+    })
+
+
+@router.get("/lage/{lage_id}/qr-login", response_class=HTMLResponse)
+async def lage_qr_login(
+    request: Request,
+    lage_id: int,
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """QR-Scan-Einstieg: validiert Token, legt LageToken an und setzt QR-Session."""
+    data = unsign_lage_qr_token(token)
+    if not data or data.get("l") != lage_id:
+        raise HTTPException(status_code=400, detail="Ungültiger oder abgelaufener QR-Code")
+
+    lage = _lage_or_404(lage_id, db)
+    if lage.status != MajorIncidentStatus.active:
+        raise HTTPException(status_code=400, detail="Lage ist nicht mehr aktiv")
+
+    issuing_user_id: int = data["u"]
+    issuing_user = db.get(User, issuing_user_id)
+    if not issuing_user or not issuing_user.active:
+        raise HTTPException(status_code=400, detail="Ungültiger QR-Code")
+
+    if lage.org_id != issuing_user.org_id:
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+
+    # Token-Hash für Revoke-Lookup
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    db_token = db.query(LageToken).filter(
+        LageToken.lage_id == lage_id,
+        LageToken.token_hash == token_hash,
+    ).first()
+    if db_token is None:
+        db_token = LageToken(
+            lage_id=lage_id,
+            token_hash=token_hash,
+            issued_by_user_id=issuing_user_id,
+        )
+        db.add(db_token)
+        db.commit()
+        db.refresh(db_token)
+    elif db_token.revoked_at is not None:
+        raise HTTPException(status_code=403, detail="QR-Code wurde widerrufen")
+
+    # QR-Namenseingabe-Seite anzeigen (gleicher Flow wie bei Einsatz-QR)
+    return templates.TemplateResponse(request, "incident_major/lage_qr_name.html", {
+        "lage": lage,
+        "token": token,
+    })
+
+
+@router.post("/lage/{lage_id}/qr-login", response_class=HTMLResponse)
+async def lage_qr_login_post(
+    request: Request,
+    lage_id: int,
+    token: str,
+    display_name: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Setzt QR-Session nach Namenseingabe."""
+    data = unsign_lage_qr_token(token)
+    if not data or data.get("l") != lage_id:
+        raise HTTPException(status_code=400, detail="Ungültiger QR-Code")
+
+    lage = _lage_or_404(lage_id, db)
+    if lage.status != MajorIncidentStatus.active:
+        raise HTTPException(status_code=400, detail="Lage ist nicht mehr aktiv")
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    db_token = db.query(LageToken).filter(
+        LageToken.lage_id == lage_id,
+        LageToken.token_hash == token_hash,
+        LageToken.revoked_at.is_(None),
+    ).first()
+    if not db_token:
+        raise HTTPException(status_code=403, detail="QR-Code ungültig oder widerrufen")
+
+    issuing_user_id: int = data["u"]
+    name = display_name.strip()[:80] or "QR-Nutzer"
+    session_token = sign_session(
+        issuing_user_id,
+        qr=True,
+        lage_id=lage_id,
+        display_name=name,
+    )
+    response = RedirectResponse(f"/lage/{lage_id}", status_code=303)
+    from app.config import settings as _cfg
+    response.set_cookie(
+        "session",
+        session_token,
+        httponly=True,
+        secure=_cfg.COOKIE_SECURE,
+        samesite="lax",
+        max_age=_cfg.SESSION_MAX_AGE_SECONDS,
+    )
+    return response
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
@@ -1231,6 +1429,7 @@ async def lage_stab(
     journal_entries = (
         db.query(LageJournalEntry)
         .filter(LageJournalEntry.major_incident_id == lage_id)
+        .options(selectinload(LageJournalEntry.media))
         .order_by(LageJournalEntry.ts.desc())
         .all()
     )
@@ -1409,13 +1608,45 @@ async def lage_journal_entry_detail(
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
-    entry = db.get(LageJournalEntry, entry_id)
+    entry = (
+        db.query(LageJournalEntry)
+        .filter(LageJournalEntry.id == entry_id)
+        .options(selectinload(LageJournalEntry.media))
+        .first()
+    )
     if not entry or entry.major_incident_id != lage_id:
         raise HTTPException(status_code=404)
     return templates.TemplateResponse(request, "incident_major/_journal_entry_detail.html", {
         "lage": lage,
         "entry": entry,
         "journal_categories": JOURNAL_CATEGORIES,
+    })
+
+
+@router.get("/lage/{lage_id}/journal/{entry_id}/druck", response_class=HTMLResponse)
+async def lage_journal_entry_druck(
+    request: Request,
+    lage_id: int,
+    entry_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    entry = (
+        db.query(LageJournalEntry)
+        .filter(LageJournalEntry.id == entry_id)
+        .options(selectinload(LageJournalEntry.media))
+        .first()
+    )
+    if not entry or entry.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(request, "incident_major/_journal_entry_druck.html", {
+        "lage": lage,
+        "entry": entry,
+        "journal_categories": JOURNAL_CATEGORIES,
+        "now": datetime.now(UTC),
     })
 
 
@@ -1754,6 +1985,42 @@ async def lage_karte_cross_markers(
 
 # ── Funkjournal ───────────────────────────────────────────────────────────────
 
+def _fj_context(lage_id: int, lage, db: Session) -> dict:
+    comms = (
+        db.query(CommLogEntry)
+        .filter(CommLogEntry.major_incident_id == lage_id)
+        .order_by(CommLogEntry.ts.desc())
+        .limit(200)
+        .all()
+    )
+    sites = [s for s in lage.sites if s.phase != SitePhase.abgebrochen]
+    sites_by_id = {s.id: s for s in lage.sites}
+    return {
+        "comms": comms,
+        "sites": sites,
+        "sites_by_id": sites_by_id,
+        "open_requests": sum(1 for c in comms if c.is_request and not c.handled),
+    }
+
+
+@router.get("/lage/{lage_id}/funkjournal/rows", response_class=HTMLResponse)
+async def funkjournal_rows(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    ctx = _fj_context(lage_id, lage, db)
+    return templates.TemplateResponse(request, "incident_major/_funkjournal_rows.html", {
+        "lage": lage,
+        "can_edit": _can_edit(user),
+        **ctx,
+    })
+
+
 @router.get("/lage/{lage_id}/funkjournal", response_class=HTMLResponse)
 async def lage_funkjournal(
     request: Request,
@@ -1764,29 +2031,15 @@ async def lage_funkjournal(
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
-
-    comms = (
-        db.query(CommLogEntry)
-        .filter(CommLogEntry.major_incident_id == lage_id)
-        .order_by(CommLogEntry.ts.desc())
-        .limit(200)
-        .all()
-    )
-
-    sites = [s for s in lage.sites if s.phase != SitePhase.abgebrochen]
-    sites_by_id = {s.id: s for s in lage.sites}
-    open_requests = sum(1 for c in comms if c.is_request and not c.handled)
+    ctx = _fj_context(lage_id, lage, db)
 
     return templates.TemplateResponse(request, "incident_major/funkjournal.html", {
         "user": user,
         "lage": lage,
-        "comms": comms,
-        "sites": sites,
-        "sites_by_id": sites_by_id,
-        "open_requests": open_requests,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
         "mi_features": _get_mi_features(db),
+        **ctx,
         **_nav_counts(lage_id, lage, db),
     })
 
@@ -2620,6 +2873,7 @@ async def lage_druck(
     journal_entries = (
         db.query(LageJournalEntry)
         .filter(LageJournalEntry.major_incident_id == lage_id)
+        .options(selectinload(LageJournalEntry.media))
         .order_by(LageJournalEntry.ts)
         .all()
     )
@@ -3089,6 +3343,9 @@ async def lage_karte(
         "active_res": sum(1 for r in s.resources if not r.released_at),
         "sector_id": s.sector_id,
         "incident_id": s.incident_id,
+        "strasse": s.strasse or "",
+        "hausnr": s.hausnr or "",
+        "ort": s.ort or "",
     } for s in active_sites if s.lat and s.lng])
 
     sectors = sorted(lage.sectors, key=lambda s: s.id)
