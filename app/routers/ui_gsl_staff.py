@@ -18,7 +18,7 @@ from app.models.major_incident import (
     MajorIncident,
     MajorIncidentStatus,
 )
-from app.services import gsl_staff_service as svc
+from app.services import gsl_staff_service as svc, resource_service
 from app.services.broadcast import broadcast_lage
 
 router = APIRouter()
@@ -249,7 +249,10 @@ async def stab_einsatzjournal(
 
     entries = (
         db.query(LageJournalEntry)
-        .filter(LageJournalEntry.major_incident_id == lage_id)
+        .filter(
+            LageJournalEntry.major_incident_id == lage_id,
+            LageJournalEntry.category.notin_(resource_service.RESSOURCE_CATEGORIES),
+        )
         .options(selectinload(LageJournalEntry.media))
         .order_by(LageJournalEntry.ts.desc())
         .all()
