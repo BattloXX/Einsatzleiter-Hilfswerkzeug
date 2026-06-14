@@ -454,7 +454,7 @@ CROSS_MARKER_TYPE_LABEL: dict[str, str] = {
     "stromausfall":           "Stromausfall (Bereich)",
     "pegel_messpunkt":        "Pegel-/Messpunkt",
     "gefahrenstoff":          "Gefahrstoff-/Umweltgefahr",
-    "grosschadenslage":       "Großschadenslage",
+    "verklausung":            "Verklausung",
     "sonstiges":              "Sonstige Lageinfo",
 }
 
@@ -471,7 +471,7 @@ CROSS_MARKER_TYPE_ICON: dict[str, str] = {
     "stromausfall":           "⚡",
     "pegel_messpunkt":        "📈",
     "gefahrenstoff":          "☣️",
-    "grosschadenslage":       "🚨",
+    "verklausung":            "🪵",
     "sonstiges":              "📍",
 }
 
