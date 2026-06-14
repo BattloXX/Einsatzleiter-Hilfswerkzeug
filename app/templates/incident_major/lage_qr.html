@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>QR-Code – {{ lage.name }}</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #fff; color: #111; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+    body { padding: 32px; min-height: 100vh; }
+
+    .print-toolbar {
+      position: fixed; top: 12px; right: 12px; display: flex; gap: 8px; z-index: 10;
+    }
+    .print-toolbar button, .print-toolbar a {
+      background: #d42225; color: #fff; border: 0; padding: 10px 14px;
+      border-radius: 6px; font-size: 14px; cursor: pointer; text-decoration: none;
+    }
+    .print-toolbar a.secondary { background: #555; }
+
+    .sheet {
+      max-width: 760px; margin: 0 auto;
+      border: 2px solid #d42225;
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 2px solid #d42225; padding-bottom: 12px;
+    }
+    .header__title { font-size: 1.8rem; font-weight: 900; color: #d42225; }
+    .header__sub { font-size: 0.9rem; color: #555; }
+
+    .qr-frame {
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .qr-frame img {
+      width: 14cm; height: 14cm; max-width: 100%; image-rendering: pixelated;
+      border: 1px solid #ddd;
+    }
+
+    .hint {
+      font-size: 0.9rem; color: #555;
+      border-top: 1px dashed #aaa; padding-top: 12px; text-align: center;
+    }
+
+    @media print {
+      @page { size: A4; margin: 1.5cm; }
+      .print-toolbar { display: none !important; }
+      body { padding: 0; }
+      .sheet { border: 2px solid #d42225; max-width: none; }
+    }
+  </style>
+</head>
+<body onload="setTimeout(function(){ window.print(); }, 350)">
+
+  <div class="print-toolbar">
+    <a href="/lage/{{ lage.id }}/bearbeiten" class="secondary">← Zurück</a>
+    <button type="button" onclick="window.print()">🖨 Drucken</button>
+  </div>
+
+  <div class="sheet">
+    <div class="header">
+      <div>
+        <div class="header__title">{{ lage.name }}</div>
+        <div class="header__sub">Großschadenslage{% if lage.is_exercise %} · ÜBUNG{% endif %}</div>
+      </div>
+      <div class="header__sub" style="text-align:right;">
+        {% if lage.created_at %}
+        Gestartet:<br><strong>{{ lage.created_at | local_datetime }}</strong>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="qr-frame">
+      <img src="data:image/png;base64,{{ qr_img }}" alt="QR-Code für Lage-Zugang">
+    </div>
+
+    {% if lage.description %}
+    <div style="background:#fff5f5;border-left:6px solid #d42225;padding:12px 16px;">
+      <div style="font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#d42225;margin-bottom:4px;">Beschreibung</div>
+      <div>{{ lage.description }}</div>
+    </div>
+    {% endif %}
+
+    <div class="hint">
+      QR-Code mit dem Smartphone scannen → Name eingeben → direkt als Bearbeiter auf die Lage zugreifen.<br>
+      Gültig solange die Lage aktiv ist.
+    </div>
+  </div>
+
+</body>
+</html>

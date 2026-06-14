@@ -439,6 +439,21 @@ class LageJournalMedia(Base):
     org_id:           Mapped[int | None] = mapped_column(BigInteger, ForeignKey("fire_dept.id"), nullable=True, index=True)
 
 
+# ── Lage-QR-Token (Schnellzugang per QR-Code) ────────────────────────────────
+
+class LageToken(Base):
+    """QR-Code-Zugangstokens für Großschadenslagen – gültig solange Lage aktiv."""
+    __tablename__ = "lage_token"
+
+    id:                 Mapped[int] = mapped_column(Integer, primary_key=True)
+    lage_id:            Mapped[int] = mapped_column(
+        Integer, ForeignKey("major_incident.id", ondelete="CASCADE"), index=True)
+    token_hash:         Mapped[str] = mapped_column(String(64), unique=True)
+    issued_by_user_id:  Mapped[int] = mapped_column(BigInteger, ForeignKey("user.id"))
+    revoked_at:         Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at:         Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+
 # ── Einsatzstellenübergreifende Meldungen ─────────────────────────────────────
 
 CROSS_MARKER_TYPE_LABEL: dict[str, str] = {

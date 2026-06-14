@@ -1,4 +1,7 @@
 """UI-Router: Großschadenslage – Phasen-Board, Stellen-CRUD, Abschluss."""
+import base64
+import hashlib
+import io
 import logging
 import random
 import secrets
@@ -10,7 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.audit import write_audit
 from app.core.permissions import has_role, require_role, same_org_or_system_admin
-from app.core.security import get_author_name
+from app.core.security import get_author_name, sign_lage_qr_token, sign_session, unsign_lage_qr_token
 from app.core.templating import templates
 from app.db import get_db
 from app.core.html_utils import sanitize_html
@@ -34,6 +37,7 @@ from app.models.major_incident import (
     LageEinheit,
     LageJournalEntry,
     LageJournalMedia,
+    LageToken,
     MajorIncident,
     MajorIncidentStatus,
     Sector,
@@ -45,6 +49,7 @@ from app.models.major_incident import (
     StaffFunction,
 )
 from app.models.master import FireDept, Member, VehicleMaster
+from app.models.user import User
 from app.services.ai_service import is_enabled as ai_is_enabled
 from app.services.broadcast import broadcast_lage, manager
 from app.services.major_incident_service import (
@@ -1078,6 +1083,18 @@ async def lage_beenden(
 
 # ── Lage editieren ───────────────────────────────────────────────────────────
 
+def _generate_lage_qr(request: Request, lage_id: int, user_id: int) -> tuple[str, str]:
+    """Erstellt QR-Token + base64-PNG für die Lage. Gibt (url, img_b64) zurück."""
+    import qrcode
+    token = sign_lage_qr_token(lage_id, user_id)
+    base = str(request.base_url).rstrip("/")
+    url = f"{base}/lage/{lage_id}/qr-login?token={token}"
+    img = qrcode.make(url, box_size=4, border=1)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return url, base64.b64encode(buf.getvalue()).decode()
+
+
 @router.get("/lage/{lage_id}/bearbeiten", response_class=HTMLResponse)
 async def lage_bearbeiten_form(
     request: Request,
@@ -1088,10 +1105,13 @@ async def lage_bearbeiten_form(
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
+    qr_url, qr_img = _generate_lage_qr(request, lage_id, getattr(user, "id", 0))
     return templates.TemplateResponse(request, "incident_major/lage_bearbeiten.html", {
         "user": user,
         "lage": lage,
         "can_manage": _can_manage(user),
+        "qr_url": qr_url,
+        "qr_img": qr_img,
     })
 
 
@@ -1119,6 +1139,123 @@ async def lage_bearbeiten_save(
                 payload={"lage_id": lage_id, "name": lage.name})
     await broadcast_lage(lage_id, {"type": "lage_updated", "reload_board": True})
     return RedirectResponse(f"/lage/{lage_id}", status_code=303)
+
+
+# ── Lage-QR-Zugang ────────────────────────────────────────────────────────────
+
+@router.get("/lage/{lage_id}/qr", response_class=HTMLResponse)
+async def lage_qr_page(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin")),
+):
+    """Vollbild-QR-Seite für die Lage (zum Drucken / auf Tablet anzeigen)."""
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    qr_url, qr_img = _generate_lage_qr(request, lage_id, user.id)
+    return templates.TemplateResponse(request, "incident_major/lage_qr.html", {
+        "lage": lage,
+        "qr_url": qr_url,
+        "qr_img": qr_img,
+    })
+
+
+@router.get("/lage/{lage_id}/qr-login", response_class=HTMLResponse)
+async def lage_qr_login(
+    request: Request,
+    lage_id: int,
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """QR-Scan-Einstieg: validiert Token, legt LageToken an und setzt QR-Session."""
+    data = unsign_lage_qr_token(token)
+    if not data or data.get("l") != lage_id:
+        raise HTTPException(status_code=400, detail="Ungültiger oder abgelaufener QR-Code")
+
+    lage = _lage_or_404(lage_id, db)
+    if lage.status != MajorIncidentStatus.active:
+        raise HTTPException(status_code=400, detail="Lage ist nicht mehr aktiv")
+
+    issuing_user_id: int = data["u"]
+    issuing_user = db.get(User, issuing_user_id)
+    if not issuing_user or not issuing_user.active:
+        raise HTTPException(status_code=400, detail="Ungültiger QR-Code")
+
+    if lage.org_id != issuing_user.org_id:
+        raise HTTPException(status_code=403, detail="Kein Zugriff")
+
+    # Token-Hash für Revoke-Lookup
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    db_token = db.query(LageToken).filter(
+        LageToken.lage_id == lage_id,
+        LageToken.token_hash == token_hash,
+    ).first()
+    if db_token is None:
+        db_token = LageToken(
+            lage_id=lage_id,
+            token_hash=token_hash,
+            issued_by_user_id=issuing_user_id,
+        )
+        db.add(db_token)
+        db.commit()
+        db.refresh(db_token)
+    elif db_token.revoked_at is not None:
+        raise HTTPException(status_code=403, detail="QR-Code wurde widerrufen")
+
+    # QR-Namenseingabe-Seite anzeigen (gleicher Flow wie bei Einsatz-QR)
+    return templates.TemplateResponse(request, "incident_major/lage_qr_name.html", {
+        "lage": lage,
+        "token": token,
+    })
+
+
+@router.post("/lage/{lage_id}/qr-login", response_class=HTMLResponse)
+async def lage_qr_login_post(
+    request: Request,
+    lage_id: int,
+    token: str,
+    display_name: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Setzt QR-Session nach Namenseingabe."""
+    data = unsign_lage_qr_token(token)
+    if not data or data.get("l") != lage_id:
+        raise HTTPException(status_code=400, detail="Ungültiger QR-Code")
+
+    lage = _lage_or_404(lage_id, db)
+    if lage.status != MajorIncidentStatus.active:
+        raise HTTPException(status_code=400, detail="Lage ist nicht mehr aktiv")
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    db_token = db.query(LageToken).filter(
+        LageToken.lage_id == lage_id,
+        LageToken.token_hash == token_hash,
+        LageToken.revoked_at.is_(None),
+    ).first()
+    if not db_token:
+        raise HTTPException(status_code=403, detail="QR-Code ungültig oder widerrufen")
+
+    issuing_user_id: int = data["u"]
+    name = display_name.strip()[:80] or "QR-Nutzer"
+    session_token = sign_session(
+        issuing_user_id,
+        qr=True,
+        lage_id=lage_id,
+        display_name=name,
+    )
+    response = RedirectResponse(f"/lage/{lage_id}", status_code=303)
+    from app.config import settings as _cfg
+    response.set_cookie(
+        "session",
+        session_token,
+        httponly=True,
+        secure=_cfg.COOKIE_SECURE,
+        samesite="lax",
+        max_age=_cfg.SESSION_MAX_AGE_SECONDS,
+    )
+    return response
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────────

@@ -21,6 +21,8 @@ _signer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="session")
 # Deterministic (no timestamp) so the same incident+user always produces the same QR token.
 # Validity is controlled via the DB (revoked_at / incident.status), not by expiry time.
 _qr_signer = URLSafeSerializer(settings.SECRET_KEY, salt="qr-token")
+# Lage-QR: same pattern as _qr_signer but separate salt so tokens can't be cross-used
+_lage_qr_signer = URLSafeSerializer(settings.SECRET_KEY, salt="lage-qr-token")
 
 
 def hash_password(plain: str) -> str:
@@ -58,12 +60,15 @@ def sign_session(
     qr: bool = False,
     device: bool = False,
     incident_id: int | None = None,
+    lage_id: int | None = None,
     display_name: str | None = None,
 ) -> str:
     if qr:
         payload: dict | int = {"u": user_id, "qr": 1}
         if incident_id is not None:
             payload["i"] = incident_id  # type: ignore[index]
+        if lage_id is not None:
+            payload["l"] = lage_id  # type: ignore[index]
         if display_name:
             payload["n"] = display_name  # type: ignore[index]
     elif device:
@@ -73,8 +78,8 @@ def sign_session(
     return _signer.dumps(payload)
 
 
-def unsign_session(token: str) -> tuple[int, bool, int | None, bool, str | None] | None:
-    """Returns (user_id, is_qr, qr_incident_id, is_device, display_name) or None."""
+def unsign_session(token: str) -> tuple[int, bool, int | None, bool, str | None, int | None] | None:
+    """Returns (user_id, is_qr, qr_incident_id, is_device, display_name, qr_lage_id) or None."""
     try:
         # Load without max_age so we can check expiry manually per session type.
         data, ts = _signer.loads(token, max_age=None, return_timestamp=True)
@@ -83,13 +88,13 @@ def unsign_session(token: str) -> tuple[int, bool, int | None, bool, str | None]
 
         if isinstance(data, dict) and data.get("d"):
             # Device session: no timeout whatsoever.
-            return (data["u"], False, None, True, None)
+            return (data["u"], False, None, True, None, None)
 
         if isinstance(data, dict) and data.get("qr"):
-            # QR session: enforce absolute max_age only (DB controls incident validity).
+            # QR session: enforce absolute max_age only (DB controls incident/lage validity).
             if age_s > settings.SESSION_MAX_AGE_SECONDS:
                 return None
-            return (data["u"], True, data.get("i"), False, data.get("n"))
+            return (data["u"], True, data.get("i"), False, data.get("n"), data.get("l"))
 
         if isinstance(data, int):
             # Regular user session: enforce absolute max_age AND inactivity window.
@@ -99,7 +104,7 @@ def unsign_session(token: str) -> tuple[int, bool, int | None, bool, str | None]
                 return None
             if age_s > settings.SESSION_INACTIVITY_SECONDS:
                 return None
-            return (data, False, None, False, None)
+            return (data, False, None, False, None, None)
 
         return None
     except (BadSignature, SignatureExpired):
@@ -128,6 +133,17 @@ def sign_qr_token(incident_id: int, user_id: int) -> str:
 def unsign_qr_token(token: str) -> dict | None:
     try:
         return _qr_signer.loads(token)
+    except BadSignature:
+        return None
+
+
+def sign_lage_qr_token(lage_id: int, user_id: int) -> str:
+    return _lage_qr_signer.dumps({"l": lage_id, "u": user_id})
+
+
+def unsign_lage_qr_token(token: str) -> dict | None:
+    try:
+        return _lage_qr_signer.loads(token)
     except BadSignature:
         return None
 
