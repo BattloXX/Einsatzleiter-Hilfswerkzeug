@@ -106,8 +106,8 @@
 .estatus--im_einsatz     { background: rgba(251,191,36,.2);  color: #fbbf24; }
 .estatus--abgerueckt     { background: rgba(107,114,128,.2); color: #9ca3af; }
 
-/* ── Abgerückt + Hinzufügen ──────────────────────────────────────────────── */
-.res-abgerueckt, .res-add { padding: 14px 16px 0; max-width: 900px; }
+/* ── Abgerückt ───────────────────────────────────────────────────────────── */
+.res-abgerueckt { padding: 14px 16px 0; max-width: 900px; }
 .res-section {
   background: var(--surface-elevated, #1e2130);
   border: 1px solid var(--border); border-radius: 8px;
@@ -172,7 +172,8 @@
   </nav>
 </div>
 
-{# ── Stats-Leiste ────────────────────────────────────────────────────────── #}
+{# ── Stats-Leiste + Inline-Hinzufügen ────────────────────────────────────── #}
+<div x-data="{ showAdd: false }">
 <div class="res-stats">
   {% if kue.el_asgn %}
   <div class="res-stat" style="flex-direction:row;gap:8px;align-items:center;min-width:0;">
@@ -203,7 +204,83 @@
     <div class="res-stat__lbl">Konflikte</div>
   </div>
   {% endif %}
+  {% if can_edit %}
+  <button @click="showAdd = !showAdd"
+          :style="showAdd ? 'background:rgba(99,102,241,.25);border-color:#818cf8;color:#a5b4fc;' : ''"
+          style="margin-left:auto;display:flex;align-items:center;gap:7px;
+                 padding:8px 18px;border-radius:8px;border:1.5px solid var(--border);
+                 background:var(--surface-elevated,#1e2130);color:var(--text);
+                 font-size:.82rem;font-weight:700;letter-spacing:.04em;cursor:pointer;
+                 transition:all .15s;white-space:nowrap;">
+    <span style="font-size:1.2rem;line-height:1;" x-text="showAdd ? '✕' : '+'">+</span>
+    EINHEIT / RESSOURCE HINZUFÜGEN
+  </button>
+  {% endif %}
 </div>
+
+{# ── Inline-Hinzufügen-Karte ─────────────────────────────────────────────── #}
+{% if can_edit %}
+<div x-show="showAdd" x-transition
+     style="padding:12px 16px;border-bottom:1px solid var(--border);
+            background:rgba(99,102,241,.06);">
+  <div style="background:var(--surface-elevated,#1e2130);border:1.5px solid #818cf855;
+              border-radius:10px;padding:14px 16px;max-width:780px;">
+    <div style="font-size:.72rem;font-weight:700;color:#a5b4fc;letter-spacing:.06em;margin-bottom:12px;">
+      + EINHEIT / RESSOURCE HINZUFÜGEN
+    </div>
+    <form method="post" action="/lage/{{ lage.id }}/einheiten">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <div class="res-add-grid">
+        <div>
+          <label class="form-label form-label--xs">Typ</label>
+          <select name="resource_type" class="form-select form-select--sm" id="res-type-sel"
+                  onchange="resTypeChanged(this.value)">
+            <option value="fahrzeug">Fahrzeug</option>
+            <option value="extern">Externe Kräfte</option>
+            <option value="material">Material/Gerät</option>
+          </select>
+        </div>
+        <div id="fzg-row" class="span2">
+          <label class="form-label form-label--xs">Fahrzeug</label>
+          <select name="vehicle_id" class="form-select form-select--sm">
+            <option value="">— Freitext unten —</option>
+            {% for v in extra_vehicles %}
+            <option value="{{ v.id }}">{{ v.display_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div id="ext-org-row" class="span2" style="display:none;">
+          <label class="form-label form-label--xs">Organisation</label>
+          <input type="text" name="org_name" class="form-input" placeholder="z.B. Rotes Kreuz" maxlength="120">
+        </div>
+        <div id="ext-bos-row" style="display:none;">
+          <label class="form-label form-label--xs">BOS-Typ</label>
+          <input type="text" name="bos" class="form-input" placeholder="FW / RK / Pol …" maxlength="20">
+        </div>
+        <div id="mat-qty-row" style="display:none;">
+          <label class="form-label form-label--xs">Menge</label>
+          <input type="number" name="qty" class="form-input" placeholder="200" min="1">
+        </div>
+        <div id="mat-unit-row" style="display:none;">
+          <label class="form-label form-label--xs">Einheit</label>
+          <input type="text" name="unit" class="form-input" placeholder="Sandsäcke" maxlength="20">
+        </div>
+        <div class="span2">
+          <label class="form-label form-label--xs">Bezeichnung</label>
+          <input type="text" name="label" class="form-input"
+                 placeholder="z.B. RLF WOL, Baufirma Müller, …"
+                 maxlength="120" autocomplete="off">
+        </div>
+        <div>
+          <label class="form-label form-label--xs" style="visibility:hidden;">x</label>
+          <button type="submit" class="btn btn--secondary btn--sm" style="width:100%;">+ Hinzufügen</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+</div>{# /x-data showAdd #}
 
 {# ── Einheiten-Karte (Makro) ──────────────────────────────────────────────── #}
 {% macro einheit_card(e) %}
@@ -388,63 +465,6 @@
 </div>
 {% endif %}
 
-{# ── Einheit hinzufügen ───────────────────────────────────────────────────── #}
-{% if can_edit %}
-<div class="res-add">
-  <div class="res-section">
-    <div class="res-section__title">EINHEIT / RESSOURCE HINZUFÜGEN</div>
-    <form method="post" action="/lage/{{ lage.id }}/einheiten">
-      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-      <div class="res-add-grid">
-        <div>
-          <label class="form-label form-label--xs">Typ</label>
-          <select name="resource_type" class="form-select form-select--sm" id="res-type-sel"
-                  onchange="resTypeChanged(this.value)">
-            <option value="fahrzeug">Fahrzeug</option>
-            <option value="extern">Externe Kräfte</option>
-            <option value="material">Material/Gerät</option>
-          </select>
-        </div>
-        <div id="fzg-row" class="span2">
-          <label class="form-label form-label--xs">Fahrzeug</label>
-          <select name="vehicle_id" class="form-select form-select--sm">
-            <option value="">— Freitext unten —</option>
-            {% for v in extra_vehicles %}
-            <option value="{{ v.id }}">{{ v.display_label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div id="ext-org-row" class="span2" style="display:none;">
-          <label class="form-label form-label--xs">Organisation</label>
-          <input type="text" name="org_name" class="form-input" placeholder="z.B. Rotes Kreuz" maxlength="120">
-        </div>
-        <div id="ext-bos-row" style="display:none;">
-          <label class="form-label form-label--xs">BOS-Typ</label>
-          <input type="text" name="bos" class="form-input" placeholder="FW / RK / Pol …" maxlength="20">
-        </div>
-        <div id="mat-qty-row" style="display:none;">
-          <label class="form-label form-label--xs">Menge</label>
-          <input type="number" name="qty" class="form-input" placeholder="200" min="1">
-        </div>
-        <div id="mat-unit-row" style="display:none;">
-          <label class="form-label form-label--xs">Einheit</label>
-          <input type="text" name="unit" class="form-input" placeholder="Sandsäcke" maxlength="20">
-        </div>
-        <div class="span2">
-          <label class="form-label form-label--xs">Bezeichnung</label>
-          <input type="text" name="label" class="form-input"
-                 placeholder="z.B. RLF WOL, Baufirma Müller, …"
-                 maxlength="120" autocomplete="off">
-        </div>
-        <div>
-          <label class="form-label form-label--xs" style="visibility:hidden;">x</label>
-          <button type="submit" class="btn btn--secondary btn--sm" style="width:100%;">+ Hinzufügen</button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
 
 {# ── Ressourcen-Journal ───────────────────────────────────────────────────── #}
 <div id="res-journal-container"
