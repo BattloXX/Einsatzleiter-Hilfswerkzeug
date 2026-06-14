@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.audit import write_audit
 from app.core.permissions import has_role, require_role
@@ -250,6 +250,7 @@ async def stab_einsatzjournal(
     entries = (
         db.query(LageJournalEntry)
         .filter(LageJournalEntry.major_incident_id == lage_id)
+        .options(selectinload(LageJournalEntry.media))
         .order_by(LageJournalEntry.ts.desc())
         .all()
     )

@@ -426,7 +426,10 @@ function journalApplyTemplate(cat) {
 // HTMX 2.x liest Formularwerte VOR htmx:configRequest – daher direkt ev.detail.parameters setzen
 document.addEventListener('htmx:configRequest', function(ev) {
   if (ev.detail.elt && ev.detail.elt.id === 'form-journal-add' && _quill) {
-    var html = _quill.getSemanticHTML ? _quill.getSemanticHTML() : _quill.root.innerHTML;
+    var text = (_quill.getText() || '').trim();
+    var html = text.length > 0
+      ? (_quill.getSemanticHTML ? _quill.getSemanticHTML() : _quill.root.innerHTML)
+      : '';
     ev.detail.parameters['body_html'] = html;
   }
 });

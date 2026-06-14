@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.audit import write_audit
 from app.core.permissions import has_role, require_role, same_org_or_system_admin
@@ -1257,6 +1257,7 @@ async def lage_stab(
     journal_entries = (
         db.query(LageJournalEntry)
         .filter(LageJournalEntry.major_incident_id == lage_id)
+        .options(selectinload(LageJournalEntry.media))
         .order_by(LageJournalEntry.ts.desc())
         .all()
     )
@@ -1435,7 +1436,12 @@ async def lage_journal_entry_detail(
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
-    entry = db.get(LageJournalEntry, entry_id)
+    entry = (
+        db.query(LageJournalEntry)
+        .filter(LageJournalEntry.id == entry_id)
+        .options(selectinload(LageJournalEntry.media))
+        .first()
+    )
     if not entry or entry.major_incident_id != lage_id:
         raise HTTPException(status_code=404)
     return templates.TemplateResponse(request, "incident_major/_journal_entry_detail.html", {
@@ -1456,7 +1462,12 @@ async def lage_journal_entry_druck(
     user = request.state.user
     lage = _lage_or_404(lage_id, db)
     _check_org_access(user, lage)
-    entry = db.get(LageJournalEntry, entry_id)
+    entry = (
+        db.query(LageJournalEntry)
+        .filter(LageJournalEntry.id == entry_id)
+        .options(selectinload(LageJournalEntry.media))
+        .first()
+    )
     if not entry or entry.major_incident_id != lage_id:
         raise HTTPException(status_code=404)
     return templates.TemplateResponse(request, "incident_major/_journal_entry_druck.html", {
@@ -2668,6 +2679,7 @@ async def lage_druck(
     journal_entries = (
         db.query(LageJournalEntry)
         .filter(LageJournalEntry.major_incident_id == lage_id)
+        .options(selectinload(LageJournalEntry.media))
         .order_by(LageJournalEntry.ts)
         .all()
     )

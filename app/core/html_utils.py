@@ -22,6 +22,6 @@ def sanitize_html(raw: str | None) -> str | None:
             link_rel=None,
         )
     except ImportError:
-        import html as _html
-        cleaned = _html.escape(raw)
+        import re as _re
+        cleaned = _re.sub(r"<[^>]+>", " ", raw).strip()
     return cleaned or None
