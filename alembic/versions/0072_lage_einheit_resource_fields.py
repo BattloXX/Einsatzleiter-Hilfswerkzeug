@@ -1,14 +1,14 @@
 """LageEinheit: Ressourcentyp, Abschnittszuordnung, Status-Erweiterung
 
 Revision ID: 0072
-Revises: 0070
+Revises: 0071
 Create Date: 2026-06-14
 """
 from alembic import op
 from sqlalchemy import text
 
 revision = "0072"
-down_revision = "0070"
+down_revision = "0071"
 branch_labels = None
 depends_on = None
 
