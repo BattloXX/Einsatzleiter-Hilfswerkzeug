@@ -29,6 +29,49 @@
   color: var(--text-muted, #6b7280);
   font-style: italic;
 }
+/* Quill editor resize handle */
+#quill-resize-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+#quill-resize-wrapper .ql-toolbar.ql-snow {
+  flex-shrink: 0;
+}
+#journal-quill-editor.ql-container.ql-snow {
+  flex: 1;
+  overflow-y: auto;
+}
+#quill-resize-handle {
+  height: 6px;
+  background: var(--border);
+  cursor: ns-resize;
+  border-radius: 0 0 4px 4px;
+  opacity: 0.5;
+  transition: opacity .15s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#quill-resize-handle:hover { opacity: 1; }
+/* Rendered Quill HTML in journal body */
+.journal-body ul, .journal-body ol {
+  padding-left: 1.4em;
+  margin: 4px 0;
+}
+.journal-body li { margin: 2px 0; }
+.journal-body p  { margin: 0 0 4px; }
+.journal-body p:last-child { margin-bottom: 0; }
+.journal-body strong { font-weight: 700; }
+.journal-body em     { font-style: italic; }
+.journal-body u      { text-decoration: underline; }
+.journal-body s      { text-decoration: line-through; }
+.journal-body a      { color: #60a5fa; }
+.journal-body blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 8px;
+  color: var(--text-muted);
+  margin: 4px 0;
+}
 
 .lage-status { font-size:.75rem; padding:2px 8px; border-radius:10px; white-space:nowrap; }
 .lage-status--active  { background:rgba(34,197,94,.15); color:#4ade80; }
@@ -247,8 +290,11 @@
                  style="flex:1;min-width:200px;" required autocomplete="off">
           <button type="submit" class="btn btn--primary btn--sm" style="flex-shrink:0;">Eintragen</button>
         </div>
-        {# Quill-Editor #}
-        <div id="journal-quill-editor" style="border-radius:4px;min-height:80px;max-height:200px;overflow-y:auto;margin-bottom:6px;"></div>
+        {# Quill-Editor mit Resize #}
+        <div id="quill-resize-wrapper" style="min-height:120px;height:160px;max-height:600px;">
+          <div id="journal-quill-editor"></div>
+          <div id="quill-resize-handle" title="Ziehen zum Vergrößern"></div>
+        </div>
         <input type="hidden" name="body_html" id="journal-body-html">
         {# SKKM-Felder (ausklappbar) #}
         <details style="margin-bottom:6px;">
@@ -423,6 +469,31 @@ document.addEventListener('DOMContentLoaded', function() {
       modules: { toolbar: [['bold','italic','underline'],['strike'],['link'],
         [{list:'ordered'},{list:'bullet'}],['clean']] },
       placeholder: 'Fließtext (optional)…',
+    });
+  }
+
+  // Resize-Handle für Quill-Editor
+  var handle = document.getElementById('quill-resize-handle');
+  var wrapper = document.getElementById('quill-resize-wrapper');
+  if (handle && wrapper) {
+    var _dragging = false, _startY = 0, _startH = 0;
+    handle.addEventListener('mousedown', function(e) {
+      _dragging = true;
+      _startY = e.clientY;
+      _startH = wrapper.offsetHeight;
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', function(e) {
+      if (!_dragging) return;
+      var newH = Math.max(80, Math.min(600, _startH + (e.clientY - _startY)));
+      wrapper.style.height = newH + 'px';
+    });
+    document.addEventListener('mouseup', function() {
+      if (_dragging) {
+        _dragging = false;
+        document.body.style.userSelect = '';
+      }
     });
   }
 });

@@ -3557,12 +3557,14 @@ async def lage_ressourcen(
     )
 
     sectors = sorted(lage.sectors, key=lambda s: s.sort_order)
+    sites_by_id = {s.id: s for s in lage.sites}
 
     return templates.TemplateResponse(request, "incident_major/ressourcen.html", {
         "user": user,
         "lage": lage,
         "kue": kue,
         "sectors": sectors,
+        "sites_by_id": sites_by_id,
         "extra_vehicles": extra_vehicles,
         "org_members": org_members,
         "resource_service": resource_service,
