@@ -3558,6 +3558,10 @@ async def lage_ressourcen(
 
     sectors = sorted(lage.sectors, key=lambda s: s.sort_order)
     sites_by_id = {s.id: s for s in lage.sites}
+    active_sites = sorted(
+        [s for s in lage.sites if s.phase not in (SitePhase.abgebrochen, SitePhase.erledigt)],
+        key=lambda s: s.bezeichnung,
+    )
 
     return templates.TemplateResponse(request, "incident_major/ressourcen.html", {
         "user": user,
@@ -3565,6 +3569,7 @@ async def lage_ressourcen(
         "kue": kue,
         "sectors": sectors,
         "sites_by_id": sites_by_id,
+        "active_sites": active_sites,
         "extra_vehicles": extra_vehicles,
         "org_members": org_members,
         "resource_service": resource_service,
@@ -3726,6 +3731,36 @@ async def lage_einheit_sektor(
             resource_service.move_to_pool(
                 db, einheit_id, lage_id,
                 author_name=get_author_name(request), user_id=user.id,
+            )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return RedirectResponse(f"/lage/{lage_id}/ressourcen", status_code=303)
+
+
+@router.post("/lage/{lage_id}/einheiten/{einheit_id}/einsatz")
+async def lage_einheit_einsatz(
+    request: Request,
+    lage_id: int,
+    einheit_id: int,
+    site_id: int | None = Form(None),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    try:
+        if site_id:
+            resource_service.assign_to_site(
+                db, einheit_id, lage_id, site_id,
+                author_name=get_author_name(user), user_id=user.id,
+            )
+        else:
+            resource_service.move_to_pool(
+                db, einheit_id, lage_id,
+                author_name=get_author_name(user), user_id=user.id,
             )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
