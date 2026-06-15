@@ -1545,49 +1545,67 @@
     var format = _currentFormat();
     _applyPageStyle(format);
 
-    // Overlay ausblenden
-    document.getElementById('print-frame').style.display = 'none';
-    document.getElementById('pf-bar').style.display = 'none';
-
-    // Fußzeile befüllen
-    var _now = new Date();
-    var _timeEl = document.getElementById('pf-print-time');
-    if (_timeEl) _timeEl.textContent = 'Stand: ' + _now.toLocaleString('de-AT', {
-      day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
-    });
-    var _resEl = document.getElementById('pf-res-stat');
-    if (_resEl && window._lageSites) {
-      var _res = window._lageSites.reduce(function(s, site) { return s + (site.active_res || 0); }, 0);
-      _resEl.textContent = _res > 0 ? _res + ' Ressource' + (_res !== 1 ? 'n' : '') + ' aktiv' : '';
-    }
-    var _footer = document.getElementById('print-footer');
-    if (_footer) _footer.style.display = 'flex';
-
     var map   = window._karteMap;
     var mapEl = document.getElementById('karte-map');
 
+    // ── 1. Geografische Grenzen des Druckrahmens auslesen (BEVOR Rahmen verschwindet)
+    var printBounds = null;
+    var origCenter  = map ? map.getCenter() : null;
+    var origZoom    = map ? map.getZoom()   : null;
+    if (map) {
+      var fEl   = document.getElementById('print-frame');
+      var fRect = fEl.getBoundingClientRect();
+      var mRect = mapEl.getBoundingClientRect();
+      // Pixel-Position des Rahmens relativ zum Karten-Container
+      var ptTL = L.point(fRect.left - mRect.left, fRect.top    - mRect.top);
+      var ptBR = L.point(fRect.right - mRect.left, fRect.bottom - mRect.top);
+      printBounds = L.latLngBounds(
+        map.containerPointToLatLng(ptTL),
+        map.containerPointToLatLng(ptBR)
+      );
+    }
+
+    // ── 2. Overlay ausblenden
+    document.getElementById('print-frame').style.display = 'none';
+    document.getElementById('pf-bar').style.display = 'none';
+
+    // ── 3. Fußzeile befüllen
+    var _now   = new Date();
+    var _tEl   = document.getElementById('pf-print-time');
+    if (_tEl) _tEl.textContent = 'Stand: ' + _now.toLocaleString('de-AT', {
+      day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+    });
+    var _rEl = document.getElementById('pf-res-stat');
+    if (_rEl && window._lageSites) {
+      var _res = window._lageSites.reduce(function(s, x) { return s + (x.active_res || 0); }, 0);
+      _rEl.textContent = _res > 0 ? _res + ' Ressource' + (_res !== 1 ? 'n' : '') + ' aktiv' : '';
+    }
+    var _fEl = document.getElementById('print-footer');
+    if (_fEl) _fEl.style.display = 'flex';
+
     if (!map) { window.print(); return; }
 
-    // Aktuellen Ausschnitt sichern (der vom Nutzer in der Vorschau gewählt wurde)
-    var center = map.getCenter();
-    var zoom   = map.getZoom();
     var printH = MAP_HEIGHTS[format] || '150mm';
 
-    // Karte JETZT auf Druckgröße setzen – Leaflet rendert Tiles für diese Dimensionen
+    // ── 4. Karte auf Druckgröße setzen und exakt auf Druckbereich ausrichten
     mapEl.style.position = 'static';
     mapEl.style.height   = printH;
     mapEl.style.width    = '100%';
+    void mapEl.offsetHeight;  // Layout-Flush: Browser berechnet neue Dimensionen sofort
     map.invalidateSize({ animate: false });
-    map.setView(center, zoom, { animate: false });
+    if (printBounds) {
+      map.fitBounds(printBounds, { animate: false, padding: [0, 0] });
+    } else {
+      map.setView(origCenter, origZoom, { animate: false });
+    }
 
     function restoreMap() {
       mapEl.style.position = '';
       mapEl.style.height   = '';
       mapEl.style.width    = '';
       map.invalidateSize({ animate: false });
-      map.setView(center, zoom, { animate: false });
-      var _f = document.getElementById('print-footer');
-      if (_f) _f.style.display = 'none';
+      map.setView(origCenter, origZoom, { animate: false });
+      if (_fEl) _fEl.style.display = 'none';
       if (_active) {
         document.getElementById('pf-bar').style.display = 'flex';
         updatePrintFrame();
@@ -1596,7 +1614,6 @@
 
     function doPrint() {
       window.print();
-      // afterprint wiederherstellen; Fallback nach 8s
       var restored = false;
       function onAfter() {
         if (restored) return;
@@ -1608,19 +1625,19 @@
       setTimeout(onAfter, 8000);
     }
 
-    // Auf Tile-Laden warten: erst tile-layer 'load', Fallback nach 1,2 s
+    // Tiles abwarten: TileLayer 'load', Fallback 1,5 s
     var fired = false;
     function onReady() {
       if (fired) return;
       fired = true;
-      setTimeout(doPrint, 80);
+      setTimeout(doPrint, 100);
     }
     var tileLayer = null;
     map.eachLayer(function(l) { if (l instanceof L.TileLayer && !tileLayer) tileLayer = l; });
     if (tileLayer) {
       tileLayer.once('load', onReady);
     }
-    setTimeout(onReady, 1200);
+    setTimeout(onReady, 1500);
   };
 
   // Fenstergrößenänderung → Rahmen neu berechnen
