@@ -802,6 +802,12 @@ async def _enrich_site_from_alarm(
             except Exception:
                 pass
 
+        # Abschnittszuweisung nach Geocoding (oder wenn Koordinaten schon gesetzt waren)
+        if site.lat is not None and site.lng is not None:
+            from app.services.geo_service import auto_assign_section
+            if auto_assign_section(db, site):
+                changed = True
+
         # AI: priority (only if not yet set)
         prio_text = einsatzgrund or site.einsatzgrund or site.bezeichnung
         if is_enabled() and prio_text and not site.priority:
