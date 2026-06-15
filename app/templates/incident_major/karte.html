@@ -253,11 +253,12 @@
 }
 /* Print CSS */
 @media print {
-  .lage-topbar, .lage-subnav, .karte-controls, .karte-bottom-shelf,
-  .karte-mode-btn, #btn-pin-mode, #btn-geolocate, .veh-legend,
+  .karte-topbar, .lage-topbar, .lage-subnav, .karte-controls, .karte-bottom-shelf,
+  .karte-mode-btn, .karte-badge, #btn-pin-mode, #btn-geolocate, .veh-legend,
   #section-filters, .nocoords-box, #site-panel-wrap,
   #print-frame, #pf-bar { display:none !important; }
-  #karte-map { position:static; height:var(--print-map-height,150mm); width:100% !important; }
+  /* Karte: inline-Pixel-Breite/-Höhe aus JS haben Vorrang (kein !important bei width) */
+  #karte-map { position:static !important; height:var(--print-map-height,150mm) !important; }
   #karte-legend { display:flex !important; position:static !important;
                   transform:none !important; bottom:auto; left:auto;
                   margin-top:6px; max-width:100%; }
@@ -523,6 +524,7 @@
     <select id="pf-format-sel" onchange="updatePrintFrame()">
       <option value="A4 portrait">A4 Hochformat</option>
       <option value="A4 landscape">A4 Querformat</option>
+      <option value="A3 portrait">A3 Hochformat</option>
       <option value="A3 landscape">A3 Querformat</option>
     </select>
   </div>
@@ -1453,22 +1455,35 @@
 (function() {
   var _active = false;
 
-  // Kartenhöhe im Print-CSS (Seitenhöhe minus Rand minus Fußzeile/Legende)
+  // Kartenhöhe im Druckbereich (Seite − 2×10mm Rand − Legende/Fußzeile)
   var MAP_HEIGHTS = {
     'A4 portrait':  '220mm',
     'A4 landscape': '140mm',
+    'A3 portrait':  '340mm',
     'A3 landscape': '220mm',
   };
-  // Seitenverhältnisse (Breite / Höhe) des Druck-Kartenbereichs
-  // = (Papierbreite - 2×10mm Rand) / MAP_HEIGHTS[format]
-  // A4 portrait:  190mm / 220mm ≈ 0.864
-  // A4 landscape: 277mm / 140mm ≈ 1.979
-  // A3 landscape: 400mm / 220mm ≈ 1.818
-  var RATIOS = {
-    'A4 portrait':  190 / 220,
-    'A4 landscape': 277 / 140,
-    'A3 landscape': 400 / 220,
+  // Bedruckbare Seitenbreite in mm (Papierbreite − 2×10mm Ränder)
+  var PAGE_WIDTHS_MM = {
+    'A4 portrait':  190,   // A4 = 210mm breit
+    'A4 landscape': 277,   // A4 Quer = 297mm breit
+    'A3 portrait':  277,   // A3 = 297mm breit
+    'A3 landscape': 400,   // A3 Quer = 420mm breit
   };
+  // Seitenverhältnis Druckkarte: (Papierbreite−20mm) / MAP_HEIGHTS[format]
+  var RATIOS = {
+    'A4 portrait':  190 / 220,   // ≈ 0.864
+    'A4 landscape': 277 / 140,   // ≈ 1.979
+    'A3 portrait':  277 / 340,   // ≈ 0.815
+    'A3 landscape': 400 / 220,   // ≈ 1.818
+  };
+  var FORMAT_NAMES = {
+    'A4 portrait':  'A4 Hochformat',
+    'A4 landscape': 'A4 Querformat',
+    'A3 portrait':  'A3 Hochformat',
+    'A3 landscape': 'A3 Querformat',
+  };
+  // 1 CSS-Pixel = 1/96 Zoll; 1 mm = 96/25.4 ≈ 3.7795 px
+  var MM_TO_PX = 96 / 25.4;
 
   var _styleEl = null;
   function _applyPageStyle(format) {
@@ -1490,15 +1505,13 @@
 
   window.updatePrintFrame = function() {
     var format = _currentFormat();
-    var ratio  = RATIOS[format] || (210 / 297);
+    var ratio  = RATIOS[format] || (190 / 220);
 
-    var mapEl  = document.getElementById('karte-map');
-    var rect   = mapEl.getBoundingClientRect();
+    var mapEl = document.getElementById('karte-map');
+    var rect  = mapEl.getBoundingClientRect();
 
-    // Topbar-Offset berücksichtigen
-    var topOffset = rect.top;
     var availW = rect.width  * 0.82;
-    var availH = (rect.height - topOffset) * 0.80;
+    var availH = rect.height * 0.80;
 
     var frameW, frameH;
     if (availW / availH > ratio) {
@@ -1513,21 +1526,15 @@
     var cy = rect.top  + rect.height / 2;
 
     var frame = document.getElementById('print-frame');
-    frame.style.left   = Math.round(cx - frameW / 2) + 'px';
-    frame.style.top    = Math.round(cy - frameH / 2) + 'px';
-    frame.style.width  = Math.round(frameW) + 'px';
-    frame.style.height = Math.round(frameH) + 'px';
+    frame.style.left    = Math.round(cx - frameW / 2) + 'px';
+    frame.style.top     = Math.round(cy - frameH / 2) + 'px';
+    frame.style.width   = Math.round(frameW) + 'px';
+    frame.style.height  = Math.round(frameH) + 'px';
     frame.style.display = 'block';
 
-    // Label aktualisieren
     var lbl = document.getElementById('print-frame__label');
     if (lbl) {
-      var names = {
-        'A4 portrait': 'A4 Hochformat',
-        'A4 landscape': 'A4 Querformat',
-        'A3 landscape': 'A3 Querformat',
-      };
-      lbl.textContent = (names[format] || format) + ' · Zoomen & Verschieben zum Ausrichten';
+      lbl.textContent = (FORMAT_NAMES[format] || format) + ' · Zoomen & Verschieben zum Ausrichten';
     }
   };
 
@@ -1535,7 +1542,6 @@
     _active = true;
     document.getElementById('pf-bar').style.display = 'flex';
     updatePrintFrame();
-    // Sicherstellen dass Karte interaktiv bleibt
     if (window._karteMap) window._karteMap.invalidateSize();
   };
 
@@ -1551,105 +1557,109 @@
 
     var map   = window._karteMap;
     var mapEl = document.getElementById('karte-map');
+    if (!map || !mapEl) { window.print(); return; }
 
-    // ── 1. Geografische Grenzen des Druckrahmens auslesen (BEVOR Rahmen verschwindet)
-    var printBounds = null;
-    var origCenter  = map ? map.getCenter() : null;
-    var origZoom    = map ? map.getZoom()   : null;
-    if (map) {
-      var fEl   = document.getElementById('print-frame');
-      var fRect = fEl.getBoundingClientRect();
-      var mRect = mapEl.getBoundingClientRect();
-      // Pixel-Position des Rahmens relativ zum Karten-Container
-      var ptTL = L.point(fRect.left - mRect.left, fRect.top    - mRect.top);
-      var ptBR = L.point(fRect.right - mRect.left, fRect.bottom - mRect.top);
-      printBounds = L.latLngBounds(
-        map.containerPointToLatLng(ptTL),
-        map.containerPointToLatLng(ptBR)
-      );
-    }
+    // ── 1. Geografische Grenzen des Druckrahmens vor dem Ausblenden ermitteln
+    var fEl   = document.getElementById('print-frame');
+    var fRect = fEl.getBoundingClientRect();
+    var mRect = mapEl.getBoundingClientRect();
+    var ptTL  = L.point(fRect.left - mRect.left, fRect.top    - mRect.top);
+    var ptBR  = L.point(fRect.right - mRect.left, fRect.bottom - mRect.top);
+    var printBounds = L.latLngBounds(
+      map.containerPointToLatLng(ptTL),
+      map.containerPointToLatLng(ptBR)
+    );
+    var origCenter = map.getCenter();
+    var origZoom   = map.getZoom();
 
-    // ── 2. Overlay ausblenden
-    document.getElementById('print-frame').style.display = 'none';
-    document.getElementById('pf-bar').style.display = 'none';
+    // ── 2. Alle UI-Elemente per JS ausblenden (inline > @media print)
+    var _hideSels = [
+      '.karte-topbar', '.karte-controls', '.karte-bottom-shelf',
+      '.veh-legend', '.karte-badge', '#section-filters',
+      '.nocoords-box', '#site-panel-wrap', '#print-frame', '#pf-bar'
+    ];
+    var _hiddenEls = [];
+    _hideSels.forEach(function(sel) {
+      document.querySelectorAll(sel).forEach(function(el) {
+        _hiddenEls.push({ el: el, prev: el.style.display });
+        el.style.display = 'none';
+      });
+    });
 
-    // ── 3. Fußzeile befüllen
-    var _now   = new Date();
-    var _tEl   = document.getElementById('pf-print-time');
-    if (_tEl) _tEl.textContent = 'Stand: ' + _now.toLocaleString('de-AT', {
+    // ── 3. Fußzeile befüllen und einblenden
+    var now  = new Date();
+    var tEl  = document.getElementById('pf-print-time');
+    if (tEl) tEl.textContent = 'Stand: ' + now.toLocaleString('de-AT', {
       day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
     });
-    var _rEl = document.getElementById('pf-res-stat');
-    if (_rEl && window._lageSites) {
-      var _res = window._lageSites.reduce(function(s, x) { return s + (x.active_res || 0); }, 0);
-      _rEl.textContent = _res > 0 ? _res + ' Ressource' + (_res !== 1 ? 'n' : '') + ' aktiv' : '';
+    var rEl = document.getElementById('pf-res-stat');
+    if (rEl && window._lageSites) {
+      var res = window._lageSites.reduce(function(s, x) { return s + (x.active_res || 0); }, 0);
+      rEl.textContent = res > 0 ? res + ' Ressource' + (res !== 1 ? 'n' : '') + ' aktiv' : '';
     }
-    var _fEl = document.getElementById('print-footer');
-    if (_fEl) _fEl.style.display = 'flex';
+    var ftrEl = document.getElementById('print-footer');
+    if (ftrEl) ftrEl.style.display = 'flex';
 
-    if (!map) { window.print(); return; }
+    // ── 4. Karte auf exakte Druckabmessungen in CSS-Pixeln setzen
+    //     Leaflet rendert Tiles für genau diese Größe → stimmt mit @page überein
+    var printWpx = Math.round((PAGE_WIDTHS_MM[format] || 190) * MM_TO_PX);
+    var printHmm = parseFloat(MAP_HEIGHTS[format] || '150');
+    var printHpx = Math.round(printHmm * MM_TO_PX);
 
-    var printH = MAP_HEIGHTS[format] || '150mm';
-
-    // ── 4. Karte auf Druckgröße setzen und exakt auf Druckbereich ausrichten
     mapEl.style.position = 'static';
-    mapEl.style.height   = printH;
-    mapEl.style.width    = '100%';
-    void mapEl.offsetHeight;  // Layout-Flush: Browser berechnet neue Dimensionen sofort
+    mapEl.style.width    = printWpx + 'px';
+    mapEl.style.height   = printHpx + 'px';
+    mapEl.style.zIndex   = '0';
+    void mapEl.offsetHeight;   // Layout-Flush erzwingen
     map.invalidateSize({ animate: false });
-    if (printBounds) {
-      map.fitBounds(printBounds, { animate: false, padding: [0, 0] });
-    } else {
-      map.setView(origCenter, origZoom, { animate: false });
-    }
 
+    // ── 5. Exakt auf Druckbereich zoomen
+    map.fitBounds(printBounds, { animate: false, padding: [0, 0] });
+
+    // ── 6. Aufräumen nach Druck
     function restoreMap() {
+      _hiddenEls.forEach(function(h) { h.el.style.display = h.prev; });
       mapEl.style.position = '';
-      mapEl.style.height   = '';
       mapEl.style.width    = '';
+      mapEl.style.height   = '';
+      mapEl.style.zIndex   = '';
+      if (ftrEl) ftrEl.style.display = 'none';
       map.invalidateSize({ animate: false });
       map.setView(origCenter, origZoom, { animate: false });
-      if (_fEl) _fEl.style.display = 'none';
       if (_active) {
         document.getElementById('pf-bar').style.display = 'flex';
         updatePrintFrame();
       }
     }
 
+    // ── 7. afterprint-Listener VOR window.print() registrieren (blocking call!)
     function doPrint() {
-      window.print();
       var restored = false;
       function onAfter() {
-        if (restored) return;
-        restored = true;
+        if (restored) return; restored = true;
         window.removeEventListener('afterprint', onAfter);
         restoreMap();
       }
       window.addEventListener('afterprint', onAfter);
       setTimeout(onAfter, 8000);
+      window.print();
     }
 
-    // Tiles abwarten: TileLayer 'load', Fallback 1,5 s
+    // Tiles abwarten, dann 500ms Puffer für Canvas-Neuzeichnung
     var fired = false;
     function onReady() {
-      if (fired) return;
-      fired = true;
-      setTimeout(doPrint, 100);
+      if (fired) return; fired = true;
+      setTimeout(doPrint, 500);
     }
     var tileLayer = null;
     map.eachLayer(function(l) { if (l instanceof L.TileLayer && !tileLayer) tileLayer = l; });
-    if (tileLayer) {
-      tileLayer.once('load', onReady);
-    }
-    setTimeout(onReady, 1500);
+    if (tileLayer) tileLayer.once('load', onReady);
+    setTimeout(onReady, 2500);   // Fallback
   };
 
-  // Fenstergrößenänderung → Rahmen neu berechnen
   window.addEventListener('resize', function() {
     if (_active) updatePrintFrame();
   });
-
-  // Escape → Vorschau schließen
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && _active) closePrintPreview();
   });
