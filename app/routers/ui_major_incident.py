@@ -3215,6 +3215,10 @@ async def site_panel(
         raise HTTPException(status_code=404)
 
     sectors = sorted(lage.sectors, key=lambda s: s.id)
+    available_einheiten = sorted(
+        [e for e in lage.einheiten if e.status != resource_service.STATUS_ABGERUECKT],
+        key=lambda e: (e.incident_site_id is not None, e.label),
+    )
 
     return templates.TemplateResponse(request, "incident_major/_site_panel.html", {
         "user": user,
@@ -3226,6 +3230,7 @@ async def site_panel(
         "prio_color": SITE_PRIORITY_COLOR,
         "prio_label": SITE_PRIORITY_LABEL,
         "can_edit": _can_edit(user),
+        "available_einheiten": available_einheiten,
     })
 
 
@@ -3625,10 +3630,6 @@ async def lage_ressourcen(
 
     sectors = sorted(lage.sectors, key=lambda s: s.sort_order)
     sites_by_id = {s.id: s for s in lage.sites}
-    active_sites = sorted(
-        [s for s in lage.sites if s.phase not in (SitePhase.abgebrochen, SitePhase.erledigt)],
-        key=lambda s: s.bezeichnung,
-    )
 
     return templates.TemplateResponse(request, "incident_major/ressourcen.html", {
         "user": user,
@@ -3636,7 +3637,6 @@ async def lage_ressourcen(
         "kue": kue,
         "sectors": sectors,
         "sites_by_id": sites_by_id,
-        "active_sites": active_sites,
         "extra_vehicles": extra_vehicles,
         "org_members": org_members,
         "resource_service": resource_service,

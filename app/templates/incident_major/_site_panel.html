@@ -84,7 +84,8 @@
 
 {# ── Ressourcen ──────────────────────────────────────────────────────────── #}
 {% set active_res = site.resources | rejectattr('released_at') | list %}
-{% if active_res %}
+{% set site_einheiten = available_einheiten | selectattr('incident_site_id', 'equalto', site.id) | list %}
+{% if active_res or site_einheiten or can_edit %}
 <div style="padding:8px 14px;border-bottom:1px solid var(--border);">
   <div style="font-size:.7rem;color:var(--text-muted);font-weight:600;margin-bottom:5px;">RESSOURCEN</div>
   {% for r in active_res %}
@@ -93,6 +94,46 @@
     {% if r.committed_at %}<span style="color:#4ade80;font-size:.65rem;"> ✓ eingesetzt</span>{% endif %}
   </div>
   {% endfor %}
+  {% for e in site_einheiten %}
+  <div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+    <span style="font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:4px;
+                 background:rgba(251,191,36,.2);color:#fbbf24;white-space:nowrap;">
+      EINHEIT
+    </span>
+    <span style="font-size:.78rem;flex:1;color:var(--text);">{{ e.label }}</span>
+    {% if can_edit %}
+    <form hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/einheit-freigeben"
+          hx-swap="none"
+          hx-vals='{"_csrf":"{{ request.state.csrf_token }}","einheit_id":"{{ e.id }}"}'
+          hx-on::after-request="if(event.detail.successful){ htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}/panel',{target:'#site-panel-content',swap:'innerHTML'}); htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}/card',{target:'[data-site-id=\'{{ site.id }}\']',swap:'outerHTML'}); }"
+          style="margin:0;">
+      <button type="submit" class="btn btn--xs btn--ghost" title="Einheit freigeben">→ Pool</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if can_edit %}
+  {% set assignable = available_einheiten | rejectattr('incident_site_id', 'equalto', site.id) | list %}
+  {% if assignable %}
+  <form hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/einheit-zuweisen"
+        hx-swap="none"
+        hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
+        hx-on::after-request="if(event.detail.successful){ htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}/panel',{target:'#site-panel-content',swap:'innerHTML'}); htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}/card',{target:'[data-site-id=\'{{ site.id }}\']',swap:'outerHTML'}); }"
+        style="display:flex;gap:6px;align-items:center;margin:4px 0 0;">
+    <select name="einheit_id" class="form-input" style="flex:1;font-size:.75rem;padding:3px 7px;">
+      {% for e in assignable %}
+      <option value="{{ e.id }}"
+              style="{% if not e.incident_site_id %}color:#4ade80;{% else %}color:#fbbf24;{% endif %}">
+        {% if not e.incident_site_id %}🟢{% else %}🟡{% endif %} {{ e.label }}{% if e.incident_site_id %} (and. Einsatz){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn--xs btn--secondary">+ Zuweisen</button>
+  </form>
+  {% elif not site_einheiten and not active_res %}
+  <div style="font-size:.72rem;color:var(--text-muted);font-style:italic;">Keine Einheiten verfügbar</div>
+  {% endif %}
+  {% endif %}
 </div>
 {% endif %}
 

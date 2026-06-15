@@ -337,16 +337,6 @@
       <button type="submit" class="btn btn--xs btn--secondary">OK</button>
     </form>
     {% endif %}
-    {% if active_sites %}
-    <form method="post" action="/lage/{{ lage.id }}/einheiten/{{ e.id }}/einsatz" style="display:flex;gap:3px;flex:1;">
-      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-      <select name="site_id" class="sektor-select">
-        <option value="">→ Kein Einsatz</option>
-        {% for s in active_sites %}<option value="{{ s.id }}"{% if s.id == e.incident_site_id %} selected{% endif %}>{{ s.bezeichnung[:28] }}</option>{% endfor %}
-      </select>
-      <button type="submit" class="btn btn--xs btn--secondary">OK</button>
-    </form>
-    {% endif %}
     {% if e.sector_id %}
     <form method="post" action="/lage/{{ lage.id }}/einheiten/{{ e.id }}/pool" style="margin:0;">
       <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
