@@ -324,6 +324,11 @@ async def lage_board(
     _org_lat = getattr(_org, "fallback_lat", None) or 47.41
     _org_lng = getattr(_org, "fallback_lng", None) or 9.74
 
+    available_einheiten = sorted(
+        [e for e in lage.einheiten if e.status != resource_service.STATUS_ABGERUECKT],
+        key=lambda e: e.label,
+    )
+
     return templates.TemplateResponse(request, "incident_major/board.html", {
         "user": user,
         "lage": lage,
@@ -352,6 +357,7 @@ async def lage_board(
         "weather_enabled": _weather_enabled,
         "org_lat": _org_lat,
         "org_lng": _org_lng,
+        "available_einheiten": available_einheiten,
     })
 
 
@@ -646,6 +652,10 @@ async def site_card_partial(
         raise HTTPException(status_code=404)
     sectors = sorted(lage.sectors, key=lambda s: s.id)
     sectors_by_id = {s.id: s for s in sectors}
+    available_einheiten = sorted(
+        [e for e in lage.einheiten if e.status != resource_service.STATUS_ABGERUECKT],
+        key=lambda e: e.label,
+    )
     return templates.TemplateResponse(request, "incident_major/_site_card.html", {
         "lage": lage,
         "site": site,
@@ -654,6 +664,56 @@ async def site_card_partial(
         "sectors": sectors,
         "sectors_by_id": sectors_by_id,
         "can_edit": _can_edit(user),
+        "available_einheiten": available_einheiten,
+    })
+
+
+# ── Einheit einer Einsatzstelle zuweisen (Board-Karte) ──────────────────────
+
+@router.post("/lage/{lage_id}/stellen/{site_id}/einheit-zuweisen", response_class=HTMLResponse)
+async def site_einheit_zuweisen(
+    request: Request,
+    lage_id: int,
+    site_id: int,
+    einheit_id: int = Form(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    site = db.get(IncidentSite, site_id)
+    if not site or site.major_incident_id != lage_id:
+        raise HTTPException(status_code=404)
+
+    try:
+        resource_service.assign_to_site(
+            db, einheit_id, lage_id, site_id,
+            author_name=get_author_name(user), user_id=user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    db.refresh(lage)
+    db.refresh(site)
+
+    await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
+
+    sectors = sorted(lage.sectors, key=lambda s: s.id)
+    sectors_by_id = {s.id: s for s in sectors}
+    available_einheiten = sorted(
+        [e for e in lage.einheiten if e.status != resource_service.STATUS_ABGERUECKT],
+        key=lambda e: e.label,
+    )
+    return templates.TemplateResponse(request, "incident_major/_site_card.html", {
+        "lage": lage,
+        "site": site,
+        "prio_color": SITE_PRIORITY_COLOR,
+        "prio_label": SITE_PRIORITY_LABEL,
+        "sectors": sectors,
+        "sectors_by_id": sectors_by_id,
+        "can_edit": _can_edit(user),
+        "available_einheiten": available_einheiten,
     })
 
 
