@@ -676,27 +676,38 @@ async def site_einheit_zuweisen(
     try:
         resource_service.assign_to_site(
             db, einheit_id, lage_id, site_id,
-            author_name=get_author_name(user), user_id=user.id,
+            author_name=get_author_name(request), user_id=user.id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
-    db.refresh(lage)
-    db.refresh(site)
-
     await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
+    return Response(status_code=204)
 
-    sectors = sorted(lage.sectors, key=lambda s: s.id)
-    sectors_by_id = {s.id: s for s in sectors}
-    return templates.TemplateResponse(request, "incident_major/_site_card.html", {
-        "lage": lage,
-        "site": site,
-        "prio_color": SITE_PRIORITY_COLOR,
-        "prio_label": SITE_PRIORITY_LABEL,
-        "sectors": sectors,
-        "sectors_by_id": sectors_by_id,
-        "can_edit": _can_edit(user),
-    })
+
+@router.post("/lage/{lage_id}/stellen/{site_id}/einheit-freigeben")
+async def site_einheit_freigeben(
+    request: Request,
+    lage_id: int,
+    site_id: int,
+    einheit_id: int = Form(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    try:
+        resource_service.move_to_pool(
+            db, einheit_id, lage_id,
+            author_name=get_author_name(request), user_id=user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
+    return Response(status_code=204)
 
 
 # ── Einzeldruck (Einsatzstelle) ─────────────────────────────────────────────
