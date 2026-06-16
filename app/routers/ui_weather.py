@@ -34,6 +34,35 @@ def _wind_dir_label(deg: float | None) -> str:
     return _WIND_DIR_LABELS[round(deg / 45) % 8]
 
 
+_SOURCE_LABELS = {
+    "kachelmann": "Kachelmann Wetter",
+    "geosphere": "GeoSphere Austria (ZAMG)",
+    "geosphere_nwp": "GeoSphere Austria (ZAMG)",
+    "openmeteo": "Open-Meteo",
+}
+
+
+def _build_attribution(current, forecast, nowcast, warnings) -> str:
+    """Baut die Quellenangabe aus den tatsächlich genutzten Datenquellen.
+
+    Warnungen kommen immer von ZAMG/GeoSphere und werden separat ausgewiesen.
+    """
+    sources: list[str] = []
+    for obj in (current, forecast, nowcast):
+        src = getattr(obj, "source", None)
+        if src:
+            label = _SOURCE_LABELS.get(src, src)
+            if label not in sources:
+                sources.append(label)
+    parts: list[str] = []
+    if sources:
+        parts.append(" · ".join(sources))
+    if warnings:
+        parts.append("Warnungen: ZAMG/GeoSphere")
+    # Hinweis: Template stellt "Daten: " bereits voran.
+    return " | ".join(parts) if parts else weather_service.GEOSPHERE_ATTRIBUTION
+
+
 def _lage_or_404(lage_id: int, db: Session) -> MajorIncident:
     lage = db.get(MajorIncident, lage_id)
     if not lage:
@@ -128,7 +157,7 @@ async def _render_weather_panel(
     warn_color = weather_service._WARN_LEVEL_COLORS.get(
         top_warning.level, "#6b7280"
     ) if top_warning else None
-    scenarios = analyze_weather(current, forecast, nowcast)
+    scenarios = analyze_weather(current, forecast, nowcast, warnings)
 
     ctx = {
         "no_location": False,
@@ -144,7 +173,7 @@ async def _render_weather_panel(
         "top_warning": top_warning,
         "warn_color": warn_color,
         "scenarios": scenarios,
-        "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
+        "attribution": _build_attribution(current, forecast, nowcast, warnings),
     }
     ctx.update(extra_ctx)
     return templates.TemplateResponse(request, "incident_major/_weather_panel.html", ctx)
@@ -440,7 +469,7 @@ async def wetter_index(
     warn_color = weather_service._WARN_LEVEL_COLORS.get(
         top_warning.level, "#6b7280"
     ) if top_warning else None
-    scenarios = analyze_weather(current, forecast, nowcast)
+    scenarios = analyze_weather(current, forecast, nowcast, warnings)
 
     return templates.TemplateResponse(
         request,
@@ -461,7 +490,7 @@ async def wetter_index(
             "top_warning": top_warning,
             "warn_color": warn_color,
             "scenarios": scenarios,
-            "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
+            "attribution": _build_attribution(current, forecast, nowcast, warnings),
             "user": user,
         },
     )

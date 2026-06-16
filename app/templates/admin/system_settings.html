@@ -22,6 +22,16 @@
     Test-Mail fehlgeschlagen: {{ request.query_params.get('mail_error') }}
   </div>
   {% endif %}
+  {% if request.query_params.get('kachelmann_ok') %}
+  <div class="alert alert--success">
+    Kachelmann-Verbindung: {{ request.query_params.get('kachelmann_ok') }}
+  </div>
+  {% endif %}
+  {% if request.query_params.get('kachelmann_error') %}
+  <div class="alert alert--danger">
+    Kachelmann-Test fehlgeschlagen: {{ request.query_params.get('kachelmann_error') }}
+  </div>
+  {% endif %}
 
   <form method="post" action="/admin/system-einstellungen">
     <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
@@ -317,6 +327,36 @@
       </div>
     </section>
 
+    {# ── Wetter – Kachelmann (Plus-API) ─────────────────────────────────── #}
+    <section class="card mb-4">
+      <div class="card-header">
+        <h2>🌦 Wetter – Kachelmann (Plus-API)</h2>
+      </div>
+      <div class="card-body">
+        <p class="text-muted" style="font-size:.85rem;margin-bottom:12px;">
+          Mit gültigem API-Key liefert <strong>Kachelmann Wetter</strong> die Ist-Werte und die
+          Vorhersage. <strong>ZAMG/GeoSphere</strong> ergänzt weiterhin die amtlichen Warnungen und
+          den 15-min-Niederschlags-Nowcast. <strong>Ohne Key</strong> wird – wie bisher – komplett
+          ZAMG/GeoSphere genutzt. Der Key überschreibt die Umgebungsvariable
+          <code>KACHELMANN_API_KEY</code>.
+          Doku: <a href="https://api.kachelmannwetter.com/v02/_doc.html" target="_blank" rel="noopener">api.kachelmannwetter.com</a>
+          (kostenpflichtiges „Plus“-Abo erforderlich).
+        </p>
+        <table class="table-admin">
+          <thead><tr><th style="width:230px">Einstellung</th><th>Wert</th><th>Beschreibung</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>kachelmann_api_key</code></td>
+              <td><input type="password" name="k_kachelmann_api_key" class="form-input form-input--sm"
+                         value="{{ settings.get('kachelmann_api_key', '') }}" placeholder="API-Key…"
+                         style="width:320px" autocomplete="new-password"></td>
+              <td><small class="text-muted">Leer = ZAMG/GeoSphere ohne Key. Mit Key: Kachelmann primär, ZAMG ergänzt.</small></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     {# ── Einsatz – Funktionen ─────────────────────────────────────────── #}
     <section class="card mb-4">
       <div class="card-header">
@@ -497,6 +537,23 @@
                value="{{ user.email or '' }}"
                style="width:260px">
         <button type="submit" class="btn btn--secondary">Test-Mail senden</button>
+      </form>
+    </div>
+  </section>
+
+  {# ── Kachelmann-Verbindung testen ─────────────────────────────────────── #}
+  <section class="card mb-4" style="margin-top:24px;">
+    <div class="card-header">
+      <h2>Kachelmann-Verbindung testen</h2>
+    </div>
+    <div class="card-body">
+      <p class="text-muted" style="font-size:.85rem;margin-bottom:12px;">
+        Ruft die aktuellen Bedingungen mit dem <strong>gespeicherten</strong> API-Key ab
+        (Koordinaten der Home-Org bzw. Wolfurt). Zuerst speichern, dann testen.
+      </p>
+      <form method="post" action="/admin/system-einstellungen/test-kachelmann">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        <button type="submit" class="btn btn--secondary">Verbindung testen</button>
       </form>
     </div>
   </section>

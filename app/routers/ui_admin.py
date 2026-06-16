@@ -1724,6 +1724,8 @@ async def save_system_settings(
         # KI / Anthropic
         "ai_enabled", "ai_api_key", "ai_model_default", "ai_model_fast",
         "ai_max_tokens", "ai_timeout",
+        # Wetter / Kachelmann (Plus-API)
+        "kachelmann_api_key",
         # Einsatz-Funktionen
         "breathing_enabled",
         # Großschadenslage – Funktionen
@@ -1758,6 +1760,12 @@ async def save_system_settings(
                                   updated_by_user_id=request.state.user.id))
     write_audit(db, "admin.system_settings.updated", user_id=request.state.user.id)
     db.commit()
+    # Kachelmann-Key-Cache invalidieren, damit Änderung sofort greift
+    try:
+        from app.services import kachelmann_service
+        kachelmann_service.reset_key_cache()
+    except Exception:
+        pass
     return RedirectResponse("/admin/system-einstellungen?saved=1", status_code=303)
 
 
@@ -1795,6 +1803,51 @@ async def test_smtp_mail(
             f"/admin/system-einstellungen?mail_error=Versand+fehlgeschlagen%3A+{str(exc)[:100]}",
             status_code=303,
         )
+
+
+@router.post("/system-einstellungen/test-kachelmann")
+async def test_kachelmann_api(
+    request: Request, db: Session = Depends(get_db),
+    _=Depends(require_role("system_admin")),
+):
+    """Testet den Kachelmann-API-Key mit den Fallback-Koordinaten der Home-Org."""
+    from app.models.master import FireDept
+    from app.services import kachelmann_service
+
+    kachelmann_service.reset_key_cache()
+    if not kachelmann_service.is_configured():
+        return RedirectResponse(
+            "/admin/system-einstellungen?kachelmann_error=Kein+API-Key+gesetzt", status_code=303
+        )
+
+    # Koordinaten: Org-Fallback oder Wolfurt als Default
+    lat, lng = 47.4664, 9.7416
+    org = (
+        db.query(FireDept)
+        .filter(FireDept.fallback_lat.isnot(None), FireDept.fallback_lng.isnot(None))
+        .first()
+    )
+    if org and org.fallback_lat and org.fallback_lng:
+        lat, lng = org.fallback_lat, org.fallback_lng
+
+    try:
+        result = await kachelmann_service.fetch_current(lat, lng)
+    except Exception as exc:
+        logger_admin.warning("Kachelmann-Test fehlgeschlagen: %s", exc)
+        result = None
+
+    if result is not None:
+        write_audit(db, "admin.system_settings.test_kachelmann_ok", user_id=request.state.user.id)
+        msg = "Verbindung+OK"
+        if result.temperature_c is not None:
+            msg = f"Verbindung+OK+%28{result.temperature_c:.0f}%C2%B0C%29"
+        return RedirectResponse(
+            f"/admin/system-einstellungen?kachelmann_ok={msg}", status_code=303
+        )
+    return RedirectResponse(
+        "/admin/system-einstellungen?kachelmann_error=Keine+Daten+erhalten+%E2%80%93+Key%2FAbo+pr%C3%BCfen",
+        status_code=303,
+    )
 
 
 # ── Server-Log-Viewer ─────────────────────────────────────────────────────────

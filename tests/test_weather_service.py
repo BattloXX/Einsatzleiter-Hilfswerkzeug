@@ -701,3 +701,147 @@ def test_analyze_missing_humidity_no_wildfire():
     current = CurrentWeather(temperature_c=35.0, humidity_pct=None, source="test")
     alerts = analyze_weather(current, None)
     assert not any(a.key == "wildfire" for a in alerts)
+
+
+# ── analyze_weather: neue Katastrophen-Szenarien ───────────────────────────────
+
+def _nowcast(total_mm: float, temp: float | None = None) -> NowcastResult:
+    steps = []
+    if temp is not None:
+        steps = [NowcastStep(timestamp=_BASE, precipitation_mm=0.0, temperature_c=temp)]
+    return NowcastResult(steps=steps, peak_mm=total_mm, peak_at=None,
+                         total_mm=total_mm, trend="stable", source="x")
+
+
+def _forecast_acc(acc6: float) -> ForecastResult:
+    return ForecastResult(
+        horizons=[ForecastHorizon(hours=6, precipitation_acc_mm=acc6, temperature_c=10.0)],
+        source="test",
+    )
+
+
+def test_analyze_heavy_rain_warn_from_nowcast():
+    alerts = analyze_weather(_make_current(), None, _nowcast(18.0))
+    assert any(a.key == "rain" and a.level == "warn" for a in alerts)
+
+
+def test_analyze_heavy_rain_danger_from_nowcast():
+    alerts = analyze_weather(_make_current(), None, _nowcast(31.0))
+    assert any(a.key == "rain" and a.level == "danger" for a in alerts)
+
+
+def test_analyze_heavy_rain_danger_from_forecast():
+    alerts = analyze_weather(_make_current(), _forecast_acc(42.0), _nowcast(1.0))
+    assert any(a.key == "rain" and a.level == "danger" for a in alerts)
+
+
+def test_analyze_no_rain_below_threshold():
+    alerts = analyze_weather(_make_current(), None, _nowcast(5.0))
+    assert not any(a.key == "rain" for a in alerts)
+
+
+def test_analyze_snow_warn():
+    current = _make_current(temp=-1.0, gust=5.0)
+    alerts = analyze_weather(current, None, _nowcast(4.0))
+    assert any(a.key == "snow" and a.level == "warn" for a in alerts)
+
+
+def test_analyze_snow_danger():
+    current = _make_current(temp=0.0, gust=5.0)
+    alerts = analyze_weather(current, None, _nowcast(9.0))
+    assert any(a.key == "snow" and a.level == "danger" for a in alerts)
+
+
+def test_analyze_no_snow_when_warm():
+    current = _make_current(temp=8.0, gust=5.0)
+    alerts = analyze_weather(current, None, _nowcast(9.0))
+    assert not any(a.key == "snow" for a in alerts)
+    # ... aber Regen schlägt an
+    assert any(a.key == "rain" for a in alerts) is False  # 9 mm < 15 mm warn-Schwelle
+
+
+def test_analyze_thunderstorm_from_warning():
+    warn = WeatherWarning(
+        level=3, event_type="Gewitter", text="Schwere Gewitter",
+        valid_from=_BASE, valid_to=_BASE + timedelta(hours=3),
+    )
+    alerts = analyze_weather(_make_current(), None, None, [warn])
+    assert any(a.key == "thunder" and a.level == "danger" for a in alerts)
+
+
+def test_analyze_thunderstorm_warn_low_level():
+    warn = WeatherWarning(
+        level=2, event_type="Gewitter", text="",
+        valid_from=_BASE, valid_to=_BASE + timedelta(hours=3),
+    )
+    alerts = analyze_weather(_make_current(), None, None, [warn])
+    assert any(a.key == "thunder" and a.level == "warn" for a in alerts)
+
+
+def test_analyze_ice_warn():
+    current = _make_current(temp=0.0, gust=5.0)
+    alerts = analyze_weather(current, None, _nowcast(1.0))
+    assert any(a.key == "ice" for a in alerts)
+
+
+def test_analyze_no_ice_when_dry():
+    current = _make_current(temp=0.0, gust=5.0)
+    alerts = analyze_weather(current, None, _nowcast(0.0))
+    assert not any(a.key == "ice" for a in alerts)
+
+
+def test_analyze_danger_sorted_first():
+    # Gewitter danger + Glatteis warn → danger zuerst
+    warn = WeatherWarning(level=4, event_type="Gewitter", text="",
+                          valid_from=_BASE, valid_to=_BASE + timedelta(hours=2))
+    current = _make_current(temp=0.0, gust=5.0)
+    alerts = analyze_weather(current, None, _nowcast(1.0), [warn])
+    assert alerts[0].level == "danger"
+
+
+def test_analyze_alerts_have_icons():
+    alerts = analyze_weather(_make_current(gust=25.0), None)
+    assert all(a.icon for a in alerts)
+
+
+# ── Provider-Auswahl (Kachelmann vs. ZAMG) ─────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_current_uses_kachelmann_when_configured():
+    from app.services import kachelmann_service
+    km_result = CurrentWeather(temperature_c=11.0, source="kachelmann")
+    with patch.object(kachelmann_service, "is_configured", return_value=True), \
+            patch.object(kachelmann_service, "fetch_current",
+                         new=AsyncMock(return_value=km_result)):
+        result = await get_current(LAT, LNG)
+    assert result is not None
+    assert result.source == "kachelmann"
+
+
+@pytest.mark.asyncio
+async def test_get_current_falls_back_to_zamg_when_kachelmann_none():
+    from app.services import kachelmann_service
+    nwp_result = CurrentWeather(temperature_c=9.0, source="geosphere_nwp")
+    with patch.object(kachelmann_service, "is_configured", return_value=True), \
+            patch.object(kachelmann_service, "fetch_current",
+                         new=AsyncMock(return_value=None)), \
+            patch.object(weather_service, "_fetch_current_from_nwp",
+                         new=AsyncMock(return_value=nwp_result)):
+        result = await get_current(LAT, LNG)
+    assert result is not None
+    assert result.source == "geosphere_nwp"
+
+
+@pytest.mark.asyncio
+async def test_get_forecast_uses_kachelmann_when_configured():
+    from app.services import kachelmann_service
+    km_fc = ForecastResult(
+        horizons=[ForecastHorizon(hours=6, precipitation_acc_mm=2.0)],
+        source="kachelmann",
+    )
+    with patch.object(kachelmann_service, "is_configured", return_value=True), \
+            patch.object(kachelmann_service, "fetch_forecast",
+                         new=AsyncMock(return_value=km_fc)):
+        result = await get_forecast(LAT, LNG)
+    assert result is not None
+    assert result.source == "kachelmann"

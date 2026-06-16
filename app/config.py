@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     PHOTON_SUGGEST_LIMIT: int = 8
     DEFAULT_INCIDENT_CITY: str = "Wolfurt"   # Fallback wenn Home-Org kein city hat
 
-    # Wetter (GeoSphere Austria Data Hub — CC BY 4.0, kein API-Key)
+    # Wetter (GeoSphere Austria / ZAMG — CC BY 4.0, Standardquelle / Fallback ohne API-Key)
     WEATHER_ENABLED: bool = True
     GEOSPHERE_BASE_URL: str = "https://dataset.api.hub.geosphere.at/v1"
     GEOSPHERE_WARN_URL: str = "https://openapi.hub.geosphere.at/warnapi/v1"
@@ -115,6 +115,11 @@ class Settings(BaseSettings):
     WEATHER_HTTP_TIMEOUT: int = 8
     WEATHER_RADIUS_KM: int = 15
     WEATHER_FALLBACK_OPENMETEO: bool = True
+
+    # Kachelmann Wetter (kostenpflichtige Plus-API) — Primärquelle wenn API-Key gesetzt.
+    # Key wird i.d.R. in den Systemeinstellungen (kachelmann_api_key) gepflegt; ENV = Fallback.
+    KACHELMANN_BASE_URL: str = "https://api.kachelmannwetter.com/v02"
+    KACHELMANN_API_KEY: str = ""
 
     @property
     def effective_public_base_url(self) -> str:

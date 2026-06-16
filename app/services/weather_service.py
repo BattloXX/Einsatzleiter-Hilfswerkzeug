@@ -111,10 +111,11 @@ class WeatherWarning:
 
 @dataclass
 class ScenarioAlert:
-    key: str        # "storm" | "wildfire"
+    key: str        # "storm" | "wildfire" | "rain" | "snow" | "thunder" | "ice"
     level: str      # "warn" | "danger"
     label_de: str
     detail_de: str
+    icon: str = ""
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -355,17 +356,24 @@ async def _openmeteo_nowcast(lat: float, lng: float) -> NowcastResult | None:
 async def get_current(lat: float, lng: float) -> CurrentWeather | None:
     """Current weather conditions (temperature, wind, gust, humidity).
 
-    Primary: GeoSphere NWP t=0. Fallback: Open-Meteo current.
+    Primary: Kachelmann (wenn API-Key gesetzt), sonst GeoSphere NWP t=0.
+    Fallback: GeoSphere NWP → Open-Meteo current.
     """
     if not settings.WEATHER_ENABLED:
         return None
 
-    key = _cache_key("current", lat, lng)
+    from app.services import kachelmann_service
+    use_kachelmann = kachelmann_service.is_configured()
+    key = _cache_key("current_k" if use_kachelmann else "current", lat, lng)
     cached = _cache_get(key)
     if cached is not None:
         return cached
 
-    result = await _fetch_current_from_nwp(lat, lng)
+    result: CurrentWeather | None = None
+    if use_kachelmann:
+        result = await kachelmann_service.fetch_current(lat, lng)
+    if result is None:
+        result = await _fetch_current_from_nwp(lat, lng)
     if result is None and settings.WEATHER_FALLBACK_OPENMETEO:
         result = await _openmeteo_current(lat, lng)
 
@@ -458,12 +466,18 @@ async def get_forecast(
     if not settings.WEATHER_ENABLED:
         return None
 
-    key = _cache_key("nwp", lat, lng)
+    from app.services import kachelmann_service
+    use_kachelmann = kachelmann_service.is_configured()
+    key = _cache_key("nwp_k" if use_kachelmann else "nwp", lat, lng)
     cached = _cache_get(key)
     if cached is not None:
         return cached
 
-    result = await _fetch_geosphere_nwp(lat, lng, horizons)
+    result: ForecastResult | None = None
+    if use_kachelmann:
+        result = await kachelmann_service.fetch_forecast(lat, lng, horizons)
+    if result is None:
+        result = await _fetch_geosphere_nwp(lat, lng, horizons)
     if result is None and settings.WEATHER_FALLBACK_OPENMETEO:
         result = await _openmeteo_forecast(lat, lng, horizons)
 
@@ -656,6 +670,24 @@ _WILDFIRE_HUM_WARN = 30.0   # % — warn level
 _WILDFIRE_HUM_DANGER = 20.0  # % — danger level
 _WILDFIRE_NO_RAIN = 0.5  # mm — nowcast total below this = "no rain"
 
+# Starkregen / Hochwasser — Schwellwerte
+_RAIN_NOWCAST_WARN = 15.0    # mm Summe im ~3h-Nowcast
+_RAIN_NOWCAST_DANGER = 30.0
+_RAIN_FC6_WARN = 25.0        # mm akkumuliert bis +6h
+_RAIN_FC6_DANGER = 40.0
+
+# Schneefall / Schneelast — Schwellwerte (Niederschlag als Schnee bei Temp ≤ Grenze)
+_SNOW_TEMP_MAX = 1.0         # °C — darunter fällt Niederschlag als Schnee
+_SNOW_NOWCAST_WARN = 3.0     # mm Wasseräquivalent / ~3h  (≈ 3 cm Neuschnee)
+_SNOW_NOWCAST_DANGER = 8.0   # mm  (≈ 8–10 cm Neuschnee)
+_SNOW_FC6_WARN = 8.0         # mm akkumuliert bis +6h
+_SNOW_FC6_DANGER = 15.0
+
+# Glatteis / gefrierender Regen — Temperaturfenster
+_ICE_TEMP_LOW = -1.0
+_ICE_TEMP_HIGH = 1.0
+_ICE_MIN_RAIN = 0.2          # mm Niederschlag im Nowcast nötig
+
 
 def _storm_alerts(
     current: CurrentWeather | None,
@@ -673,6 +705,7 @@ def _storm_alerts(
                 level="danger",
                 label_de="Schwerer Sturm",
                 detail_de=f"Böe {active_gust:.0f} m/s (BF10+) – erhöhte Einsatzgefährdung",
+                icon="⚡",
             ))
         elif active_gust >= _BF8:
             alerts.append(ScenarioAlert(
@@ -680,6 +713,7 @@ def _storm_alerts(
                 level="warn",
                 label_de="Sturmwarnung",
                 detail_de=f"Böe {active_gust:.0f} m/s (BF8+) – Windgefahr beachten",
+                icon="⚡",
             ))
 
     if not alerts and forecast:
@@ -691,6 +725,7 @@ def _storm_alerts(
                     level="warn",
                     label_de=f"Sturm in {h.hours}h",
                     detail_de=f"Erwartete Böe {g:.0f} m/s (BF8+) in +{h.hours}h",
+                    icon="⚡",
                 ))
                 break
 
@@ -715,6 +750,7 @@ def _wildfire_alerts(
             level="danger",
             label_de="Hohe Waldbrandgefahr",
             detail_de=f"{temp:.0f}°C, {hum:.0f}% RF – Brandbedingungen kritisch",
+            icon="🔥",
         )]
     if temp >= _WILDFIRE_TEMP and hum <= _WILDFIRE_HUM_WARN and no_rain:
         return [ScenarioAlert(
@@ -722,17 +758,170 @@ def _wildfire_alerts(
             level="warn",
             label_de="Erhöhte Waldbrandgefahr",
             detail_de=f"{temp:.0f}°C, {hum:.0f}% RF – trockene Bedingungen",
+            icon="🔥",
         )]
     return []
+
+
+def _fc_acc_at(forecast: "ForecastResult | None", hours: int) -> float | None:
+    """Akkumulierter Niederschlag bis zum Horizont <= hours (mm)."""
+    if not forecast:
+        return None
+    best = None
+    for h in forecast.horizons:
+        if h.hours <= hours and h.precipitation_acc_mm is not None:
+            best = h.precipitation_acc_mm
+    return best
+
+
+def _heavy_rain_alerts(
+    nowcast: "NowcastResult | None",
+    forecast: "ForecastResult | None",
+) -> list[ScenarioAlert]:
+    """Starkregen / Hochwasser – hohe Niederschlagsmengen kurzfristig/mittelfristig."""
+    now_total = nowcast.total_mm if nowcast else None
+    fc6 = _fc_acc_at(forecast, 6)
+
+    is_danger = (now_total is not None and now_total >= _RAIN_NOWCAST_DANGER) or \
+                (fc6 is not None and fc6 >= _RAIN_FC6_DANGER)
+    is_warn = (now_total is not None and now_total >= _RAIN_NOWCAST_WARN) or \
+              (fc6 is not None and fc6 >= _RAIN_FC6_WARN)
+
+    if not (is_warn or is_danger):
+        return []
+
+    parts: list[str] = []
+    if now_total is not None and now_total >= _RAIN_NOWCAST_WARN:
+        parts.append(f"{now_total:.0f} mm in ~3h")
+    if fc6 is not None and fc6 >= _RAIN_FC6_WARN:
+        parts.append(f"{fc6:.0f} mm bis +6h")
+    detail = " · ".join(parts) or "ergiebiger Niederschlag erwartet"
+
+    if is_danger:
+        return [ScenarioAlert(
+            key="rain", level="danger",
+            label_de="Starkregen / Hochwassergefahr",
+            detail_de=f"{detail} – Überflutung/Vermurung möglich",
+            icon="🌊",
+        )]
+    return [ScenarioAlert(
+        key="rain", level="warn",
+        label_de="Ergiebiger Regen",
+        detail_de=f"{detail} – Niederschlag beobachten",
+        icon="🌊",
+    )]
+
+
+def _snow_alerts(
+    current: "CurrentWeather | None",
+    nowcast: "NowcastResult | None",
+    forecast: "ForecastResult | None",
+) -> list[ScenarioAlert]:
+    """Schneefall / Schneelast – Niederschlag bei Temperaturen um/unter dem Gefrierpunkt."""
+    temp = current.temperature_c if current else None
+    # Temperatur ggf. aus Nowcast-Step ableiten, wenn kein current-Wert
+    if temp is None and nowcast and nowcast.steps:
+        temps = [s.temperature_c for s in nowcast.steps if s.temperature_c is not None]
+        temp = min(temps) if temps else None
+    if temp is None or temp > _SNOW_TEMP_MAX:
+        return []
+
+    now_total = nowcast.total_mm if nowcast else None
+    fc6 = _fc_acc_at(forecast, 6)
+
+    is_danger = (now_total is not None and now_total >= _SNOW_NOWCAST_DANGER) or \
+                (fc6 is not None and fc6 >= _SNOW_FC6_DANGER)
+    is_warn = (now_total is not None and now_total >= _SNOW_NOWCAST_WARN) or \
+              (fc6 is not None and fc6 >= _SNOW_FC6_WARN)
+
+    if not (is_warn or is_danger):
+        return []
+
+    parts: list[str] = []
+    if now_total is not None and now_total >= _SNOW_NOWCAST_WARN:
+        parts.append(f"~{now_total:.0f} mm Wasseräqu. in 3h")
+    if fc6 is not None and fc6 >= _SNOW_FC6_WARN:
+        parts.append(f"~{fc6:.0f} mm bis +6h")
+    detail = " · ".join(parts) or "kräftiger Schneefall"
+
+    if is_danger:
+        return [ScenarioAlert(
+            key="snow", level="danger",
+            label_de="Kräftiger Schneefall / Schneelast",
+            detail_de=f"{temp:.0f}°C, {detail} – Dachlast/Verkehr beachten",
+            icon="❄️",
+        )]
+    return [ScenarioAlert(
+        key="snow", level="warn",
+        label_de="Schneefall",
+        detail_de=f"{temp:.0f}°C, {detail}",
+        icon="❄️",
+    )]
+
+
+def _thunderstorm_alerts(
+    warnings: "list[WeatherWarning] | None",
+) -> list[ScenarioAlert]:
+    """Gewitter – aus amtlichen ZAMG-Warnungen abgeleitet."""
+    if not warnings:
+        return []
+    for w in warnings:
+        if w.event_type == "Gewitter":
+            level = "danger" if w.level >= 3 else "warn"
+            return [ScenarioAlert(
+                key="thunder", level=level,
+                label_de=f"Gewitter (Stufe {w.level})",
+                detail_de=(w.text[:90] if w.text else "Blitzschlag, Sturmböen, Starkregen möglich"),
+                icon="⛈️",
+            )]
+    return []
+
+
+def _ice_alerts(
+    current: "CurrentWeather | None",
+    nowcast: "NowcastResult | None",
+) -> list[ScenarioAlert]:
+    """Glatteis / gefrierender Regen – Niederschlag im Temperaturfenster um 0 °C."""
+    temp = current.temperature_c if current else None
+    if temp is None and nowcast and nowcast.steps:
+        temps = [s.temperature_c for s in nowcast.steps if s.temperature_c is not None]
+        temp = min(temps) if temps else None
+    if temp is None or not (_ICE_TEMP_LOW <= temp <= _ICE_TEMP_HIGH):
+        return []
+
+    rain = nowcast.total_mm if nowcast else (
+        current.precipitation_1h_mm if current and current.precipitation_1h_mm else 0.0
+    )
+    if rain is None or rain < _ICE_MIN_RAIN:
+        return []
+
+    return [ScenarioAlert(
+        key="ice", level="warn",
+        label_de="Glatteisgefahr",
+        detail_de=f"{temp:.0f}°C bei Niederschlag – gefrierende Nässe möglich",
+        icon="🧊",
+    )]
 
 
 def analyze_weather(
     current: "CurrentWeather | None",
     forecast: "ForecastResult | None",
     nowcast: "NowcastResult | None" = None,
+    warnings: "list[WeatherWarning] | None" = None,
 ) -> list[ScenarioAlert]:
-    """Returns scenario alerts (storm, wildfire) derived from current weather data."""
-    return _storm_alerts(current, forecast) + _wildfire_alerts(current, forecast, nowcast)
+    """Returns scenario alerts (storm, wildfire, rain, snow, thunder, ice).
+
+    Danger-Alarme werden vor warn-Alarmen einsortiert.
+    """
+    alerts = (
+        _storm_alerts(current, forecast)
+        + _wildfire_alerts(current, forecast, nowcast)
+        + _heavy_rain_alerts(nowcast, forecast)
+        + _snow_alerts(current, nowcast, forecast)
+        + _thunderstorm_alerts(warnings)
+        + _ice_alerts(current, nowcast)
+    )
+    return sorted(alerts, key=lambda a: 0 if a.level == "danger" else 1)
 
 
 # ── Nowcast grid stub (PR 4) ──────────────────────────────────────────────────
