@@ -52,6 +52,7 @@ def _get_api_key() -> str | None:
         return _key_cache[0]
 
     value: str | None = None
+    from_db = False
     try:
         from app.core.tenant import set_tenant_context
         from app.db import SessionLocal
@@ -61,13 +62,23 @@ def _get_api_key() -> str | None:
         try:
             row = db.get(_SS, "kachelmann_api_key")
             value = (row.value or "").strip() if row and row.value else None
+            from_db = value is not None
         finally:
             db.close()
-    except Exception:
+    except Exception as exc:
+        # DB nicht erreichbar o.ä. — nicht fatal, ENV-Fallback greift.
+        logger.warning("Kachelmann-Key konnte nicht aus den Systemeinstellungen gelesen werden: %s", exc)
         value = None
 
     if not value:
         value = (settings.KACHELMANN_API_KEY or "").strip() or None
+        if value:
+            logger.info("Kachelmann-Key aus Umgebungsvariable KACHELMANN_API_KEY verwendet.")
+
+    if value is None:
+        logger.debug("Kein Kachelmann-API-Key gesetzt – Wetterdaten kommen von ZAMG/GeoSphere.")
+    elif from_db:
+        logger.debug("Kachelmann-Key aus Systemeinstellungen geladen.")
 
     _key_cache = (value, now)
     return value
@@ -108,7 +119,16 @@ async def _get(path: str, params: dict | None = None) -> dict | None:
     except httpx.TimeoutException:
         logger.warning("Kachelmann Timeout: %s", path)
     except httpx.HTTPStatusError as exc:
-        logger.warning("Kachelmann HTTP %s: %s", exc.response.status_code, path)
+        status = exc.response.status_code
+        if status in (401, 403):
+            logger.warning(
+                "Kachelmann HTTP %s bei %s – API-Key ungültig oder Abo deckt den Endpunkt "
+                "nicht ab. Es wird auf ZAMG/GeoSphere zurückgegriffen.", status, path,
+            )
+        elif status == 429:
+            logger.warning("Kachelmann HTTP 429 bei %s – Rate-Limit erreicht.", path)
+        else:
+            logger.warning("Kachelmann HTTP %s: %s", status, path)
     except Exception as exc:
         logger.warning("Kachelmann Fehler: %s (%s)", exc, path)
     return None
