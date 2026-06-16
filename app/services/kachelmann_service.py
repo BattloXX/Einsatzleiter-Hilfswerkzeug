@@ -27,7 +27,6 @@ from app.services.weather_service import (
     CurrentWeather,
     ForecastHorizon,
     ForecastResult,
-    _parse_timestamps,
     _safe_float,
 )
 
@@ -137,10 +136,31 @@ async def _get(path: str, params: dict | None = None) -> dict | None:
 # ── Parsing-Helfer ────────────────────────────────────────────────────────────
 
 def _pick(d: dict, *keys: str) -> Any:
-    """Erstes vorhandenes (nicht-None) Feld aus einer Alias-Liste."""
+    """Erstes vorhandenes (nicht-None) Feld aus einer Alias-Liste (Rohwert)."""
     for k in keys:
         if k in d and d[k] is not None:
             return d[k]
+    return None
+
+
+def _num(obj: Any) -> float | None:
+    """Float aus einem Rohwert ODER einem verpackten {"value": x}-Objekt.
+
+    /current liefert je Feld ein Objekt {"value": 21.9, "dateTime": …, "station": …};
+    /forecast liefert flache Zahlen. Beides wird hier abgedeckt.
+    """
+    if isinstance(obj, dict):
+        obj = obj.get("value")
+    return _safe_float(obj)
+
+
+def _pick_num(d: dict, *keys: str) -> float | None:
+    """Erster Alias, der einen verwertbaren Zahlenwert liefert (verpackt oder flach)."""
+    for k in keys:
+        if k in d and d[k] is not None:
+            v = _num(d[k])
+            if v is not None:
+                return v
     return None
 
 
@@ -172,12 +192,14 @@ def _parse_current(data: dict) -> CurrentWeather | None:
     if not isinstance(d, dict):
         return None
 
-    temp = _safe_float(_pick(d, "temperature", "temp", "airTemperature", "t2m"))
-    hum = _safe_float(_pick(d, "relativeHumidity", "humidity", "rh", "rh2m"))
-    wind = _norm_wind_ms(_safe_float(_pick(d, "windSpeed", "wind", "ff")))
-    gust = _norm_wind_ms(_safe_float(_pick(d, "windGust", "gust", "windGustSpeed", "fx")))
-    wdir = _safe_float(_pick(d, "windDirection", "windDir", "dd"))
-    prec = _safe_float(_pick(d, "precipitation", "prec1h", "precip", "rr"))
+    # Feldnamen gemäß Kachelmann v02 /current (data-Objekt, je Feld {"value": …}):
+    # temp, humidityRelative, windSpeed, windGust, windDirection, prec1h. Aliase als Fallback.
+    temp = _pick_num(d, "temp", "temperature", "airTemperature", "t2m")
+    hum = _pick_num(d, "humidityRelative", "relativeHumidity", "humidity", "rh", "rh2m")
+    wind = _norm_wind_ms(_pick_num(d, "windSpeed", "windspeed", "wind", "ff"))
+    gust = _norm_wind_ms(_pick_num(d, "windGust", "windGust3h", "gust", "fx"))
+    wdir = _pick_num(d, "windDirection", "windDir", "dd")
+    prec = _pick_num(d, "prec1h", "prec", "precCurrent", "precipitation", "precip", "rr")
 
     if temp is None and wind is None and prec is None:
         # Antwortstruktur passt nicht → Fallback auslösen
@@ -199,8 +221,12 @@ def _parse_current(data: dict) -> CurrentWeather | None:
 async def fetch_forecast(
     lat: float, lng: float, horizons: tuple[int, ...] = (6, 12, 24)
 ) -> ForecastResult | None:
-    """Mehrhorizont-Vorhersage von Kachelmann (`/forecast/3days/{lat}/{lon}`)."""
-    data = await _get(f"/forecast/3days/{lat}/{lng}")
+    """Mehrhorizont-Vorhersage von Kachelmann.
+
+    Pfad: `/forecast/{lat}/{lon}/{details}/{steps}` (Reihenfolge: lat, lon, Detailgrad,
+    Zeitschritt). `advanced` liefert u.a. Niederschlag, `1h` = stündliche Auflösung.
+    """
+    data = await _get(f"/forecast/{lat}/{lng}/advanced/1h")
     if not data:
         return None
     return _parse_forecast(data, horizons)
@@ -225,33 +251,25 @@ def _parse_forecast(data: dict, horizons: tuple[int, ...]) -> ForecastResult | N
     if not rows:
         return None
 
-    # Optional: Zeitstempel für saubere Indexierung; sonst Listenindex = Stunde ab jetzt
-    times = _parse_timestamps([
-        str(_pick(r, "time", "timestamp", "validTime", "date") or "") for r in rows
-    ])
-
-    def _row_at(h: int) -> dict | None:
-        if h < len(rows):
-            return rows[h]
-        return None
-
+    # Die Reihe startet zur nächsten vollen Stunde und umfasst typ. 24 Schritte.
+    # Listenindex ≈ Stunde ab jetzt; für Horizonte jenseits der Reihe (z.B. +24h bei
+    # 24 Schritten) wird auf den letzten verfügbaren Schritt geclamped.
     horizons_out: list[ForecastHorizon] = []
     for h in horizons:
-        # akkumulierter Niederschlag bis +h (Summe der stündlichen Werte)
+        idx = min(h, len(rows) - 1)
+        # akkumulierter Niederschlag bis zum Horizont (Summe precCurrent je Stunde)
         acc = 0.0
         have_prec = False
-        for i in range(min(h + 1, len(rows))):
-            p = _safe_float(_pick(rows[i], "precipitation", "prec", "rr", "rain"))
+        for i in range(idx + 1):
+            p = _pick_num(rows[i], "precCurrent", "prec", "prec1h", "precipitation", "rr", "rain")
             if p is not None:
                 acc += p
                 have_prec = True
 
-        row = _row_at(h)
-        temp = wind = gust = None
-        if row is not None:
-            temp = _safe_float(_pick(row, "temperature", "temp", "t2m"))
-            wind = _norm_wind_ms(_safe_float(_pick(row, "windSpeed", "wind", "ff")))
-            gust = _norm_wind_ms(_safe_float(_pick(row, "windGust", "gust", "fx")))
+        row = rows[idx]
+        temp = _pick_num(row, "temp", "temperature", "t2m")
+        wind = _norm_wind_ms(_pick_num(row, "windSpeed", "windspeed", "wind", "ff"))
+        gust = _norm_wind_ms(_pick_num(row, "windGust", "windGust3h", "gust", "fx"))
 
         horizons_out.append(ForecastHorizon(
             hours=h,
@@ -268,5 +286,4 @@ def _parse_forecast(data: dict, horizons: tuple[int, ...]) -> ForecastResult | N
     ):
         return None
 
-    _ = times  # reserviert für künftige zeitstempel-genaue Indexierung
     return ForecastResult(horizons=horizons_out, source=_SOURCE)

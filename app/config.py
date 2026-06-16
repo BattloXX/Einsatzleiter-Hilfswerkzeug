@@ -105,7 +105,8 @@ class Settings(BaseSettings):
     # Wetter (GeoSphere Austria / ZAMG — CC BY 4.0, Standardquelle / Fallback ohne API-Key)
     WEATHER_ENABLED: bool = True
     GEOSPHERE_BASE_URL: str = "https://dataset.api.hub.geosphere.at/v1"
-    GEOSPHERE_WARN_URL: str = "https://openapi.hub.geosphere.at/warnapi/v1"
+    # Amtliche Warnungen: produktive ZAMG-Warn-API (openapi.hub.geosphere.at/warnapi liefert 404)
+    GEOSPHERE_WARN_URL: str = "https://warnungen.zamg.at/wsapp/api"
     WEATHER_NOWCAST_RESOURCE: str = "nowcast-v1-15min-1km"
     WEATHER_NWP_RESOURCE: str = "nwp-v1-1h-2500m"
     WEATHER_STATION_RESOURCE: str = "tawes-v1-10min"

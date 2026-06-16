@@ -578,16 +578,50 @@ async def _fetch_geosphere_nwp(
 
 _WARN_LEVEL_COLORS = {1: "#fbbf24", 2: "#f97316", 3: "#ef4444", 4: "#a855f7"}
 
-# warntypid → event key used for label lookup
+# warntypid (ZAMG-Warn-API) → event key used for label lookup
 _WARN_TYPE_EVENT = {
-    1: "WIND", 2: "RAIN", 3: "SNOW", 4: "FROST",
+    1: "WIND", 2: "RAIN", 3: "SNOW", 4: "ICE",
     5: "THUNDERSTORM", 6: "HEAT", 7: "FROST",
 }
 _WARN_EVENT_DE = {
     "RAIN": "Starkregen", "THUNDERSTORM": "Gewitter", "WIND": "Sturm",
-    "SNOW": "Schneefall", "FROST": "Frost", "FOG": "Nebel",
+    "SNOW": "Schneefall", "ICE": "Glatteis", "FROST": "Frost", "FOG": "Nebel",
     "AVALANCHE": "Lawinengefahr", "FLOOD": "Hochwasser", "HEAT": "Hitze",
 }
+
+
+try:
+    from zoneinfo import ZoneInfo
+    _VIENNA_TZ = ZoneInfo("Europe/Vienna")
+except Exception:  # pragma: no cover - zoneinfo immer vorhanden ab 3.9
+    _VIENNA_TZ = UTC
+
+
+def _parse_warn_time(epoch: Any, text: Any) -> datetime | None:
+    """Parst einen Warnungs-Zeitpunkt: bevorzugt Unix-Epoch, sonst dt-String.
+
+    ZAMG liefert in rawinfo Unix-Sekunden (UTC) und daneben deutsche Strings
+    "DD.MM.YYYY HH:MM" (Lokalzeit Europe/Vienna). ISO wird ebenfalls akzeptiert.
+    """
+    if epoch is not None:
+        try:
+            return datetime.fromtimestamp(int(epoch), tz=UTC)
+        except (ValueError, TypeError, OSError):
+            pass
+    s = str(text or "").strip()
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=_VIENNA_TZ)
+    except ValueError:
+        pass
+    for fmt in ("%d.%m.%Y %H:%M", "%d.%m.%Y %H:%M:%S"):
+        try:
+            return datetime.strptime(s, fmt).replace(tzinfo=_VIENNA_TZ)
+        except ValueError:
+            continue
+    return None
 
 
 async def get_warnings(lat: float, lng: float) -> list[WeatherWarning]:
@@ -630,28 +664,33 @@ async def _fetch_geosphere_warnings(lat: float, lng: float) -> list[WeatherWarni
     region = props.get("location", {}).get("properties", {}).get("name", "")
     raw_list = props.get("warnings", [])
 
+    now = datetime.now(UTC)
     warnings: list[WeatherWarning] = []
-    for item in raw_list:
+    for raw_item in raw_list:
+        item = {}
         try:
-            level = int(item.get("warnstufeid", 1))
-            type_id = int(item.get("warntypid", 0))
+            # ZAMG-Warn-API: Felder liegen verschachtelt unter "properties"
+            item = raw_item.get("properties", raw_item) if isinstance(raw_item, dict) else {}
+            rawinfo = item.get("rawinfo") if isinstance(item.get("rawinfo"), dict) else {}
+
+            level = int(item.get("warnstufeid") or rawinfo.get("wlevel") or 1)
+            type_id = int(item.get("warntypid") or rawinfo.get("wtype") or 0)
             event = _WARN_TYPE_EVENT.get(type_id, "UNKNOWN")
             text = item.get("text") or item.get("meteotext") or _WARN_EVENT_DE.get(event, event)
-            valid_from = datetime.fromisoformat(
-                str(item.get("begin", "")).replace("Z", "+00:00")
-            )
-            valid_to = datetime.fromisoformat(
-                str(item.get("end", "")).replace("Z", "+00:00")
-            )
-            now = datetime.now(UTC)
-            if valid_to < now:
+
+            # Zeiten: bevorzugt Unix-Epoch aus rawinfo (UTC, eindeutig), sonst
+            # deutsches Format "DD.MM.YYYY HH:MM" (Europe/Vienna) bzw. ISO.
+            valid_from = _parse_warn_time(rawinfo.get("start"), item.get("begin"))
+            valid_to = _parse_warn_time(rawinfo.get("end"), item.get("end"))
+            if valid_to is not None and valid_to < now:
                 continue   # already expired
+
             warnings.append(WeatherWarning(
                 level=level,
                 event_type=_WARN_EVENT_DE.get(event, event),
                 text=str(text),
-                valid_from=valid_from,
-                valid_to=valid_to,
+                valid_from=valid_from or now,
+                valid_to=valid_to or now,
                 region=region,
             ))
         except Exception as exc:

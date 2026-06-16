@@ -434,18 +434,37 @@ async def test_get_warnings_returns_empty_list_on_timeout():
     assert result == []
 
 
+def _zamg_warn(warnstufeid: int, warntypid: int, begin, end, text=""):
+    """Ein Warn-Objekt im echten ZAMG-Format (Felder verschachtelt unter properties)."""
+    return {
+        "type": "Warning",
+        "properties": {
+            "warnstufeid": warnstufeid,
+            "warntypid": warntypid,
+            "begin": begin.isoformat(),
+            "end": end.isoformat(),
+            "text": text,
+        },
+    }
+
+
+def _zamg_response(warnings: list[dict], region="Bregenz"):
+    """Top-Level GeoJSON-Feature der ZAMG-Warn-API: properties.location + properties.warnings."""
+    return {
+        "type": "Feature",
+        "properties": {
+            "location": {"properties": {"name": region}},
+            "warnings": warnings,
+        },
+    }
+
+
 @pytest.mark.asyncio
 async def test_get_warnings_parses_response():
-    from datetime import timezone, timedelta
     future = datetime.now(UTC) + timedelta(hours=3)
-    warn_data = {"warnings": [{
-        "level": 2,
-        "event": "RAIN",
-        "text": "Starkregen erwartet",
-        "onset": datetime.now(UTC).isoformat(),
-        "expires": future.isoformat(),
-        "regionName": "Bregenz",
-    }]}
+    warn_data = _zamg_response([
+        _zamg_warn(2, 2, datetime.now(UTC), future, "Starkregen erwartet"),
+    ])
     mock_resp = _mock_httpx_response(warn_data)
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=mock_resp)
@@ -463,15 +482,10 @@ async def test_get_warnings_parses_response():
 
 @pytest.mark.asyncio
 async def test_get_warnings_skips_expired():
-    from datetime import timezone, timedelta
     past = datetime.now(UTC) - timedelta(hours=1)
-    warn_data = {"warnings": [{
-        "level": 3,
-        "event": "WIND",
-        "text": "Sturm",
-        "onset": (datetime.now(UTC) - timedelta(hours=6)).isoformat(),
-        "expires": past.isoformat(),
-    }]}
+    warn_data = _zamg_response([
+        _zamg_warn(3, 1, datetime.now(UTC) - timedelta(hours=6), past, "Sturm"),
+    ])
     mock_resp = _mock_httpx_response(warn_data)
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=mock_resp)
@@ -486,13 +500,13 @@ async def test_get_warnings_skips_expired():
 
 @pytest.mark.asyncio
 async def test_get_warnings_sorted_by_level_desc():
-    from datetime import timezone, timedelta
     future = datetime.now(UTC) + timedelta(hours=3)
-    warn_data = {"warnings": [
-        {"level": 1, "event": "FOG", "text": "", "onset": datetime.now(UTC).isoformat(), "expires": future.isoformat()},
-        {"level": 3, "event": "WIND", "text": "", "onset": datetime.now(UTC).isoformat(), "expires": future.isoformat()},
-        {"level": 2, "event": "RAIN", "text": "", "onset": datetime.now(UTC).isoformat(), "expires": future.isoformat()},
-    ]}
+    now = datetime.now(UTC)
+    warn_data = _zamg_response([
+        _zamg_warn(1, 0, now, future),
+        _zamg_warn(3, 1, now, future),
+        _zamg_warn(2, 2, now, future),
+    ])
     mock_resp = _mock_httpx_response(warn_data)
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=mock_resp)
@@ -503,6 +517,97 @@ async def test_get_warnings_sorted_by_level_desc():
         result = await get_warnings(LAT, LNG)
 
     assert [w.level for w in result] == [3, 2, 1]
+
+
+@pytest.mark.asyncio
+async def test_get_warnings_real_zamg_format():
+    """Echtes ZAMG-Format: deutsche Datumsstrings + rawinfo mit Unix-Epoch (bevorzugt)."""
+    start = int((datetime.now(UTC) + timedelta(hours=1)).timestamp())
+    end = int((datetime.now(UTC) + timedelta(hours=5)).timestamp())
+    warn_data = {
+        "type": "Feature",
+        "properties": {
+            "location": {"properties": {"name": "Wolfurt"}},
+            "warnings": [{
+                "type": "Warning",
+                "properties": {
+                    "warnstufeid": 2,
+                    "warntypid": 6,
+                    "begin": "18.06.2026 00:00",
+                    "end": "18.06.2026 23:59",
+                    "text": "Erhöhte Hitzebelastung",
+                    "rawinfo": {"wtype": 6, "wlevel": 2, "start": str(start), "end": str(end)},
+                },
+            }],
+        },
+    }
+    mock_resp = _mock_httpx_response(warn_data)
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=mock_resp)
+
+    with patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await get_warnings(LAT, LNG)
+
+    assert len(result) == 1
+    assert result[0].level == 2
+    assert result[0].event_type == "Hitze"
+    assert result[0].region == "Wolfurt"
+    # rawinfo-Epoch wurde verwendet (UTC-aware Zeit, in der Zukunft)
+    assert result[0].valid_to > datetime.now(UTC)
+
+
+@pytest.mark.asyncio
+async def test_get_warnings_german_date_fallback():
+    """Ohne rawinfo wird das deutsche Datumsformat geparst (Europe/Vienna)."""
+    warn_data = {
+        "type": "Feature",
+        "properties": {
+            "location": {"properties": {"name": "Wolfurt"}},
+            "warnings": [{
+                "type": "Warning",
+                "properties": {
+                    "warnstufeid": 3,
+                    "warntypid": 5,
+                    "begin": "31.12.2099 00:00",
+                    "end": "31.12.2099 23:59",
+                    "text": "Gewitter",
+                },
+            }],
+        },
+    }
+    mock_resp = _mock_httpx_response(warn_data)
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=mock_resp)
+
+    with patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await get_warnings(LAT, LNG)
+
+    assert len(result) == 1
+    assert result[0].event_type == "Gewitter"
+    assert result[0].valid_to.year == 2099
+
+
+@pytest.mark.asyncio
+async def test_get_warnings_gewitter_event_label():
+    future = datetime.now(UTC) + timedelta(hours=3)
+    warn_data = _zamg_response([
+        _zamg_warn(3, 5, datetime.now(UTC), future, "Schwere Gewitter"),
+    ])
+    mock_resp = _mock_httpx_response(warn_data)
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=mock_resp)
+
+    with patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await get_warnings(LAT, LNG)
+
+    assert len(result) == 1
+    assert result[0].event_type == "Gewitter"
 
 
 # ── Empty feature edge cases ──────────────────────────────────────────────────

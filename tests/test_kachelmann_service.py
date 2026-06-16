@@ -174,6 +174,68 @@ async def test_fetch_forecast_accumulates_precipitation():
 
 
 @pytest.mark.asyncio
+async def test_fetch_current_real_wrapped_shape():
+    """Echte /current-Struktur: data-Objekt, je Feld {"value": …}."""
+    data = {
+        "lat": 47.46, "lon": 9.75, "systemOfUnits": "metric",
+        "data": {
+            "temp": {"name": "temp", "value": 21.9, "type": "float"},
+            "humidityRelative": {"name": "humidityRelative", "value": 45},
+            "windSpeed": {"name": "windSpeed", "value": 0.5},
+            "windGust": {"name": "windGust", "value": 5.3},
+            "windDirection": {"name": "windDirection", "value": 307},
+            "prec1h": {"name": "prec1h", "value": 0},
+        },
+    }
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
+    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+            patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        result = await kachelmann_service.fetch_current(47.46, 9.75)
+
+    assert result is not None
+    assert result.temperature_c == pytest.approx(21.9)
+    assert result.humidity_pct == pytest.approx(45)
+    assert result.wind_speed_ms == pytest.approx(0.5)
+    assert result.gust_speed_ms == pytest.approx(5.3)
+    assert result.wind_direction_deg == pytest.approx(307)
+    assert result.precipitation_1h_mm == pytest.approx(0)
+
+
+@pytest.mark.asyncio
+async def test_fetch_forecast_real_data_shape():
+    """Echte /forecast-Struktur: data-Liste, flache Werte, precCurrent + windSpeed."""
+    rows = [
+        {"dateTime": f"2026-06-16T{9 + h:02d}:00:00+00:00",
+         "temp": 20.0 + h, "humidityRelative": 50,
+         "windSpeed": 1.5, "windGust": 4.0, "windDirection": 280,
+         "precCurrent": 2.0, "snowAmount": 0}
+        for h in range(15)
+    ]
+    data = {"lat": 47.46, "lon": 9.75, "resolution": "SUPER_HIGH", "data": rows}
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
+    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+            patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
+        result = await kachelmann_service.fetch_forecast(47.46, 9.75, horizons=(6, 12, 24))
+
+    assert result is not None
+    h6 = result.horizons[0]
+    assert h6.hours == 6
+    # precCurrent=2.0 je Stunde, akkumuliert bis index 6 = 7 * 2.0
+    assert h6.precipitation_acc_mm == pytest.approx(14.0, rel=1e-3)
+    assert h6.wind_speed_ms == pytest.approx(1.5)
+    # +24h liegt jenseits der 15er-Reihe → auf letzten Schritt geclamped (Werte vorhanden)
+    h24 = result.horizons[2]
+    assert h24.temperature_c is not None
+    assert h24.wind_speed_ms is not None
+
+
+@pytest.mark.asyncio
 async def test_fetch_forecast_none_on_empty():
     data = {"hourly": []}
     mock_client = AsyncMock()
