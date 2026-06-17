@@ -1196,9 +1196,27 @@
       .then(function(r) { return r.text(); })
       .then(function(html) {
         content.innerHTML = html;
-        // HTMX re-process für Post-Formulare im Panel
         if (window.htmx) htmx.process(content);
         if (window.Alpine) Alpine.initTree(content);
+        // fetch+innerHTML führt keine <script>-Tags aus → Leaflet-Karte manuell initialisieren
+        content.querySelectorAll('[data-lat][data-lng]').forEach(function(el) {
+          var lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
+          if (isNaN(lat) || isNaN(lng) || typeof L === 'undefined' || el._m) return;
+          delete L.Icon.Default.prototype._getIconUrl;
+          L.Icon.Default.mergeOptions({
+            iconUrl: '/static/img/leaflet/marker-icon.png',
+            iconRetinaUrl: '/static/img/leaflet/marker-icon-2x.png',
+            shadowUrl: '/static/img/leaflet/marker-shadow.png',
+          });
+          var m = L.map(el, { zoomControl: true }).setView([lat, lng], 17);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap', subdomains: 'abc', maxZoom: 19,
+          }).addTo(m);
+          L.marker([lat, lng]).addTo(m);
+          el._m = m;
+          setTimeout(function() { m.invalidateSize(); }, 200);
+          setTimeout(function() { m.invalidateSize(); }, 600);
+        });
       });
   };
 
