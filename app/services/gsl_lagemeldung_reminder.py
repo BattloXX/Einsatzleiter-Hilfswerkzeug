@@ -33,7 +33,11 @@ LOOP_INTERVAL_SECONDS = 45
 
 
 def _scan_and_create(db) -> list[dict]:
-    """Erzeugt fällige Auto-Aufträge und gibt die zu broadcastenden Events zurück."""
+    """Erzeugt fällige Auto-Aufträge und gibt die zu broadcastenden Events zurück.
+
+    Prüft zusätzlich auf Einsatzstellen ohne Timer (naechste_lagemeldung_at IS NULL)
+    und startet deren Timer – deckt Fälle ab, wo ensure_timer() nie ausgelöst wurde.
+    """
     now = datetime.now(UTC).replace(tzinfo=None)
     candidates = (
         db.query(IncidentSite)
@@ -84,6 +88,24 @@ def _scan_and_create(db) -> list[dict]:
         changed = True
         events.append({"lage_id": site.major_incident_id, "site_id": site.id})
 
+    # ── Timer für Einsatzstellen ohne Timer nachziehen ──────────────────────────
+    # Deckt den Fall ab, dass ensure_timer() beim Ressourcen-/Phasenwechsel noch
+    # nicht korrekt ausgelöst wurde (z.B. Altdaten vor dem db.flush()-Fix).
+    missing_timer = (
+        db.query(IncidentSite)
+        .join(MajorIncident, MajorIncident.id == IncidentSite.major_incident_id)
+        .filter(
+            IncidentSite.naechste_lagemeldung_at.is_(None),
+            IncidentSite.phase == SitePhase.in_arbeit,
+            MajorIncident.status == MajorIncidentStatus.active,
+        )
+        .all()
+    )
+    for site in missing_timer:
+        if lagemeldung_service.ensure_timer(site, db):
+            changed = True
+            events.append({"lage_id": site.major_incident_id, "site_id": site.id, "card_only": True})
+
     if changed:
         db.commit()
     return events
@@ -103,7 +125,8 @@ async def gsl_lagemeldung_reminder_loop() -> None:
             for ev in events:
                 lage_id = ev["lage_id"]
                 try:
-                    await broadcast_lage(lage_id, {"type": "funkjournal:changed"})
+                    if not ev.get("card_only"):
+                        await broadcast_lage(lage_id, {"type": "funkjournal:changed"})
                     await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": ev["site_id"]})
                 except Exception:
                     logger.exception(

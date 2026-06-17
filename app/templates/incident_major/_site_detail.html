@@ -105,6 +105,7 @@
   {% if site.lat and site.lng %}
   <div style="margin:10px 0 6px;">
     <div id="sdMap{{ site.id }}"
+         data-lat="{{ site.lat }}" data-lng="{{ site.lng }}"
          style="height:180px;border-radius:6px;border:1px solid var(--border);z-index:0;cursor:pointer;"
          title="Klicken zum Öffnen in OpenStreetMap"
          onclick="window.open('https://www.openstreetmap.org/?mlat={{ site.lat }}&mlon={{ site.lng }}&zoom=18','_blank')"></div>
