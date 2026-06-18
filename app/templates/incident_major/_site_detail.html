@@ -335,28 +335,15 @@
         {% if not dispatch.vor_ort_at %}
         <div id="dispatch-confirm-wrap-{{ e.id }}">
           <form hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/einheit-vor-ort"
-                hx-target="#dispatch-confirm-wrap-{{ e.id }}"
-                hx-swap="outerHTML"
-                hx-vals='{"_csrf":"{{ request.state.csrf_token }}","einheit_id":"{{ e.id }}"}'
-                hx-on::after-request="if(event.detail.successful && !event.detail.xhr.responseText){
-                  htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}',
-                    {target:'#siteDetailContent',swap:'innerHTML'});
-                  htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}/card',
-                    {target:'[data-site-id=\'{{ site.id }}\']',swap:'outerHTML'});
-                }">
+                hx-swap="none"
+                hx-vals='{"_csrf":"{{ request.state.csrf_token }}","einheit_id":"{{ e.id }}"}'>
             <button type="submit" class="btn btn--xs btn--secondary">✓ VorOrt</button>
           </form>
         </div>
         {% endif %}
         <form hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/einheit-abziehen"
               hx-swap="none"
-              hx-vals='{"_csrf":"{{ request.state.csrf_token }}","einheit_id":"{{ e.id }}"}'
-              hx-on::after-request="if(event.detail.successful){
-                htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}',
-                  {target:'#siteDetailContent',swap:'innerHTML'});
-                htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}/card',
-                  {target:'[data-site-id=\'{{ site.id }}\']',swap:'outerHTML'});
-              }">
+              hx-vals='{"_csrf":"{{ request.state.csrf_token }}","einheit_id":"{{ e.id }}"}'>
           <button type="submit" class="btn btn--xs btn--ghost">Abziehen</button>
         </form>
       </div>
@@ -378,14 +365,13 @@
     <form style="margin-top:8px;"
           hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/einheit-disponieren"
           hx-swap="none"
-          hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
-          hx-on::after-request="if(event.detail.successful){ htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}',{target:'#siteDetailContent',swap:'innerHTML'}); htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}/card',{target:'[data-site-id=\'{{ site.id }}\']',swap:'outerHTML'}); }">
+          hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'>
       <div style="display:flex;gap:6px;align-items:center;">
         <select name="einheit_id" class="form-select form-select--sm" style="flex:1;">
           {% for e in dispatchable %}
           <option value="{{ e.id }}"
                   style="{% if e.incident_site_id %}color:#f87171;{% elif e.status == 'im_einsatz' %}color:#fbbf24;{% else %}color:#4ade80;{% endif %}">
-            {% if e.incident_site_id %}🔴{% elif e.status == 'im_einsatz' %}🟡{% else %}🟢{% endif %} {{ e.label }}{% if e.incident_site_id %} (Vor Ort woanders){% elif e.status == 'im_einsatz' %} (disponiert){% endif %}
+            {% if e.incident_site_id %}🔴{% elif e.status == 'im_einsatz' %}🟡{% else %}🟢{% endif %} {{ e.label }}{% if e.incident_site_id %} (Im Einsatz){% elif e.status == 'im_einsatz' %} (disponiert){% endif %}
           </option>
           {% endfor %}
         </select>

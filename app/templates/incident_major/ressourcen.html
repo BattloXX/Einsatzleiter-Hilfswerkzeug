@@ -312,16 +312,6 @@
       <span style="opacity:.4;font-size:.72rem;">Kein Führer eingetragen</span>
     {% endif %}
   </div>
-  {% if e.incident_site_id and e.incident_site_id in sites_by_id %}
-  {% set asite = sites_by_id[e.incident_site_id] %}
-  <div style="margin-top:4px;">
-    <a href="/lage/{{ lage.id }}?openSite={{ e.incident_site_id }}"
-       style="font-size:.7rem;color:#60a5fa;text-decoration:none;display:inline-flex;align-items:center;gap:3px;"
-       title="Im Board öffnen">
-      🎯 {{ asite.bezeichnung }}{% if asite.ort %} · {{ asite.ort }}{% endif %}
-    </a>
-  </div>
-  {% endif %}
   {# ── Mehrfach-Disposition: Badges ─────────────────────────────── #}
   {% if kue.dispatched_sites_by_einheit is defined %}
   {% set dispatches = kue.dispatched_sites_by_einheit.get(e.id, []) %}

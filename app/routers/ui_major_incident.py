@@ -770,7 +770,51 @@ async def site_einheit_freigeben(
     return Response(status_code=204)
 
 
-# ── Mehrfach-Disposition: Disponieren / VorOrt / Abziehen ──────────────────
+# ── Mehrfach-Disposition: Hilfsfunktion + Disponieren / VorOrt / Abziehen ───
+
+def _site_detail_html_with_oob(request: Request, db: Session, lage, site, user) -> str:
+    """Rendert _site_detail.html + OOB-Karte als kombinierten HTML-String.
+    Der Aufrufer setzt HX-Retarget:#siteDetailContent + HX-Reswap:innerHTML.
+    """
+    site_dispatches = resource_service.get_active_dispatches_for_site(db, site.id)
+    already_dispatched_ids = [d.einheit_id for d in site_dispatches]
+    available_einheiten = [
+        e for e in lage.einheiten if e.status != resource_service.STATUS_ABGERUECKT
+    ]
+    detail_ctx = {
+        "request": request,
+        "user": user,
+        "lage": lage,
+        "site": site,
+        "can_edit": _can_edit(user),
+        "available_einheiten": available_einheiten,
+        "site_dispatches": site_dispatches,
+        "already_dispatched_ids": already_dispatched_ids,
+        "site_log_kind_label": SITE_LOG_KIND_LABEL,
+    }
+    detail_html = templates.env.get_template(
+        "incident_major/_site_detail.html"
+    ).render(detail_ctx)
+    sectors = sorted(lage.sectors, key=lambda s: s.id)
+    sectors_by_id = {s.id: s for s in sectors}
+    dispatch_counts = resource_service.get_dispatch_counts_for_site(db, site.id)
+    card_ctx = {
+        "request": request,
+        "user": user,
+        "lage": lage,
+        "site": site,
+        "prio_color": SITE_PRIORITY_COLOR,
+        "prio_label": SITE_PRIORITY_LABEL,
+        "sectors": sectors,
+        "sectors_by_id": sectors_by_id,
+        "can_edit": _can_edit(user),
+        "dispatch_counts": dispatch_counts,
+    }
+    card_html = templates.env.get_template(
+        "incident_major/_site_card.html"
+    ).render(card_ctx)
+    oob = f'<div hx-swap-oob="outerHTML:[data-site-id=\'{site.id}\']">{card_html}</div>'
+    return detail_html + oob
 
 @router.post("/lage/{lage_id}/stellen/{site_id}/einheit-disponieren", response_class=HTMLResponse)
 async def site_einheit_disponieren(
@@ -805,7 +849,8 @@ async def site_einheit_disponieren(
     ))
     db.commit()
     await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
-    return Response(status_code=204)
+    html = _site_detail_html_with_oob(request, db, lage, site, user)
+    return HTMLResponse(content=html, headers={"HX-Retarget": "#siteDetailContent", "HX-Reswap": "innerHTML"})
 
 
 @router.post("/lage/{lage_id}/stellen/{site_id}/einheit-vor-ort", response_class=HTMLResponse)
@@ -841,7 +886,8 @@ async def site_einheit_vor_ort(
         lagemeldung_service.ensure_timer(site, db)
         db.commit()
         await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
-        return Response(status_code=204)
+        html = _site_detail_html_with_oob(request, db, lage, site, user)
+        return HTMLResponse(content=html, headers={"HX-Retarget": "#siteDetailContent", "HX-Reswap": "innerHTML"})
 
     dispatch, conflict = resource_service.set_vor_ort_at_site(
         db, einheit_id, lage_id, site_id,
@@ -851,16 +897,22 @@ async def site_einheit_vor_ort(
     if conflict:
         einheit = db.get(LageEinheit, einheit_id)
         conflict_site = db.get(IncidentSite, conflict.site_id)
-        return templates.TemplateResponse(
-            request,
-            "incident_major/_einheit_vor_ort_konflikt.html",
-            {
-                "lage": lage,
-                "site": site,
-                "einheit": einheit,
-                "conflict_site": conflict_site,
+        conflict_html = templates.env.get_template(
+            "incident_major/_einheit_vor_ort_konflikt.html"
+        ).render({
+            "request": request,
+            "user": user,
+            "lage": lage,
+            "site": site,
+            "einheit": einheit,
+            "conflict_site": conflict_site,
+        })
+        return HTMLResponse(
+            content=conflict_html,
+            headers={
+                "HX-Retarget": f"#dispatch-confirm-wrap-{einheit_id}",
+                "HX-Reswap": "outerHTML",
             },
-            status_code=200,
         )
 
     einheit = db.get(LageEinheit, einheit_id)
@@ -874,7 +926,8 @@ async def site_einheit_vor_ort(
     lagemeldung_service.ensure_timer(site, db)
     db.commit()
     await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
-    return Response(status_code=204)
+    html = _site_detail_html_with_oob(request, db, lage, site, user)
+    return HTMLResponse(content=html, headers={"HX-Retarget": "#siteDetailContent", "HX-Reswap": "innerHTML"})
 
 
 @router.post("/lage/{lage_id}/stellen/{site_id}/einheit-abziehen", response_class=HTMLResponse)
@@ -912,7 +965,8 @@ async def site_einheit_abziehen(
         lagemeldung_service.clear_timer(site, db)
     db.commit()
     await broadcast_lage(lage_id, {"type": "site:card_changed", "site_id": site_id})
-    return Response(status_code=204)
+    html = _site_detail_html_with_oob(request, db, lage, site, user)
+    return HTMLResponse(content=html, headers={"HX-Retarget": "#siteDetailContent", "HX-Reswap": "innerHTML"})
 
 
 # ── Einzeldruck (Einsatzstelle) ─────────────────────────────────────────────

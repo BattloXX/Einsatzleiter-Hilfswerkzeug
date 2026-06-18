@@ -7,12 +7,7 @@
   </div>
   <div style="display:flex;gap:6px;flex-wrap:wrap;">
     <form hx-post="/lage/{{ lage.id }}/stellen/{{ site.id }}/einheit-vor-ort"
-          hx-swap="none"
-          hx-on::after-request="if(event.detail.successful){
-            htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}',{target:'#siteDetailContent',swap:'innerHTML'});
-            htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ site.id }}/card',{target:'[data-site-id=\'{{ site.id }}\']',swap:'outerHTML'});
-            htmx.ajax('GET','/lage/{{ lage.id }}/stellen/{{ conflict_site.id }}/card',{target:'[data-site-id=\'{{ conflict_site.id }}\']',swap:'outerHTML'});
-          }">
+          hx-swap="none">
       <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
       <input type="hidden" name="einheit_id" value="{{ einheit.id }}">
       <input type="hidden" name="confirmed" value="true">
