@@ -34,10 +34,12 @@
           {% for i in range(max_count) %}
           <td>
             {% if i < row_vehicles|length and row_vehicles[i] %}
+            {% set rv = row_vehicles[i] %}
             <span class="vehicle-pill"
-                  style="background:{{ row_vehicles[i].dept.color or '#c62828' }};color:#fff;
+                  style="background:{{ rv.dept.color or '#c62828' }};color:#fff;
                          padding:2px 8px;border-radius:4px;font-size:.8rem;font-weight:600;">
-              {{ row_vehicles[i].display_label }}
+              {{ rv.display_label }}
+              {% if rv.is_external %}<span style="font-size:.65rem;opacity:.75;margin-left:3px;">FREMD</span>{% endif %}
             </span>
             {% endif %}
           </td>
@@ -74,7 +76,7 @@
       </thead>
       <tbody id="dispatchEditTbody">
         {% set checked_ids = edit_order %}
-        {# Erst die aktuell ausgewählten Fahrzeuge in ihrer Reihenfolge … #}
+        {# Erst die aktuell ausgewählten Ressourcen in ihrer Reihenfolge … #}
         {% for vid in checked_ids %}
         {% for v in vehicles if v.id == vid %}
         <tr data-vid="{{ v.id }}">
@@ -82,10 +84,12 @@
           <td><input type="checkbox" class="dispatch-checkbox" checked></td>
           <td>
             <span style="border-left:4px solid {{ v.dept.color }};padding-left:6px;">
-              <strong>{{ v.display_label }}</strong> – {{ v.type or '' }}
+              <strong>{{ v.display_label }}</strong>
+              {% if v.is_external %}<span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:rgba(251,191,36,.2);color:#fbbf24;margin-left:4px;">FREMD</span>{% endif %}
+              – {{ v.type or '' }}
             </span>
           </td>
-          <td>{{ v.dept.name }}</td>
+          <td>{{ v.org_display_name }}</td>
         </tr>
         {% endfor %}
         {% endfor %}
@@ -96,10 +100,12 @@
           <td><input type="checkbox" class="dispatch-checkbox"></td>
           <td>
             <span style="border-left:4px solid {{ v.dept.color }};padding-left:6px;">
-              <strong>{{ v.display_label }}</strong> – {{ v.type or '' }}
+              <strong>{{ v.display_label }}</strong>
+              {% if v.is_external %}<span style="font-size:.65rem;padding:1px 4px;border-radius:3px;background:rgba(251,191,36,.2);color:#fbbf24;margin-left:4px;">FREMD</span>{% endif %}
+              – {{ v.type or '' }}
             </span>
           </td>
-          <td>{{ v.dept.name }}</td>
+          <td>{{ v.org_display_name }}</td>
         </tr>
         {% endfor %}
       </tbody>

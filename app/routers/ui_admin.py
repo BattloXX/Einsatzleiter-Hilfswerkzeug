@@ -843,6 +843,7 @@ async def vehicles_list(
     _=Depends(require_role("admin", "org_admin")),
     filter_org_id: int | None = None,
     filter_status: str = "all",
+    filter_kind: str = "all",
 ):
     from app.core.permissions import has_role
     user = request.state.user
@@ -859,6 +860,10 @@ async def vehicles_list(
         q = q.filter(VehicleMaster.active == True)  # noqa: E712
     elif filter_status == "inactive":
         q = q.filter(VehicleMaster.active == False)  # noqa: E712
+    if filter_kind == "own":
+        q = q.filter(VehicleMaster.is_external == False)  # noqa: E712
+    elif filter_kind == "external":
+        q = q.filter(VehicleMaster.is_external == True)  # noqa: E712
     vehicles = q.order_by(FireDept.name, VehicleMaster.display_order).all()
     saved = request.query_params.get("saved")
     error = request.query_params.get("error")
@@ -868,6 +873,7 @@ async def vehicles_list(
         "bos_values": BOS_VALUES,
         "filter_org_id": filter_org_id,
         "filter_status": filter_status,
+        "filter_kind": filter_kind,
     })
 
 
@@ -901,6 +907,40 @@ async def create_vehicle(
     return RedirectResponse("/admin/fahrzeuge?saved=1", status_code=303)
 
 
+@router.post("/fahrzeuge/neu-extern")
+async def create_external_resource(
+    request: Request,
+    org_name: str = Form(...), org_short: str = Form(""),
+    code: str = Form(...), name: str = Form(...), type: str = Form(""),
+    bos_override: str = Form(""),
+    db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
+):
+    user = request.state.user
+    dept_id = user.org_id
+    if not dept_id:
+        return RedirectResponse("/admin/fahrzeuge?error=no_org", status_code=303)
+    max_order = db.query(VehicleMaster).filter(VehicleMaster.dept_id == dept_id).count()
+    v = VehicleMaster(
+        dept_id=dept_id,
+        code=code.strip()[:30],
+        name=name.strip()[:150],
+        type=type.strip()[:200],
+        is_first_train=False,
+        is_external=True,
+        adhoc_org_name=org_name.strip()[:150] or None,
+        adhoc_org_short=org_short.strip()[:3] or None,
+        bos_override=bos_override or None,
+        active=True,
+        display_order=max_order,
+    )
+    db.add(v)
+    db.flush()
+    write_audit(db, "admin.vehicle.created_external", user_id=user.id,
+                entity_type="vehicle_master", entity_id=v.id)
+    db.commit()
+    return RedirectResponse("/admin/fahrzeuge?saved=1&filter_kind=external", status_code=303)
+
+
 @router.post("/fahrzeuge/{vehicle_id}/edit")
 async def edit_vehicle(
     vehicle_id: int, request: Request,
@@ -920,6 +960,28 @@ async def edit_vehicle(
                     entity_type="vehicle_master", entity_id=vehicle_id)
         db.commit()
     return RedirectResponse("/admin/fahrzeuge?saved=1", status_code=303)
+
+
+@router.post("/fahrzeuge/{vehicle_id}/edit-extern")
+async def edit_external_resource(
+    vehicle_id: int, request: Request,
+    org_name: str = Form(...), org_short: str = Form(""),
+    code: str = Form(...), name: str = Form(...), type: str = Form(""),
+    bos_override: str = Form(""),
+    db: Session = Depends(get_db), _=Depends(require_role("admin", "org_admin")),
+):
+    v = db.get(VehicleMaster, vehicle_id)
+    if v:
+        v.code = code.strip()[:30]
+        v.name = name.strip()[:150]
+        v.type = type.strip()[:200]
+        v.adhoc_org_name = org_name.strip()[:150] or None
+        v.adhoc_org_short = org_short.strip()[:3] or None
+        v.bos_override = bos_override or None
+        write_audit(db, "admin.vehicle.edited_external", user_id=request.state.user.id,
+                    entity_type="vehicle_master", entity_id=vehicle_id)
+        db.commit()
+    return RedirectResponse("/admin/fahrzeuge?saved=1&filter_kind=external", status_code=303)
 
 
 @router.post("/fahrzeuge/{vehicle_id}/toggle")
@@ -1929,7 +1991,9 @@ async def backup_json(request: Request, db: Session = Depends(get_db),
     data = {
         "vehicles": [
             {"id": v.id, "dept_slug": v.dept.slug, "code": v.code, "name": v.name,
-             "type": v.type, "is_first_train": v.is_first_train, "display_order": v.display_order}
+             "type": v.type, "is_first_train": v.is_first_train, "display_order": v.display_order,
+             "bos_override": v.bos_override, "is_external": v.is_external,
+             "adhoc_org_name": v.adhoc_org_name, "adhoc_org_short": v.adhoc_org_short}
             for v in db.query(VehicleMaster).all()
         ],
         "members": [
@@ -2071,14 +2135,22 @@ async def backup_restore(
                     dept_id=dept.id, code=v["code"], name=v["name"],
                     type=v.get("type", ""), is_first_train=v.get("is_first_train", False),
                     display_order=v.get("display_order", 0),
+                    bos_override=v.get("bos_override"),
+                    is_external=v.get("is_external", False),
+                    adhoc_org_name=v.get("adhoc_org_name"),
+                    adhoc_org_short=v.get("adhoc_org_short"),
                 ))
             else:
                 obj.name = v["name"]  # type: ignore[attr-defined]
                 obj.type = v.get("type", obj.type)  # type: ignore[attr-defined]
                 obj.is_first_train = v.get("is_first_train", obj.is_first_train)  # type: ignore[attr-defined]
                 obj.display_order = v.get("display_order", obj.display_order)  # type: ignore[attr-defined]
+                obj.bos_override = v.get("bos_override", obj.bos_override)  # type: ignore[attr-defined]
+                obj.is_external = v.get("is_external", obj.is_external)  # type: ignore[attr-defined]
+                obj.adhoc_org_name = v.get("adhoc_org_name", obj.adhoc_org_name)  # type: ignore[attr-defined]
+                obj.adhoc_org_short = v.get("adhoc_org_short", obj.adhoc_org_short)  # type: ignore[attr-defined]
         db.flush()
-        lines.append(f"Fahrzeuge: {len(data.get('vehicles', []))} verarbeitet")
+        lines.append(f"Ressourcen: {len(data.get('vehicles', []))} verarbeitet")
 
         # TaskSuggestions – replace all (scoped to target org)
         if "task_suggestions" in data:

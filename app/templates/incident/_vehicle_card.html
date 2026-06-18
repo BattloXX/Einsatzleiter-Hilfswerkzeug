@@ -9,7 +9,8 @@
   <div class="card__body">
     <div class="card__title">
       {{ vehicle.vehicle_master.display_label }}
-      <span class="card__org">{{ vehicle.vehicle_master.dept.name }}</span>
+      {% if vehicle.vehicle_master.is_external %}<span style="font-size:.58rem;padding:1px 4px;border-radius:3px;background:rgba(251,191,36,.2);color:#fbbf24;border:1px solid rgba(251,191,36,.3);margin-left:3px;vertical-align:middle;">FREMD</span>{% endif %}
+      <span class="card__org">{{ vehicle.vehicle_master.org_display_name }}</span>
       {% set bos = vehicle.vehicle_master.effective_bos %}
       {% if bos and bos != 'Feuerwehr' %}
       <span class="badge badge--bos" style="font-size:.65rem; padding:1px 5px; border-radius:3px; background:rgba(255,255,255,.12); margin-left:4px;">{{ bos }}</span>

@@ -1,15 +1,20 @@
 {% extends "admin/_layout.html" %}
-{% block title %}Einheiten – Admin{% endblock %}
+{% block title %}Ressourcen – Admin{% endblock %}
 {% block admin_content %}
 <div class="page-content">
   <div class="page-header">
     <div>
-      <h1>Einheiten</h1>
-      <p class="page-header__sub">Stammdaten aller Einheiten der Organisation</p>
+      <h1>Ressourcen</h1>
+      <p class="page-header__sub">Eigene Einheiten und Ressourcen aus Fremdorganisationen</p>
     </div>
-    <button class="btn btn--primary" onclick="document.getElementById('newVehicleModal').showModal()">
-      + Einheit anlegen
-    </button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn--ghost" onclick="document.getElementById('newExternalModal').showModal()">
+        + Fremdorganisation
+      </button>
+      <button class="btn btn--primary" onclick="document.getElementById('newVehicleModal').showModal()">
+        + Eigene Ressource
+      </button>
+    </div>
   </div>
 
   {% if saved %}<div class="alert alert--success">Gespeichert.</div>{% endif %}
@@ -26,6 +31,13 @@
       </select>
     </div>
     {% endif %}
+    <div class="form-group" style="margin:0;min-width:160px">
+      <select name="filter_kind" class="form-select form-select--sm" onchange="this.form.submit()">
+        <option value="all" {% if filter_kind == 'all' %}selected{% endif %}>Alle Ressourcen</option>
+        <option value="own" {% if filter_kind == 'own' %}selected{% endif %}>Eigene</option>
+        <option value="external" {% if filter_kind == 'external' %}selected{% endif %}>Fremdorganisationen</option>
+      </select>
+    </div>
     <div class="form-group" style="margin:0;min-width:150px">
       <select name="filter_status" class="form-select form-select--sm" onchange="this.form.submit()">
         <option value="all" {% if filter_status == 'all' %}selected{% endif %}>Alle Status</option>
@@ -33,10 +45,16 @@
         <option value="inactive" {% if filter_status == 'inactive' %}selected{% endif %}>Inaktiv</option>
       </select>
     </div>
-    {% if filter_org_id or filter_status != 'all' %}
+    {% if filter_org_id or filter_status != 'all' or filter_kind != 'all' %}
     <a href="/admin/fahrzeuge" class="btn btn--ghost btn--xs">Filter zurücksetzen</a>
     {% endif %}
   </form>
+
+  {% if filter_kind == 'external' or filter_kind == 'all' %}
+  <div class="alert" style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:#fbbf24;margin-bottom:1rem;padding:.6rem 1rem;border-radius:6px;font-size:.85rem;">
+    <strong>Fremdorganisationen</strong> erscheinen in der Vorauswahl bei Einsätzen und im GSL, werden aber nicht automatisch disponiert. Sie können in der Ausrückordnung hinterlegt werden.
+  </div>
+  {% endif %}
 
   <table class="table-admin" id="vehiclesTable">
     <thead>
@@ -55,9 +73,21 @@
       {% for v in vehicles %}
       <tr data-vehicle-id="{{ v.id }}">
         <td class="drag-handle" title="Ziehen zum Sortieren" style="cursor:grab;color:var(--text-muted);user-select:none;text-align:center;font-size:1.1rem;">⠿</td>
-        <td><strong>{{ v.code }}</strong></td>
+        <td>
+          <strong>{{ v.code }}</strong>
+          {% if v.is_external %}
+          <span class="badge-pill badge-pill--orange" style="font-size:.6rem;margin-left:4px;vertical-align:middle;background:rgba(251,191,36,.2);color:#fbbf24;border:1px solid rgba(251,191,36,.4);">FREMD</span>
+          {% endif %}
+        </td>
         <td>{{ v.name }}<br><small class="text-muted">{{ v.type }}</small></td>
-        <td>{{ v.dept.name if v.dept else '–' }}</td>
+        <td>
+          {% if v.is_external %}
+          <span style="color:#fbbf24;">{{ v.adhoc_org_name or '–' }}</span>
+          {% if v.adhoc_org_short %}<small class="text-muted"> ({{ v.adhoc_org_short }})</small>{% endif %}
+          {% else %}
+          {{ v.dept.name if v.dept else '–' }}
+          {% endif %}
+        </td>
         <td>{{ v.bos_override or (v.dept.bos if v.dept else '–') }}</td>
         <td>{% if v.is_first_train %}<span class="badge-pill badge-pill--green">Ja</span>{% else %}–{% endif %}</td>
         <td>
@@ -65,10 +95,17 @@
           {% else %}<span class="badge-pill badge-pill--gray">Inaktiv</span>{% endif %}
         </td>
         <td style="white-space:nowrap;">
+          {% if v.is_external %}
+          <button class="btn btn--ghost btn--xs"
+                  onclick="openEditExternal({{ v.id }}, '{{ v.adhoc_org_name|replace("'","\\'")|e }}', '{{ v.adhoc_org_short or "" }}', '{{ v.code }}', '{{ v.name|replace("'","\\'")|e }}', '{{ v.type|replace("'","\\'")|e }}', '{{ v.bos_override or "" }}')">
+            Bearbeiten
+          </button>
+          {% else %}
           <button class="btn btn--ghost btn--xs"
                   onclick="openEditVehicle({{ v.id }}, '{{ v.code }}', '{{ v.name|replace("'","\\'")|e }}', '{{ v.type|replace("'","\\'")|e }}', {{ v.is_first_train|lower }}, '{{ v.bos_override or "" }}')">
             Bearbeiten
           </button>
+          {% endif %}
           <form method="post" action="/admin/fahrzeuge/{{ v.id }}/toggle" style="display:inline">
             <button type="submit" class="btn btn--ghost btn--xs">
               {% if v.active %}Deaktivieren{% else %}Aktivieren{% endif %}
@@ -77,7 +114,7 @@
           <form method="post" action="/admin/fahrzeuge/{{ v.id }}/loeschen" style="display:inline">
             <button type="submit" class="btn btn--ghost btn--xs" style="color:var(--color-danger)"
                     data-name="{{ v.name | e }}"
-                    onclick="return confirm('Einheit „' + this.dataset.name + '" löschen?')">
+                    onclick="return confirm('Ressource „' + this.dataset.name + '" löschen?')">
               Löschen
             </button>
           </form>
@@ -88,11 +125,11 @@
   </table>
 </div>
 
-<!-- Neue Einheit -->
+<!-- Neue eigene Ressource -->
 <dialog class="modal" id="newVehicleModal">
   <div class="modal__content">
     <div class="modal__header">
-      <h3>Neue Einheit</h3>
+      <h3>Eigene Ressource anlegen</h3>
       <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button>
     </div>
     <form method="post" action="/admin/fahrzeuge/neu">
@@ -108,19 +145,19 @@
         </div>
         {% endif %}
         <div class="form-group">
-          <label class="form-label">Code (z.B. RLF, KDOF)</label>
+          <label class="form-label">Code / Funkrufname (z.B. RLF, KDOF)</label>
           <input type="text" name="code" class="form-input" required maxlength="30">
         </div>
         <div class="form-group">
-          <label class="form-label">Name</label>
+          <label class="form-label">Bezeichnung</label>
           <input type="text" name="name" class="form-input" required maxlength="150">
         </div>
         <div class="form-group">
           <label class="form-label">Typ / Beschreibung</label>
-          <input type="text" name="type" class="form-input" maxlength="200">
+          <input type="text" name="type" class="form-input" maxlength="200" placeholder="z.B. Rüstlöschfahrzeug, Hochleistungspumpe, Atemschutzsammelplatz">
         </div>
         <div class="form-group">
-          <label class="form-label">BOS (Überschreibung, leer = Org-Standard)</label>
+          <label class="form-label">BOS-Kategorie (leer = Org-Standard)</label>
           <select name="bos_override" class="form-select">
             <option value="">– Org-Standard –</option>
             {% for b in bos_values %}
@@ -140,21 +177,21 @@
   </div>
 </dialog>
 
-<!-- Einheit bearbeiten -->
+<!-- Eigene Ressource bearbeiten -->
 <dialog class="modal" id="editVehicleModal">
   <div class="modal__content">
     <div class="modal__header">
-      <h3>Einheit bearbeiten</h3>
+      <h3>Ressource bearbeiten</h3>
       <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button>
     </div>
     <form method="post" id="editVehicleForm">
       <div class="modal__body">
         <div class="form-group">
-          <label class="form-label">Code</label>
+          <label class="form-label">Code / Funkrufname</label>
           <input type="text" name="code" id="ev_code" class="form-input" required maxlength="30">
         </div>
         <div class="form-group">
-          <label class="form-label">Name</label>
+          <label class="form-label">Bezeichnung</label>
           <input type="text" name="name" id="ev_name" class="form-input" required maxlength="150">
         </div>
         <div class="form-group">
@@ -162,7 +199,7 @@
           <input type="text" name="type" id="ev_type" class="form-input" maxlength="200">
         </div>
         <div class="form-group">
-          <label class="form-label">BOS (Überschreibung, leer = Org-Standard)</label>
+          <label class="form-label">BOS-Kategorie (leer = Org-Standard)</label>
           <select name="bos_override" id="ev_bos_override" class="form-select">
             <option value="">– Org-Standard –</option>
             {% for b in bos_values %}
@@ -172,6 +209,112 @@
         </div>
         <div class="form-group">
           <label><input type="checkbox" name="is_first_train" id="ev_first_train" value="true"> Erstausrückung</label>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" onclick="this.closest('dialog').close()" class="btn btn--ghost">Abbrechen</button>
+        <button type="submit" class="btn btn--primary">Speichern</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Fremdorganisation anlegen -->
+<dialog class="modal" id="newExternalModal">
+  <div class="modal__content">
+    <div class="modal__header">
+      <h3>Fremdorganisation anlegen</h3>
+      <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button>
+    </div>
+    <form method="post" action="/admin/fahrzeuge/neu-extern">
+      <div class="modal__body">
+        <p class="form-hint" style="margin-bottom:12px;">
+          Ressourcen fremder Organisationen erscheinen in der Einsatz- und GSL-Vorauswahl, werden aber nicht automatisch disponiert. Sie können in der Ausrückordnung hinterlegt werden.
+        </p>
+        <div class="form-row" style="display:flex;gap:8px;">
+          <div class="form-group" style="flex:2;">
+            <label class="form-label">Organisation (Name) *</label>
+            <input type="text" name="org_name" class="form-input" required maxlength="150" placeholder="z.B. FF Bregenz, BRK Dornbirn">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Org-Kürzel (max. 3 Z.)</label>
+            <input type="text" name="org_short" class="form-input" maxlength="3" placeholder="z.B. BRG">
+          </div>
+        </div>
+        <div class="form-row" style="display:flex;gap:8px;">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Code / Rufname *</label>
+            <input type="text" name="code" class="form-input" required maxlength="30" placeholder="z.B. HLP-1, ASP, AFÜST">
+          </div>
+          <div class="form-group" style="flex:2;">
+            <label class="form-label">Bezeichnung *</label>
+            <input type="text" name="name" class="form-input" required maxlength="150" placeholder="z.B. Hochleistungspumpe, Atemschutzsammelplatz">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Typ / Beschreibung</label>
+          <input type="text" name="type" class="form-input" maxlength="200"
+                 placeholder="z.B. 3000 l/min, Atemluftfüllstation, mobile Einheit">
+        </div>
+        <div class="form-group">
+          <label class="form-label">BOS-Kategorie</label>
+          <select name="bos_override" class="form-select">
+            <option value="">– nicht zugeordnet –</option>
+            {% for b in bos_values %}
+            <option value="{{ b }}">{{ b }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" onclick="this.closest('dialog').close()" class="btn btn--ghost">Abbrechen</button>
+        <button type="submit" class="btn btn--primary">Anlegen</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Fremdorganisation bearbeiten -->
+<dialog class="modal" id="editExternalModal">
+  <div class="modal__content">
+    <div class="modal__header">
+      <h3>Fremdorganisation bearbeiten</h3>
+      <button type="button" onclick="this.closest('dialog').close()" class="modal__close">×</button>
+    </div>
+    <form method="post" id="editExternalForm">
+      <div class="modal__body">
+        <div class="form-row" style="display:flex;gap:8px;">
+          <div class="form-group" style="flex:2;">
+            <label class="form-label">Organisation (Name) *</label>
+            <input type="text" name="org_name" id="ee_org_name" class="form-input" required maxlength="150">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Org-Kürzel (max. 3 Z.)</label>
+            <input type="text" name="org_short" id="ee_org_short" class="form-input" maxlength="3">
+          </div>
+        </div>
+        <div class="form-row" style="display:flex;gap:8px;">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Code / Rufname *</label>
+            <input type="text" name="code" id="ee_code" class="form-input" required maxlength="30">
+          </div>
+          <div class="form-group" style="flex:2;">
+            <label class="form-label">Bezeichnung *</label>
+            <input type="text" name="name" id="ee_name" class="form-input" required maxlength="150">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Typ / Beschreibung</label>
+          <input type="text" name="type" id="ee_type" class="form-input" maxlength="200">
+        </div>
+        <div class="form-group">
+          <label class="form-label">BOS-Kategorie</label>
+          <select name="bos_override" id="ee_bos_override" class="form-select">
+            <option value="">– nicht zugeordnet –</option>
+            {% for b in bos_values %}
+            <option value="{{ b }}">{{ b }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
       <div class="modal__footer">
@@ -193,6 +336,17 @@ function openEditVehicle(id, code, name, type, firstTrain, bosOverride) {
   document.getElementById('ev_bos_override').value = bosOverride || '';
   document.getElementById('editVehicleForm').action = `/admin/fahrzeuge/${id}/edit`;
   document.getElementById('editVehicleModal').showModal();
+}
+
+function openEditExternal(id, orgName, orgShort, code, name, type, bosOverride) {
+  document.getElementById('ee_org_name').value = orgName;
+  document.getElementById('ee_org_short').value = orgShort;
+  document.getElementById('ee_code').value = code;
+  document.getElementById('ee_name').value = name;
+  document.getElementById('ee_type').value = type;
+  document.getElementById('ee_bos_override').value = bosOverride || '';
+  document.getElementById('editExternalForm').action = `/admin/fahrzeuge/${id}/edit-extern`;
+  document.getElementById('editExternalModal').showModal();
 }
 
 (function () {

@@ -239,7 +239,7 @@
           <select name="vehicle_id" class="form-select form-select--sm">
             <option value="">— Freitext unten —</option>
             {% for v in extra_vehicles %}
-            <option value="{{ v.id }}">{{ v.display_label }}</option>
+            <option value="{{ v.id }}">{{ v.display_label }}{% if v.is_external %} [FREMD: {{ v.adhoc_org_name }}]{% endif %}</option>
             {% endfor %}
           </select>
         </div>

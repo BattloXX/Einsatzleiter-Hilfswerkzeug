@@ -1091,7 +1091,8 @@ async def vehicle_suggestions(
             "name": v.name,
             "type": v.type or "",
             "dept_id": v.dept_id,
-            "dept_name": v.dept.name if v.dept else "",
+            "dept_name": v.org_display_name,
+            "is_external": v.is_external,
             "in_use": v.id in already_master_ids,
         }
         for v in vehicles
