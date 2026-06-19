@@ -320,6 +320,14 @@
 
 </div>{# /x-data #}
 
+<!-- ── Site-Detail Dialog ─────────────────────────────────────────────────── -->
+<dialog class="modal" id="siteDetailModal">
+  <div class="modal__content" id="siteDetailContent"
+       style="min-width:min(540px,95vw);max-height:90vh;overflow-y:auto;"
+       hx-on::after-swap="var _d=document.getElementById('siteDetailModal');if(_d&&!_d.open)_d.showModal()">
+  </div>
+</dialog>
+
 {% endblock %}
 
 {% block scripts %}
@@ -361,5 +369,10 @@ function resTypeChanged(v) {
   }
   connect();
 })();
+
+// Backdrop-Klick schließt Site-Detail-Dialog
+document.getElementById('siteDetailModal').addEventListener('click', function(e) {
+  if (e.target === this) this.close();
+});
 </script>
 {% endblock %}

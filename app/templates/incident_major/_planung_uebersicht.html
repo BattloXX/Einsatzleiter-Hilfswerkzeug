@@ -48,7 +48,10 @@
     {% endif %}
     {% set total_res = (res.vor_ort | length) + (res.alarmed | length) %}
 
-    <div class="planung-card" style="border-left:3px solid {{ prio_color_hex }};">
+    <div class="planung-card" style="border-left:3px solid {{ prio_color_hex }};cursor:pointer;"
+         hx-get="/lage/{{ lage.id }}/stellen/{{ site.id }}"
+         hx-target="#siteDetailContent"
+         hx-swap="innerHTML">
       <div class="planung-card__head">
         {# Prio-Badge #}
         {% if site.priority %}
