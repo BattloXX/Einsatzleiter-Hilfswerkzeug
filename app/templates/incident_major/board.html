@@ -77,6 +77,21 @@
   .badge--blue   { background:rgba(59,130,246,.2); color:#93c5fd; }
   .badge--purple { background:rgba(139,92,246,.2); color:#c4b5fd; }
 
+  /* ── Priorität als linker Farbbalken ────────────────────────────────────── */
+  .site-card[data-prio="1"] { border-left: 3px solid #ef4444; }
+  .site-card[data-prio="2"] { border-left: 3px solid #f97316; }
+  .site-card[data-prio="3"] { border-left: 3px solid #eab308; }
+  .site-card[data-prio="4"] { border-left: 3px solid rgba(107,114,128,.35); }
+
+  /* ── HTMX-Refresh-Feedback ───────────────────────────────────────────────── */
+  .site-card.htmx-request { opacity: 0.5; transition: opacity 0.15s; }
+  @keyframes card-refresh { from { box-shadow: 0 0 0 2px rgba(99,102,241,.55); } to { box-shadow: none; } }
+  .site-card--refreshed { animation: card-refresh 0.75s ease-out; }
+
+  /* ── Überfälliger Lagemeldungs-Timer: Pulsieren ──────────────────────────── */
+  @keyframes lm-pulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+  .lm-chip--red { animation: lm-pulse 1.4s ease-in-out infinite; }
+
   /* ── Quick-Prio-Footer ───────────────────────────────────────────────────── */
   .site-card__footer {
     border-top: 1px solid rgba(255,255,255,.06);
@@ -769,6 +784,58 @@ window.openMeldungDialog = function() {
       swap: 'innerHTML'
     });
   }, 150);
+})();
+
+// ── WebSocket: Einsatzkarten live aktualisieren ────────────────────────────
+(function() {
+  var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  var lageId = {{ lage.id }};
+  var ws, ping;
+
+  function connect() {
+    ws = new WebSocket(proto + '://' + location.host + '/ws/lage/' + lageId);
+    ws.addEventListener('open', function() {
+      ping = setInterval(function() { if (ws.readyState === 1) ws.send('ping'); }, 25000);
+    });
+    ws.addEventListener('message', function(evt) {
+      try {
+        var msg = JSON.parse(evt.data);
+        // Einzelne Karte aktualisieren
+        if ((msg.type === 'site:card_changed' || msg.type === 'site_prio_changed' || msg.type === 'site:sector_changed') && msg.site_id) {
+          var card = document.querySelector('[data-site-id="' + msg.site_id + '"]');
+          if (card) {
+            htmx.ajax('GET', '/lage/' + lageId + '/stellen/' + msg.site_id + '/card', {
+              target: card,
+              swap: 'outerHTML'
+            });
+          }
+        }
+        // Neue Stelle / Phase-Wechsel / Lage-Änderung → Seite neu laden
+        if (msg.type === 'site_created' || msg.type === 'site_phase_changed' || msg.type === 'site_updated' || msg.type === 'lage_updated') {
+          location.reload();
+        }
+      } catch(e) {}
+    });
+    ws.addEventListener('close', function() {
+      clearInterval(ping);
+      setTimeout(connect, 5000);
+    });
+    ws.addEventListener('error', function() { ws.close(); });
+  }
+  connect();
+
+  // Nach Karten-Swap: Filter neu anwenden + kurze Highlight-Animation
+  document.body.addEventListener('htmx:afterSwap', function(e) {
+    var tgt = e.detail.target;
+    if (tgt && tgt.dataset && tgt.dataset.siteId) {
+      applyBoardFilters();
+      var newCard = document.querySelector('[data-site-id="' + tgt.dataset.siteId + '"]');
+      if (newCard) {
+        newCard.classList.add('site-card--refreshed');
+        setTimeout(function() { newCard.classList.remove('site-card--refreshed'); }, 800);
+      }
+    }
+  });
 })();
 </script>
 {% endblock %}

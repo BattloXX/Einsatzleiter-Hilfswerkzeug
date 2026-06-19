@@ -41,7 +41,8 @@
         <span>🚒 {{ active_res|length }}</span>
         {% endif %}
         {% if dispatch_counts.alarmed > 0 %}
-        <span class="card-badge--alarmed" title="Disponiert (noch nicht vor Ort)">↗ {{ dispatch_counts.alarmed }}</span>
+        <span class="card-badge--alarmed" style="font-weight:600;"
+              title="{{ dispatch_counts.alarmed }} disponiert, noch nicht vor Ort">↗ {{ dispatch_counts.alarmed }}</span>
         {% endif %}
       {% elif active_res %}
       <span>🚒 {{ active_res|length }}</span>

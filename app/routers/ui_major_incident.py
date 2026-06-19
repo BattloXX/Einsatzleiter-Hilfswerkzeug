@@ -781,6 +781,7 @@ def _site_detail_html_with_oob(request: Request, db: Session, lage, site, user) 
     available_einheiten = [
         e for e in lage.einheiten if e.status != resource_service.STATUS_ABGERUECKT
     ]
+    sectors = sorted(lage.sectors, key=lambda s: s.id)
     detail_ctx = {
         "request": request,
         "user": user,
@@ -791,11 +792,16 @@ def _site_detail_html_with_oob(request: Request, db: Session, lage, site, user) 
         "site_dispatches": site_dispatches,
         "already_dispatched_ids": already_dispatched_ids,
         "site_log_kind_label": SITE_LOG_KIND_LABEL,
+        "sectors": sectors,
+        "phase_labels": PHASE_LABELS,
+        "prio_label": SITE_PRIORITY_LABEL,
+        "prio_color": SITE_PRIORITY_COLOR,
+        "citizen_report": None,
+        "now": datetime.now(UTC),
     }
     detail_html = templates.env.get_template(
         "incident_major/_site_detail.html"
     ).render(detail_ctx)
-    sectors = sorted(lage.sectors, key=lambda s: s.id)
     sectors_by_id = {s.id: s for s in sectors}
     dispatch_counts = resource_service.get_dispatch_counts_for_site(db, site.id)
     card_ctx = {
@@ -4174,6 +4180,33 @@ async def lage_ressourcen_journal(
     })
 
 
+@router.get("/lage/{lage_id}/ressourcen/kraefteuebersicht", response_class=HTMLResponse)
+async def lage_ressourcen_kraefteuebersicht(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+
+    kue = resource_service.kraefteuebersicht(db, lage)
+    sectors = sorted(lage.sectors, key=lambda s: s.sort_order)
+    sites_by_id = {s.id: s for s in lage.sites}
+    all_einheiten = [e for e in lage.einheiten if e.status != resource_service.STATUS_ABGERUECKT]
+
+    return templates.TemplateResponse(request, "incident_major/_kraefteuebersicht.html", {
+        "lage": lage,
+        "kue": kue,
+        "sectors": sectors,
+        "sites_by_id": sites_by_id,
+        "all_einheiten": all_einheiten,
+        "resource_service": resource_service,
+        "can_edit": _can_edit(user),
+    })
+
+
 # ── Einheiten-Pool ────────────────────────────────────────────────────────────
 
 @router.post("/lage/{lage_id}/einheiten")
@@ -4214,6 +4247,7 @@ async def lage_einheit_create(
         user_id=user.id,
     )
     db.commit()
+    await broadcast_lage(lage_id, {"type": "ressource:changed"})
     return RedirectResponse(f"/lage/{lage_id}/ressourcen", status_code=303)
 
 
@@ -4244,6 +4278,7 @@ async def lage_einheit_kommandant(
             raise HTTPException(status_code=404)
         einheit.commander_label = None
     db.commit()
+    await broadcast_lage(lage_id, {"type": "ressource:changed"})
     return Response(status_code=204)
 
 
@@ -4279,6 +4314,7 @@ async def lage_einheit_status(
     except ValueError:
         raise HTTPException(status_code=400)
     db.commit()
+    await broadcast_lage(lage_id, {"type": "ressource:changed"})
     return RedirectResponse(f"/lage/{lage_id}/ressourcen", status_code=303)
 
 
@@ -4309,6 +4345,7 @@ async def lage_einheit_sektor(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
+    await broadcast_lage(lage_id, {"type": "ressource:changed"})
     return RedirectResponse(f"/lage/{lage_id}/ressourcen", status_code=303)
 
 
@@ -4339,6 +4376,7 @@ async def lage_einheit_einsatz(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
+    await broadcast_lage(lage_id, {"type": "ressource:changed"})
     return RedirectResponse(f"/lage/{lage_id}/ressourcen", status_code=303)
 
 
@@ -4359,6 +4397,7 @@ async def lage_einheit_pool(
         author_name=get_author_name(request), user_id=user.id,
     )
     db.commit()
+    await broadcast_lage(lage_id, {"type": "ressource:changed"})
     return RedirectResponse(f"/lage/{lage_id}/ressourcen", status_code=303)
 
 
@@ -4386,6 +4425,7 @@ async def lage_einheit_fuehrer(
         author_name=get_author_name(request),
     )
     db.commit()
+    await broadcast_lage(lage_id, {"type": "ressource:changed"})
     return RedirectResponse(f"/lage/{lage_id}/ressourcen", status_code=303)
 
 
@@ -4407,6 +4447,7 @@ async def lage_einheit_delete(
 
     db.delete(einheit)
     db.commit()
+    await broadcast_lage(lage_id, {"type": "ressource:changed"})
     return RedirectResponse(f"/lage/{lage_id}/ressourcen", status_code=303)
 
 

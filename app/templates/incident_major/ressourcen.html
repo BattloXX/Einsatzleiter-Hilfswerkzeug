@@ -276,7 +276,15 @@
 {% endif %}
 </div>{# /x-data showAdd #}
 
-{# ── Einheiten-Karte (Makro) ──────────────────────────────────────────────── #}
+{# ── Kräfteübersicht (live-aktualisiert via HTMX-Poll) ───────────────────── #}
+<div id="kraefteuebersicht-container"
+     hx-get="/lage/{{ lage.id }}/ressourcen/kraefteuebersicht"
+     hx-trigger="every 30s, ressourceChanged from:body"
+     hx-swap="innerHTML">
+  {% include "incident_major/_kraefteuebersicht.html" %}
+</div>
+
+{% if False %}{# Platzhalter – wird nie gerendert, verhindert Jinja-Syntaxfehler #}
 {% macro einheit_card(e) %}
 {% set is_conflict = e.vehicle_id and e.vehicle_id in kue.conflict_vids %}
 <div class="einh-card{% if is_conflict %} einh-card--conflict{% endif %}">
@@ -506,6 +514,7 @@
   </div>
 </div>
 {% endif %}
+{% endif %}{# /if False – Toter Code, wird nie gerendert #}
 
 
 {# ── Ressourcen-Journal ───────────────────────────────────────────────────── #}
@@ -544,7 +553,7 @@ function resTypeChanged(v) {
     ws.addEventListener('message', function(evt) {
       try {
         var msg = JSON.parse(evt.data);
-        if (msg.type === 'site:card_changed') {
+        if (msg.type === 'site:card_changed' || msg.type === 'ressource:changed') {
           htmx.trigger(document.body, 'ressourceChanged');
         }
       } catch(e) {}
