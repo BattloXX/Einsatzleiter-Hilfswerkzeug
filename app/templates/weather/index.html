@@ -4,113 +4,340 @@
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/leaflet.min.css">
 <style>
-  .wetter-wrap {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 16px 14px 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  .wetter-header {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .wetter-header__title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--text);
-  }
-  .wetter-header__sub {
-    font-size: .8rem;
-    color: var(--text-muted);
-  }
-  .wetter-panel-box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-  }
-  #wetter-map {
-    width: 100%;
-    height: 360px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-  }
-  .radar-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 5px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    font-size: .8rem;
-    cursor: pointer;
-    transition: background .15s;
-  }
-  .radar-toggle.active {
-    background: rgba(59,130,246,.25);
-    border-color: rgba(59,130,246,.5);
-    color: #93c5fd;
-  }
+.wetter-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 14px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.wetter-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 296px;
+  gap: 16px;
+  align-items: start;
+}
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.wetter-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+#wetter-map {
+  width: 100%;
+  height: 380px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+}
+.radar-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: .8rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.radar-tab-btn.active {
+  background: rgba(59,130,246,.25);
+  border-color: rgba(59,130,246,.5);
+  color: #93c5fd;
+}
+#radar-play-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .85rem;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+#radar-play-btn:hover { background: rgba(59,130,246,.18); }
+#radar-scrubber {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+#radar-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+}
+@media (max-width: 900px) {
+  .wetter-main-grid  { grid-template-columns: 1fr; }
+  .metric-grid       { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .forecast-grid { grid-template-columns: 1fr; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="wetter-wrap">
 
-  <div class="wetter-header">
-    <span class="wetter-header__title">🌦 Wetter</span>
-    <span class="wetter-header__sub">{{ focus_label }}</span>
+  {# ── Seitenheader ──────────────────────────────────────────────────────────── #}
+  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:1.25rem;font-weight:700;color:var(--text);">🌦 Wetter</span>
+    <span style="font-size:.85rem;color:var(--text-muted);">{{ focus_label }}</span>
   </div>
 
-  {# ── Wetter-Panel (HTMX auto-refresh) ──────────────────────────────────── #}
-  <div class="wetter-panel-box"
-       id="wetter-panel"
-       hx-get="/wetter/panel"
-       hx-trigger="load, every 300s"
-       hx-swap="innerHTML">
-    {% include "incident_major/_weather_panel.html" %}
-  </div>
+  {# ── Daten-Sektion (HTMX auto-refresh alle 5 min) ──────────────────────────── #}
+  <div id="wetter-data-section"
+       hx-get="/wetter"
+       hx-trigger="every 300s"
+       hx-swap="outerHTML"
+       hx-select="#wetter-data-section">
 
-  {# ── Karte mit Radar / Windy ─────────────────────────────────────────────── #}
+    {# ── Szenario-Alarme ──────────────────────────────────────────────────────── #}
+    {% if scenarios %}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:2px;">
+      {% for alert in scenarios %}
+      {% set is_danger = alert.level == "danger" %}
+      <div style="background:{{ 'rgba(239,68,68,.12)' if is_danger else 'rgba(249,115,22,.12)' }};
+                  border:1px solid {{ 'rgba(239,68,68,.40)' if is_danger else 'rgba(249,115,22,.40)' }};
+                  border-radius:4px;padding:5px 12px;font-size:.8rem;
+                  color:{{ '#f87171' if is_danger else '#fb923c' }};">
+        <strong>{{ alert.icon or '⚠' }} {{ alert.label_de }}</strong>
+        <span style="opacity:.85;margin-left:6px;font-size:.73rem;">{{ alert.detail_de }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if no_location %}
+    <div style="font-size:.8rem;color:var(--text-muted);padding:12px 0;">Standortkoordinaten fehlen – Wetterdaten nicht verfügbar.</div>
+    {% elif not current and not nowcast and not forecast and not warn_views %}
+    <div style="font-size:.8rem;color:var(--text-muted);padding:12px 0;">Wetterdaten derzeit nicht verfügbar.</div>
+    {% else %}
+
+    <div class="wetter-main-grid">
+
+      {# ── LINKE SPALTE: Metriken + Nowcast + Vorhersage ──────────────────────── #}
+      <div style="display:flex;flex-direction:column;gap:14px;">
+
+        {# ── Metrik-Karten ──────────────────────────────────────────────────────── #}
+        {% if current %}
+        {% set gust = current.gust_speed_ms or 0 %}
+        {% set gust_color = '#ef4444' if gust >= 17.2 else ('#f97316' if gust >= 10.8 else 'var(--text)') %}
+        <div class="metric-grid">
+
+          <div class="wetter-card" style="padding:14px 16px;">
+            <div style="font-size:.62rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;margin-bottom:6px;">TEMPERATUR</div>
+            <div style="font-size:2rem;font-weight:700;line-height:1;color:var(--text);">
+              {% if current.temperature_c is not none %}{{ '%.1f'|format(current.temperature_c) }}<span style="font-size:.9rem;font-weight:400;"> °C</span>{% else %}–{% endif %}
+            </div>
+            {% if current.humidity_pct is not none %}
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:5px;">{{ current.humidity_pct|int }} % Feuchte</div>
+            {% endif %}
+          </div>
+
+          <div class="wetter-card" style="padding:14px 16px;">
+            <div style="font-size:.62rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;margin-bottom:6px;">WIND</div>
+            <div style="font-size:2rem;font-weight:700;line-height:1;color:var(--text);">
+              {% if current.wind_speed_ms is not none %}{{ '%.1f'|format(current.wind_speed_ms) }}<span style="font-size:.9rem;font-weight:400;"> m/s</span>{% else %}–{% endif %}
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:5px;">{{ wind_dir_label }}</div>
+          </div>
+
+          <div class="wetter-card" style="padding:14px 16px;">
+            <div style="font-size:.62rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;margin-bottom:6px;">BÖEN</div>
+            <div style="font-size:2rem;font-weight:700;line-height:1;color:{{ gust_color }};">
+              {% if current.gust_speed_ms is not none %}{{ '%.1f'|format(current.gust_speed_ms) }}<span style="font-size:.9rem;font-weight:400;"> m/s</span>{% else %}–{% endif %}
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:5px;">
+              {% if gust >= 24.5 %}BF10+{% elif gust >= 17.2 %}BF8+ ⚡{% elif gust >= 10.8 %}BF6{% elif gust > 0 %}BF{{ (gust / 3.6 ** 0.5 * 0.5)|int }}{% endif %}
+            </div>
+          </div>
+
+          <div class="wetter-card" style="padding:14px 16px;">
+            <div style="font-size:.62rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;margin-bottom:6px;">NIEDERSCHLAG</div>
+            <div style="font-size:2rem;font-weight:700;line-height:1;color:#93c5fd;">
+              {% if nowcast %}
+                {{ '%.1f'|format(nowcast.total_mm) }}<span style="font-size:.9rem;font-weight:400;"> mm</span>
+              {% elif current.precipitation_1h_mm is not none %}
+                {{ '%.1f'|format(current.precipitation_1h_mm) }}<span style="font-size:.9rem;font-weight:400;"> mm</span>
+              {% else %}–{% endif %}
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:5px;">
+              {% if nowcast %}in ~3 h{% elif current.precipitation_1h_mm is not none %}letzte 1 h{% endif %}
+            </div>
+          </div>
+
+        </div>
+        {% endif %}
+
+        {# ── Nowcast-Chart ──────────────────────────────────────────────────────── #}
+        {% if nowcast and nowcast_bars %}
+        <div class="wetter-card" style="padding:14px 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:4px;">
+            <span style="font-size:.68rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;">
+              NOWCAST ({{ nowcast_bars|length }}×15 min){% if trend_de %} <span style="font-weight:400;">· {{ trend_de }}</span>{% endif %}
+            </span>
+            <span style="font-size:.7rem;color:var(--text-muted);">
+              Gesamt {{ '%.1f'|format(nowcast.total_mm) }} mm
+              {% if peak_label %} · Peak <strong style="color:#93c5fd;">{{ peak_label }}</strong>{% endif %}
+            </span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:2px;height:64px;">
+            {% for bar in nowcast_bars %}
+            <div style="flex:1;height:{{ bar.h * 2 if bar.h * 2 < 64 else 64 }}px;min-height:3px;
+                        background:{{ bar.color }};border-radius:2px 2px 0 0;"
+                 title="{{ bar.label }}"></div>
+            {% endfor %}
+          </div>
+          <div style="display:flex;gap:2px;margin-top:5px;border-top:1px solid var(--border);padding-top:4px;">
+            {% for bar in nowcast_bars %}
+            <div style="flex:1;font-size:.55rem;color:var(--text-muted);text-align:center;line-height:1.2;">
+              {% if loop.index0 % 4 == 0 %}+{{ loop.index0 // 4 }}h{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% elif nowcast %}
+        <div class="wetter-card" style="padding:14px 16px;font-size:.8rem;color:var(--text-muted);">
+          ✓ Kein Niederschlag in den nächsten ~3 h erwartet.
+        </div>
+        {% endif %}
+
+        {# ── Vorhersage-Karten +6/+12/+24h ────────────────────────────────────── #}
+        {% if forecast and forecast.horizons %}
+        <div class="forecast-grid">
+          {% for h in forecast.horizons %}
+          {% set prec = h.precipitation_acc_mm or 0 %}
+          {% set fc_icon = "🌧" if prec > 5 else ("🌦" if prec > 1 else "☀️") %}
+          {% set temp_c  = h.temperature_c or 0 %}
+          {% set tc = '#ef4444' if temp_c >= 30 else ('#f97316' if temp_c >= 25 else 'var(--text)') %}
+          <div class="wetter-card" style="padding:14px 16px;display:flex;flex-direction:column;gap:5px;">
+            <div style="font-size:.62rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;">IN {{ h.hours }}H</div>
+            <div style="font-size:1.9rem;font-weight:700;line-height:1;color:{{ tc }};">
+              {% if h.temperature_c is not none %}{{ '%.0f'|format(h.temperature_c) }}°{% else %}–{% endif %}
+            </div>
+            <div style="font-size:1.2rem;line-height:1;">{{ fc_icon }}</div>
+            <div style="font-size:.7rem;color:var(--text-muted);">
+              🌧 {{ '%.1f'|format(prec) }} mm{% if h.wind_speed_ms is not none %} · 💨 {{ '%.0f'|format(h.wind_speed_ms) }} m/s{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      </div>{# end left column #}
+
+      {# ── RECHTE SPALTE: Warnungen ────────────────────────────────────────────── #}
+      <div>
+        <div class="wetter-card" style="display:flex;flex-direction:column;overflow:hidden;">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.68rem;font-weight:600;letter-spacing:.05em;color:var(--text);">
+              WARNUNGEN{% if warn_views %} ({{ warn_views|length }}){% endif %}
+            </span>
+            {% if warn_views %}<span style="color:#ef4444;font-size:1rem;">⚠</span>{% endif %}
+          </div>
+          {% if warn_views %}
+          <div style="display:flex;flex-direction:column;overflow-y:auto;max-height:520px;">
+            {% for w in warn_views %}
+            <div style="border-left:3px solid {{ w.color }};padding:10px 13px 10px 14px;
+                        {% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+              <div style="font-size:.72rem;font-weight:700;color:{{ w.color }};margin-bottom:2px;">
+                ⚠ STUFE {{ w.level }} — {{ w.event_type|upper }}
+              </div>
+              <div style="font-size:.66rem;color:var(--text-muted);margin-bottom:3px;">{{ w.zeitraum }}</div>
+              {% if w.text %}
+              <div style="font-size:.72rem;color:var(--text-muted);line-height:1.4;">{{ w.text[:110] }}{% if w.text|length > 110 %}…{% endif %}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div style="padding:16px 14px;font-size:.8rem;color:#4ade80;">✓ keine aktive Warnung</div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>{# end main grid #}
+    {% endif %}
+
+    <div style="font-size:.65rem;color:var(--text-muted);">
+      Daten: {{ attribution }} · Standort: {{ focus_label }}
+    </div>
+
+  </div>{# end #wetter-data-section #}
+
+  {# ── Radar / Windy (bleibt beim HTMX-Refresh erhalten) ────────────────────── #}
   {% if lat is not none and lng is not none %}
   <div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
       <span style="font-size:.75rem;color:var(--text-muted);font-weight:600;letter-spacing:.05em;">RADARKARTE</span>
       <div style="display:inline-flex;gap:4px;">
-        <button class="radar-toggle active" id="tab-radar" type="button">🌧 Radar</button>
+        <button class="radar-tab-btn active" id="tab-radar" type="button">🌧 Radar</button>
         {% if windy_enabled %}
-        <button class="radar-toggle" id="tab-windy" type="button">🌬 Windy</button>
+        <button class="radar-tab-btn" id="tab-windy" type="button">🌬 Windy</button>
         {% endif %}
       </div>
-      <span id="radar-meta" style="font-size:.7rem;color:var(--text-muted);"></span>
+      <span id="radar-live-badge" style="font-size:.64rem;background:rgba(34,197,94,.14);color:#4ade80;
+             border:1px solid rgba(34,197,94,.28);padding:2px 7px;border-radius:3px;display:none;">LIVE</span>
+      <span id="radar-loading" style="font-size:.7rem;color:var(--text-muted);">Radar wird geladen…</span>
     </div>
 
-    {# ── Radar-Ansicht (Leaflet + RainViewer) ─────────────────────────────── #}
+    {# ── Radar-Ansicht ──────────────────────────────────────────────────────────── #}
     <div id="radar-view">
       <div id="wetter-map"></div>
-      {% if nowcast and nowcast.total_mm is not none and nowcast.total_mm < 0.1 %}
-      <div id="radar-empty" style="font-size:.7rem;color:var(--text-muted);margin-top:4px;">
-        ℹ Am Standort aktuell kein Niederschlag – das Radar zeigt ggf. Zellen im Umland.
-      </div>
-      {% endif %}
-      <div style="display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;">
-        <span style="font-size:.62rem;color:var(--text-muted);">leicht</span>
-        <span style="display:inline-block;width:120px;height:8px;border-radius:2px;
-                     background:linear-gradient(90deg,#93c5fd,#3b82f6,#1d4ed8,#7c3aed,#db2777);"></span>
-        <span style="font-size:.62rem;color:var(--text-muted);">stark</span>
-        <span style="font-size:.65rem;color:var(--text-muted);margin-left:auto;">
-          Radar: <a href="https://rainviewer.com" target="_blank" rel="noopener" style="color:var(--text-muted);">RainViewer</a>
-        </span>
+      <div style="background:var(--surface);border:1px solid var(--border);border-top:none;
+                  border-radius:0 0 8px 8px;padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button id="radar-play-btn" title="Abspielen / Pause">⏸</button>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px;">
+            <input type="range" id="radar-scrubber" min="0" max="11" value="11" step="1">
+            <div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--text-muted);">
+              <span id="slabel-start"></span>
+              <span id="slabel-mid"></span>
+              <span id="slabel-end">jetzt</span>
+            </div>
+          </div>
+          <span id="radar-time-label" style="font-size:.72rem;color:var(--text-muted);min-width:100px;text-align:right;"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:.6rem;color:var(--text-muted);">leicht</span>
+          <span style="display:inline-block;width:100px;height:5px;border-radius:2px;
+                       background:linear-gradient(90deg,#93c5fd,#3b82f6,#1d4ed8,#7c3aed,#db2777);"></span>
+          <span style="font-size:.6rem;color:var(--text-muted);">stark</span>
+          <span style="margin-left:auto;font-size:.62rem;color:var(--text-muted);">
+            Radar: <a href="https://rainviewer.com" target="_blank" rel="noopener" style="color:var(--text-muted);">RainViewer</a>
+          </span>
+        </div>
       </div>
     </div>
 
-    {# ── Windy-Ansicht (iframe, lazy) ─────────────────────────────────────── #}
+    {# ── Windy-Ansicht ──────────────────────────────────────────────────────────── #}
     {% if windy_enabled %}
     <div id="windy-view" style="display:none;">
       <iframe id="windy-frame" title="Windy Wetterkarte" loading="lazy"
@@ -119,14 +346,15 @@
               allow="fullscreen"></iframe>
       <div style="font-size:.65rem;color:var(--text-muted);margin-top:4px;">
         Karte: <a href="https://www.windy.com" target="_blank" rel="noopener" style="color:var(--text-muted);">Windy.com</a>
-        – externe Einbindung (Standortkoordinaten werden an Windy übermittelt).
+        – externe Einbindung (Standortkoordinaten werden übermittelt).
       </div>
     </div>
     {% endif %}
+
   </div>
   {% endif %}
 
-</div>
+</div>{# end wetter-wrap #}
 {% endblock %}
 
 {% block scripts %}
@@ -138,117 +366,171 @@
   var LAT = {{ lat }};
   var LNG = {{ lng }};
 
-  var map = L.map('wetter-map').setView([LAT, LNG], 11);
+  // ── Leaflet-Karte ───────────────────────────────────────────────────────────
+  var map = L.map('wetter-map', { zoomSnap: 0.5 }).setView([LAT, LNG], 10);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 19,
+    maxZoom: 18,
   }).addTo(map);
 
-  // Org marker
   L.circleMarker([LAT, LNG], {
-    radius: 8, fillColor: '#3b82f6', fillOpacity: 0.8,
+    radius: 8, fillColor: '#3b82f6', fillOpacity: 0.85,
     color: '#1d4ed8', weight: 2,
   }).bindTooltip('{{ focus_label|e }}').addTo(map);
 
-  // ── Animiertes RainViewer-Radar ────────────────────────────────────────────
-  var metaEl    = document.getElementById('radar-meta');
-  var radarHost = 'https://tilecache.rainviewer.com';
-  var frames    = [];          // [{time, path, nowcast}]
-  var frameLayers = {};        // path -> L.tileLayer
-  var frameIdx  = 0;
-  var animTimer = null;
+  // ── Radar-Variablen ─────────────────────────────────────────────────────────
+  var radarHost     = 'https://tilecache.rainviewer.com';
+  var frames        = [];   // [{time, path, nowcast}]
+  var currentFrame  = -1;
+  var frameLayers   = {};   // path -> L.tileLayer
+  var animTimer     = null;
+  var isPlaying     = true;
+  var pauseTicks    = 0;
+  var PAUSE_TICKS   = 3;   // 3 × 650 ms = ~2 s Pause am letzten Frame
+
+  var scrubber    = document.getElementById('radar-scrubber');
+  var playBtn     = document.getElementById('radar-play-btn');
+  var timeLabel   = document.getElementById('radar-time-label');
+  var liveBadge   = document.getElementById('radar-live-badge');
+  var loadingInfo = document.getElementById('radar-loading');
+  var slabelStart = document.getElementById('slabel-start');
+  var slabelMid   = document.getElementById('slabel-mid');
+  var slabelEnd   = document.getElementById('slabel-end');
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
-
-  function tileUrl(path) {
-    return radarHost + path + '/256/{z}/{x}/{y}/2/1_1.png';
+  function fmtTime(ts) {
+    var d = new Date(ts * 1000);
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
-  function showFrame(i) {
+  function showFrame(idx) {
     if (!frames.length) { return; }
-    frameIdx = (i % frames.length + frames.length) % frames.length;
-    var f = frames[frameIdx];
+    idx = Math.max(0, Math.min(idx, frames.length - 1));
+    currentFrame = idx;
+    scrubber.value = idx;
+
+    var f = frames[idx];
+    // maxNativeZoom: 6 verhindert die "Zoom Level Not Supported"-Kacheln
     if (!frameLayers[f.path]) {
-      frameLayers[f.path] = L.tileLayer(tileUrl(f.path), {
-        opacity: 0, zIndex: 5, attribution: 'Radar: RainViewer',
-      }).addTo(map);
+      frameLayers[f.path] = L.tileLayer(
+        radarHost + f.path + '/256/{z}/{x}/{y}/2/1_1.png',
+        {
+          opacity:       0,
+          zIndex:        5,
+          maxNativeZoom: 6,
+          maxZoom:       18,
+          attribution:   'Radar: RainViewer',
+        }
+      ).addTo(map);
     }
     Object.keys(frameLayers).forEach(function (p) {
       frameLayers[p].setOpacity(p === f.path ? 0.6 : 0);
     });
-    var d = new Date(f.time * 1000);
-    metaEl.textContent = 'Radar ' + pad(d.getHours()) + ':' + pad(d.getMinutes())
-                       + (f.nowcast ? ' (Prognose)' : '');
-  }
 
-  function startAnim() {
-    stopAnim();
-    if (!frames.length) { return; }
-    frameIdx = 0;
-    showFrame(0);
-    animTimer = setInterval(function () { showFrame(frameIdx + 1); }, 650);
+    var isLast = (idx === frames.length - 1);
+    liveBadge.style.display = isLast ? '' : 'none';
+    timeLabel.textContent = fmtTime(f.time) + (f.nowcast ? ' ▸ Prognose' : '');
   }
 
   function stopAnim() {
     if (animTimer) { clearInterval(animTimer); animTimer = null; }
   }
 
-  function loadRadar() {
+  function startAnim() {
+    stopAnim();
+    isPlaying  = true;
+    pauseTicks = 0;
+    playBtn.textContent = '⏸';
+    if (!frames.length) { return; }
+
+    var idx = 0;
+    animTimer = setInterval(function () {
+      if (idx >= frames.length) {
+        // Pause am letzten Frame, dann von vorne
+        if (pauseTicks < PAUSE_TICKS) { pauseTicks++; return; }
+        pauseTicks = 0;
+        idx = 0;
+      }
+      showFrame(idx++);
+    }, 650);
+  }
+
+  function loadFrames() {
     fetch('https://api.rainviewer.com/public/weather-maps.json')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        if (!d) { metaEl.textContent = 'Radar nicht verfügbar.'; return; }
+        loadingInfo.style.display = 'none';
+        if (!d) { timeLabel.textContent = 'Radar nicht verfügbar'; return; }
         radarHost = d.host || radarHost;
-        var past = (d.radar && d.radar.past) || [];
-        var now  = (d.radar && d.radar.nowcast) || [];
-        frames = past.slice(-6).map(function (f) {
+
+        var past    = (d.radar && d.radar.past)    || [];
+        var nowcast = (d.radar && d.radar.nowcast) || [];
+        frames = past.slice(-8).map(function (f) {
           return { time: f.time, path: f.path, nowcast: false };
-        }).concat(now.map(function (f) {
+        }).concat(nowcast.map(function (f) {
           return { time: f.time, path: f.path, nowcast: true };
         }));
-        if (!frames.length) { metaEl.textContent = 'Kein Radarbild verfügbar.'; return; }
+
+        if (!frames.length) { timeLabel.textContent = 'Kein Radarbild verfügbar'; return; }
+
+        scrubber.max = frames.length - 1;
+        slabelStart.textContent = fmtTime(frames[0].time);
+        var mid = Math.floor(frames.length / 2);
+        if (frames.length > 2) { slabelMid.textContent = fmtTime(frames[mid].time); }
+        slabelEnd.textContent = 'jetzt';
+
+        // Letzten Frame zeigen, dann Animation starten
+        showFrame(frames.length - 1);
         startAnim();
       })
-      .catch(function () { metaEl.textContent = 'Radar konnte nicht geladen werden.'; });
+      .catch(function () {
+        loadingInfo.style.display = 'none';
+        timeLabel.textContent = 'Radar konnte nicht geladen werden';
+      });
   }
 
-  loadRadar();
-  setInterval(function () {           // alle 5 min neue Frames holen
-    Object.keys(frameLayers).forEach(function (p) {
-      map.removeLayer(frameLayers[p]);
-    });
+  loadFrames();
+
+  // Alle 5 min neue Frames
+  setInterval(function () {
+    Object.keys(frameLayers).forEach(function (p) { map.removeLayer(frameLayers[p]); });
     frameLayers = {};
-    loadRadar();
+    frames = [];
+    loadingInfo.style.display = '';
+    loadFrames();
   }, 300000);
 
-  // ── Tab-Umschalter Radar / Windy ───────────────────────────────────────────
-  var tabRadar  = document.getElementById('tab-radar');
-  var tabWindy  = document.getElementById('tab-windy');
-  var radarView = document.getElementById('radar-view');
-  var windyView = document.getElementById('windy-view');
-  var windyFrame = document.getElementById('windy-frame');
+  // ── Scrubber-Interaktion ────────────────────────────────────────────────────
+  function pauseOnScrub() { stopAnim(); isPlaying = false; playBtn.textContent = '▶'; }
+  scrubber.addEventListener('mousedown',  pauseOnScrub);
+  scrubber.addEventListener('touchstart', pauseOnScrub, { passive: true });
+  scrubber.addEventListener('input', function () { showFrame(parseInt(this.value, 10)); });
 
-  function buildWindySrc() {
-    var p = {
-      lat: LAT, lon: LNG, detailLat: LAT, detailLon: LNG,
-      zoom: 9, level: 'surface', overlay: 'rain', product: 'ecmwf',
-      menu: '', message: 'true', marker: 'true', calendar: 'now',
-      type: 'map', location: 'coordinates', detail: '',
-      metricWind: 'm/s', metricTemp: '°C', radarRange: -1,
-    };
-    var qs = Object.keys(p).map(function (k) {
-      return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
-    }).join('&');
-    return 'https://embed.windy.com/embed2.html?' + qs;
-  }
+  playBtn.addEventListener('click', function () {
+    if (isPlaying) {
+      stopAnim();
+      isPlaying = false;
+      playBtn.textContent = '▶';
+    } else {
+      startAnim();
+    }
+  });
+
+  // ── Tab-Umschalter ──────────────────────────────────────────────────────────
+  var tabRadar   = document.getElementById('tab-radar');
+  var tabWindy   = document.getElementById('tab-windy');
+  var radarView  = document.getElementById('radar-view');
+  var windyView  = document.getElementById('windy-view');
+  var windyFrame = document.getElementById('windy-frame');
 
   function selectRadar() {
     radarView.style.display = '';
     if (windyView) { windyView.style.display = 'none'; }
     tabRadar.classList.add('active');
     if (tabWindy) { tabWindy.classList.remove('active'); }
-    startAnim();
-    setTimeout(function () { map.invalidateSize(); }, 0);
+    setTimeout(function () { map.invalidateSize(); }, 50);
+    if (!isPlaying) { /* Scrubber aktiv – nicht neu starten */ }
+    else { startAnim(); }
   }
 
   function selectWindy() {
@@ -258,11 +540,19 @@
     windyView.style.display = '';
     tabRadar.classList.remove('active');
     tabWindy.classList.add('active');
-    if (windyFrame && !windyFrame.src) { windyFrame.src = buildWindySrc(); }
+    if (windyFrame && !windyFrame.src) {
+      windyFrame.src = 'https://embed.windy.com/embed2.html'
+        + '?lat=' + LAT + '&lon=' + LNG
+        + '&detailLat=' + LAT + '&detailLon=' + LNG
+        + '&zoom=9&level=surface&overlay=rain&product=ecmwf'
+        + '&menu=&message=true&marker=true&calendar=now&type=map'
+        + '&location=coordinates&detail=&metricWind=m%2Fs&metricTemp=%C2%B0C&radarRange=-1';
+    }
   }
 
-  tabRadar.addEventListener('click', selectRadar);
+  if (tabRadar) { tabRadar.addEventListener('click', selectRadar); }
   if (tabWindy) { tabWindy.addEventListener('click', selectWindy); }
+
 })();
 </script>
 {% endif %}
