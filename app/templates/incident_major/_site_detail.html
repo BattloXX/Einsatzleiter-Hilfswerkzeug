@@ -127,8 +127,7 @@
   <script>
   (function() {
     var _lat = {{ site.lat }}, _lng = {{ site.lng }};
-    function _initMap() {
-      if (typeof L === 'undefined') return;
+    function _doInitMap() {
       var el = document.getElementById('sdMap{{ site.id }}');
       if (!el || el._m) return;
       delete L.Icon.Default.prototype._getIconUrl;
@@ -146,6 +145,18 @@
       setTimeout(function() { m.invalidateSize(); }, 100);
       setTimeout(function() { m.invalidateSize(); }, 400);
       setTimeout(function() { m.invalidateSize(); }, 900);
+    }
+    function _initMap() {
+      if (typeof L !== 'undefined') { _doInitMap(); return; }
+      if (!document.querySelector('link[href*="leaflet.min.css"]')) {
+        var link = document.createElement('link');
+        link.rel = 'stylesheet'; link.href = '/static/css/leaflet.min.css';
+        document.head.appendChild(link);
+      }
+      var s = document.createElement('script');
+      s.src = '/static/js/leaflet.min.js';
+      s.onload = _doInitMap;
+      document.head.appendChild(s);
     }
     var dlg = document.getElementById('siteDetailModal');
     if (dlg && !dlg.open) {
