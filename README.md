@@ -40,14 +40,21 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | **In-App ZIP-Update** | Neue Version per Upload einspielen, kein SSH erforderlich |
 | **Statistik-Dashboard** | Einsatzauswertung nach Typ, Zeit, Fahrzeug |
 | **Stammdaten-Verwaltung** | Fahrzeuge, Mitglieder, Qualifikationen (AGT-Ablaufdaten), Alarmtypen |
-| **Großschadenslage** | Phasen-Kanban für Massenanfall-Ereignisse: Einsatzstellen, Abschnitte, Stabsfunktionen (SKKM), Einsatzjournal, Funkliste, Bürgermeldungen, Pressemeldung |
-| **Großschadenslage-Karte** | Interaktive Lagekarte mit Abschnitt-Polygonen (live, kein Reload), Pin-Modus zum Anlegen per Kartenklick mit Reverse Geocoding, Fahrzeug-GPS-Live-Tracking |
-| **SMS-Gateway-Anbindung** | Docker-Container verbindet sich ausgehend über WebSocket und versendet SMS via CoNiuGo-Modem |
+| **Großschadenslage** | Phasen-Kanban für Massenanfall-Ereignisse: Einsatzstellen, Abschnitte, Stabsfunktionen (SKKM), Einsatzjournal, Funkjournal, Bürgermeldungen, Pressemeldung; QR-Code-Schnellzugang |
+| **Großschadenslage-Karte** | Interaktive Lagekarte (Leaflet) mit Abschnitt-Polygonen (live, kein Reload), Pin-Modus per Kartenklick mit Reverse Geocoding, Marker-Clustering, Fahrzeug-GPS-Live-Tracking |
+| **Taktischer Anzeigemodus (ÖBFV E-27)** | Lagekarte nach ÖNORM-Einsatztaktik: genormte taktische Symbole, Magnetfarben je Einheitstyp, einblendbare Legende |
+| **Lagekarte-Druck & Print-Center** | Druckdialog A4/A3 (Lagekarte vs. Lagebericht), interaktive Druckvorschau mit Zoom/Pan-Formatrahmen, Druckfußzeile mit Logo, Zeiten, Einsatzstellen-Statistik & Ressourcen; Mehrfachauswahl zum Sammeldruck |
+| **GSL-Ressourcenverwaltung** | Einheiten anlegen, filtern, per Drag & Drop sortieren; direkt Einsatzstellen zuordnen (Board-Karte, Detail-Panel, Verlauf); Mehrfach-Disposition; Fremdorganisations-Ressourcen; eigenes Ressourcen-Journal |
+| **SKKM-Lagemeldungs-Regelkreis** | Lage → Auftrag → Kontrolle: Fälligkeits-Timer je Einsatzstelle, automatischer Auftrag im Funkjournal bei Überfälligkeit, Live-Chip |
+| **Übergreifende Meldungen** | Cross-Marker mit Status-Workflow, Notizen & Medien, Kamera-/Galerie-Upload, OSM-Karte (Org-Standort), Bearbeiten & Drucken |
+| **Einsatzkarte (Detail-Panel)** | Live-Updates ohne Reload, Kräfteübersicht, Foto-Upload (Kamera/Galerie) mit Lightbox, Karten-Pin, Druck |
+| **SMS-Gateway-Anbindung** | Docker-Container verbindet sich ausgehend über WebSocket und versendet SMS via CoNiuGo-Modem; SMS-Verifikation der Telefonnummer im Bürgerportal |
 | **KI-Assistent (✨)** | Auftragsvorschläge, Lage-Ticker-Hinweise, Lagebild und automatische Priorisierung via Anthropic Claude; opt-in pro Org |
 | **Org-Konfig-Backup** | JSON-Export/Import der Org-Konfiguration inkl. Dry-Run-Diff |
 | **System-Admin-Konsole** | Per-Org KPI-Übersicht mit Schnellzugriff für Systemadministratoren |
 | **Auto-Schließen** | Inaktive Einsätze werden nach konfigurierbarer Zeit automatisch geschlossen (systemweit und pro Org) |
-| **Wetterdaten-Integration** | Echtzeit-Nowcast (15-min), Ist-Werte, +6/+12/+24h-Vorhersage und Unwetterwarnungen via GeoSphere Austria (CC BY 4.0); Sturm- und Waldbrand-Szenario-Indikatoren; Radar-Overlay (RainViewer) auf der Lagekarte; globale `/wetter`-Seite; opt-out je Org |
+| **Wetterdaten-Integration** | Echtzeit-Nowcast (15-min), Ist-Werte, +6/+12/+24h-Vorhersage und Unwetterwarnungen; Kachelmann Plus-API als Primärquelle mit GeoSphere Austria/ZAMG-Ergänzung und Open-Meteo-Fallback; Sturm- und Waldbrand-Szenario-Indikatoren; Radar-Overlay (RainViewer) auf der Lagekarte; globale `/wetter`-Seite; opt-out je Org |
+| **Benutzer-Profil** | Eigener Name, E-Mail, Passwort und Avatar; Profilbild erscheint in Log-Einträgen und Stab |
 
 ---
 
@@ -61,6 +68,8 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | Templates | **Jinja2** (Server-Rendering, keine Build-Zeit) |
 | Frontend-Reaktivität | **HTMX** + **Alpine.js** |
 | Drag & Drop | **SortableJS** |
+| Karten | **Leaflet** + **Leaflet-Geoman** (Polygon-Zeichnen) + **Leaflet.markercluster** |
+| Rich-Text-Editor | **Quill** (Einsatzjournal, Stabsmeldungen) |
 | CSS-Framework | **Tailwind CSS 3** (lokaler Build, kein CDN) |
 | Realtime | FastAPI **WebSockets** (Pub/Sub je Einsatz) |
 | Auth | Session-Cookies + **bcrypt** + **itsdangerous** |
@@ -72,8 +81,8 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | Rate-Limiting | **slowapi** (IP-basiert + API-Key-basiert) |
 | QR-Code | **qrcode[pil]** |
 | PWA | Service Worker + Web App Manifest |
-| HTTP-Client (async) | **httpx** (GeoSphere Austria & Open-Meteo Weather-APIs) |
-| Wetter-Daten | **GeoSphere Austria Data Hub** (CC BY 4.0, kein API-Key) + **Open-Meteo** (Fallback) + **RainViewer** (Radar) |
+| HTTP-Client (async) | **httpx** (Kachelmann, GeoSphere Austria & Open-Meteo Weather-APIs) |
+| Wetter-Daten | **Kachelmann Plus-API** (Primärquelle) + **GeoSphere Austria Data Hub** / ZAMG (CC BY 4.0) + **Open-Meteo** (Fallback) + **RainViewer** (Radar) |
 | Deployment | Gunicorn + UvicornWorker, Port **8092**, NGINX, systemd |
 
 ---
@@ -312,16 +321,21 @@ AI_MODEL_FAST=claude-haiku-4-5-20251001
 # ── In-App-Update ──────────────────────────────────────────────────
 UPDATE_ZIP_REQUIRE_HASH=true
 
-# ── Wetter (GeoSphere Austria Data Hub — CC BY 4.0, kein API-Key) ──
+# ── Wetter ─────────────────────────────────────────────────────────
 WEATHER_ENABLED=true
+# Kachelmann Plus-API (kostenpflichtig) — Primärquelle wenn Key gesetzt.
+# Bevorzugt in den Systemeinstellungen pflegen (kachelmann_api_key); ENV = Fallback.
+KACHELMANN_API_KEY=
+# KACHELMANN_BASE_URL=https://api.kachelmannwetter.com/v02  # default
+# GeoSphere Austria / ZAMG (CC BY 4.0, kein API-Key) — Standardquelle/Ergänzung
 # GEOSPHERE_BASE_URL=https://dataset.api.hub.geosphere.at/v1  # default
-# GEOSPHERE_WARN_URL=https://openapi.hub.geosphere.at/warnapi/v1  # default
+# GEOSPHERE_WARN_URL=https://warnungen.zamg.at/wsapp/api      # amtliche Warnungen
 WEATHER_CACHE_TTL_NOWCAST=300    # Sekunden; Nowcast + Ist-Werte
 WEATHER_CACHE_TTL_NWP=1800       # Sekunden; NWP-Vorhersage
 WEATHER_CACHE_TTL_WARN=300       # Sekunden; Unwetterwarnungen
 WEATHER_HTTP_TIMEOUT=8           # Sekunden; externe API-Anfragen
 WEATHER_RADIUS_KM=15             # Fokus-Radius für Radarkarte
-WEATHER_FALLBACK_OPENMETEO=true  # Open-Meteo als Fallback wenn GeoSphere nicht erreichbar
+WEATHER_FALLBACK_OPENMETEO=true  # Open-Meteo als Fallback wenn Primärquelle nicht erreichbar
 ```
 
 ---
@@ -359,6 +373,12 @@ alembic downgrade -1
 | `0055_multitenancy_pr8_autoclose_backup.py` | Auto-Schließen je Org |
 | `0065_vehicle_position.py` | Fahrzeug-GPS-Positionshistorie |
 | `0066_weather_enabled.py` | `weather_enabled`-Flag in `OrgSettings` (Wetter-Opt-out je Org) |
+| `0067–0071_*` | Lagekarte-Persistenz, übergreifende Meldungen, GSL-Ressourcen (PR 1–5), LageToken |
+| `0072–0074_lage_einheit_*` | Disponier-Felder, Einheit-Einsatzleiter, GSL-Leiter-Historie |
+| `0076_rename_sichter_to_erkunder.py` | Stabsrolle „Sichter" → „Erkunder" |
+| `0077_gsl_lagemeldung_regelkreis.py` | SKKM-Lagemeldungs-Regelkreis (Timer-Felder, `auto_kind`) |
+| `0078_external_resources.py` | Fremdorganisations-Ressourcen |
+| `0079_multi_site_dispatch.py` | Mehrfach-Disposition von Einheiten an Einsatzstellen |
 
 Vollständiger Migrationsleitfaden: [`docs/MIGRATION_RUNBOOK.md`](docs/MIGRATION_RUNBOOK.md)
 
@@ -425,16 +445,31 @@ CI (GitHub Actions): Lint (ruff) + Typecheck (mypy) + pytest mit MariaDB-Service
 
 ### Test-Struktur
 
+**26 Testmodule, 335+ Testfunktionen.** Auswahl:
+
 ```
 tests/
-├── conftest.py               Fixtures: test_db (SQLite in-memory), client, API-Key
-├── test_api.py               REST-API Endpunkte (Einsatz anlegen, Idempotenz) — benötigt DB
-├── test_api_hardening.py     AlarmPayload/LageAlarmPayload Validation + Rate-Limit-Key
-├── test_breathing.py         Atemschutz-Zustandsmaschine (Unit-Tests)
-├── test_isolation.py         Multi-Tenancy Row-Level-Isolation + can_access_incident
-├── test_autoclose_per_org.py Auto-Schließen: globale vs. org-spezifische Konfiguration
-├── test_sysadmin.py          _org_stats() Aggregation (System-Admin-Konsole)
-└── test_smoke.py             Import-Smoke-Tests aller Multi-Tenancy-Module
+├── conftest.py                 Fixtures: test_db (SQLite in-memory), client, API-Key
+├── test_api.py                 REST-API Endpunkte (Einsatz anlegen, Idempotenz)
+├── test_api_hardening.py       AlarmPayload/LageAlarmPayload Validation + Rate-Limit-Key
+├── test_breathing.py           Atemschutz-Zustandsmaschine
+├── test_isolation.py           Multi-Tenancy Row-Level-Isolation + can_access_incident
+├── test_tenant_isolation.py    Tenant-Kontext fail-closed
+├── test_visibility_matrix.py   Sichtbarkeits-Testmatrix je Rolle
+├── test_autoclose_per_org.py   Auto-Schließen: global vs. org-spezifisch
+├── test_sysadmin.py            _org_stats() Aggregation (System-Admin-Konsole)
+├── test_stats_scoping.py       Statistik-Aggregate org-gescoped
+├── test_storage_quota.py       Speicher-Quotas je Org
+├── test_invitation.py          Einladungsmodell
+├── test_lagekarte_api.py       Lagekarte, Abschnitte, Marker
+├── test_lagemeldung_service.py SKKM-Lagemeldungs-Regelkreis (Timer-Logik)
+├── test_multi_site_dispatch.py Mehrfach-Disposition von Einheiten
+├── test_weather_service.py     Wetter-Aggregation + Fallback
+├── test_kachelmann_service.py  Kachelmann Plus-API
+├── test_weather_focus.py       Sturm-/Waldbrand-Szenario-Analyse
+├── test_address_autocomplete.py / test_address_edit.py  Adress-Suche & -Bearbeitung
+├── test_ai_*.py                KI: Vorschläge, Lagebild, Bericht, Service
+└── test_smoke.py               Import-Smoke-Tests
 ```
 
 ---
@@ -504,21 +539,28 @@ tests/
 │             → CSRF → SlowAPI (Rate-Limit)               │
 │                                                         │
 │  Routers:                                               │
-│    ui_incident   – Board, Aufgaben, Fahrzeuge           │
-│    ui_media      – Galerie, /medien/datei/{id}          │
-│    ui_breathing  – Atemschutzüberwachung                │
-│    ui_archive    – Archiv, PDF-Export                   │
-│    ui_admin      – Stammdaten, Benutzer, Audit          │
-│    ui_settings   – Org-Einstellungen, ZIP-Update        │
-│    ui_backup     – Konfig-Export/Import                 │
-│    ui_sysadmin   – System-Admin-Konsole                 │
-│    ui_invitation – Einladungslinks                      │
-│    ui_ai_prompts – KI-Prompt-Verwaltung                 │
-│    ui_stats      – Statistik                            │
-│    ui_push       – Web-Push-Verwaltung                  │
-│    api_v1        – REST-API (Alarmierung)               │
-│    ws            – WebSocket Pub/Sub                    │
-│    auth          – Login/Logout/QR-Login                │
+│    ui_incident      – Board, Aufgaben, Fahrzeuge        │
+│    ui_major_incident– Großschadenslage, Einsatzkarte    │
+│    ui_gsl_staff     – Stab, SKKM-Einsatzjournal         │
+│    lagekarte_api    – Lagekarte, Abschnitte, Marker     │
+│    ui_weather       – Wetter-Panel, /wetter             │
+│    ui_media         – Galerie, /medien/datei/{id}       │
+│    ui_breathing     – Atemschutzüberwachung             │
+│    ui_archive       – Archiv, PDF-Export                │
+│    ui_admin         – Stammdaten, Benutzer, Audit       │
+│    ui_settings      – Org-Einstellungen, ZIP-Update     │
+│    ui_backup        – Konfig-Export/Import              │
+│    ui_sysadmin      – System-Admin-Konsole              │
+│    ui_invitation    – Einladungslinks                   │
+│    ui_ai_prompts    – KI-Prompt-Verwaltung              │
+│    ui_profile       – Benutzer-Profil (Name/Avatar)     │
+│    ui_stats         – Statistik                         │
+│    ui_push          – Web-Push-Verwaltung               │
+│    public           – Bürger-Meldeportal (öffentlich)   │
+│    api_v1           – REST-API (Alarmierung, Lage)      │
+│    device_api       – SMS-Gateway-/Geräte-Anbindung     │
+│    ws               – WebSocket Pub/Sub                 │
+│    auth             – Login/Logout/QR-Login             │
 │                                                         │
 │  Core:                                                  │
 │    security.py   – Passwort, Session, API-Key, QR       │
@@ -530,21 +572,34 @@ tests/
 │    middleware/   – CSP-Headers, CSRF                    │
 │                                                         │
 │  Services:                                              │
-│    incident_service  – Einsatz-Logik                    │
-│    media_service     – Upload-Pipeline                  │
-│    pdf_service       – WeasyPrint PDF                   │
-│    push_service      – Web-Push VAPID                   │
-│    broadcast         – WS-Pub/Sub-Manager               │
-│    autoclose         – Hintergrund-Job Auto-Schließen   │
-│    ai_service        – Anthropic Claude                 │
-│    alarm_service     – Alarmtyp-Lookup                  │
-│    seed_service      – Seed-Template-Anwendung          │
+│    incident_service      – Einsatz-Logik                │
+│    major_incident_service– Großschadenslage             │
+│    resource_service      – GSL-Ressourcen/Disposition   │
+│    lagekarte             – Lagekarte-Persistenz          │
+│    lagemeldung_service   – SKKM-Regelkreis-Timer         │
+│    gsl_lagemeldung_remind– Auto-Auftrag bei Überfäll.    │
+│    gsl_staff_service     – Stab/Einsatzjournal           │
+│    weather_service       – Wetter-Aggregation            │
+│    kachelmann_service    – Kachelmann Plus-API           │
+│    weather_focus         – Sturm-/Waldbrand-Szenario     │
+│    geocoding/geo_service – Adresse↔Koordinaten           │
+│    media_service         – Upload-Pipeline               │
+│    lage_media_service    – GSL-Medien                    │
+│    pdf_service           – WeasyPrint PDF                │
+│    push_service          – Web-Push VAPID                │
+│    broadcast             – WS-Pub/Sub-Manager            │
+│    autoclose             – Auto-Schließen-Job            │
+│    task_reminder         – Auftrags-/Meldungs-Reminder   │
+│    ai_service            – Anthropic Claude              │
+│    alarm_service         – Alarmtyp-Lookup               │
+│    sms_service           – SMS-Gateway-Versand           │
+│    seed_service          – Seed-Template-Anwendung       │
 └────────────────────────────┬────────────────────────────┘
               ┌──────────────┼──────────────┐
 ┌─────────────▼──┐  ┌───────▼──────┐  ┌───▼──────────────┐
 │  MariaDB 10.11 │  │ app_storage/ │  │ app/static/      │
 │  (utf8mb4)     │  │ incident_    │  │ css, js, img     │
-│  55 Migrationen│  │ media/       │  │ (kein Auth nötig)│
+│  79 Migrationen│  │ media/       │  │ (kein Auth nötig)│
 └────────────────┘  └─────────────┘  └──────────────────┘
 ```
 
@@ -682,8 +737,8 @@ Updates können über die Weboberfläche eingespielt werden — kein SSH erforde
 
 **Release-ZIP erstellen:**
 ```bash
-git archive --format=zip --prefix=release-2.2.0/ HEAD > release-2.2.0.zip
-sha256sum release-2.2.0.zip
+git archive --format=zip --prefix=release-2.5.0/ HEAD > release-2.5.0.zip
+sha256sum release-2.5.0.zip
 ```
 
 ---
@@ -693,7 +748,7 @@ sha256sum release-2.2.0.zip
 ```
 app/
 ├── main.py              FastAPI-App, Middleware, Router-Registrierung
-├── config.py            Einstellungen (pydantic-settings, .env) — v2.2.0
+├── config.py            Einstellungen (pydantic-settings, .env)
 ├── db.py                SQLAlchemy-Engine, SessionLocal, Base
 ├── cli.py               CLI: create-admin, create-api-key, generate-vapid
 ├── seed_data.py         Initialdaten (Rollen, Alarmtypen, ...)
@@ -709,6 +764,9 @@ app/
 │   └── csrf.py              Double-Submit CSRF-Schutz
 ├── models/
 │   ├── incident.py      Incident, Task, TaskMedia, Message, IncidentOrg, IncidentToken, ...
+│   ├── major_incident.py Großschadenslage: IncidentSite, Sector, SiteLogEntry,
+│   │                    LageEinheit, LageDispatch, CrossSiteMarker, SiteMedia, ...
+│   ├── lagekarte.py     Lagekarte-Geometrie, Marker, Fahrzeug-Positionen
 │   ├── user.py          User, Role, ApiKey, AuditLog, DeviceToken, ...
 │   ├── master.py        FireDept, VehicleMaster, Member (TenantScoped), OrgSettings,
 │   │                    AlarmType (TenantScoped), SeedTemplate, ...
@@ -716,51 +774,79 @@ app/
 │   ├── breathing.py     BreathingTroop, TroopMember, PressureLog
 │   └── password_reset.py
 ├── routers/
-│   ├── ui_incident.py   Board, Aufgaben, Fahrzeuge, Media-Upload
-│   ├── ui_media.py      Galerie (/medien), geschützte Datei-Auslieferung
-│   ├── ui_breathing.py  Atemschutzüberwachung
-│   ├── ui_archive.py    Archiv, PDF-Export
-│   ├── ui_admin.py      Stammdaten, Benutzer, API-Keys, Audit
-│   ├── ui_settings.py   Org-Einstellungen, ZIP-Update, System-Admin
-│   ├── ui_backup.py     Konfig-Export/Import (JSON, Dry-Run)
-│   ├── ui_sysadmin.py   System-Admin-Konsole (/admin/system/orgs)
-│   ├── ui_invitation.py Einladungslinks für neue Org-Admins
-│   ├── ui_ai_prompts.py KI-Prompt-Verwaltung
-│   ├── ui_stats.py      Statistik-Dashboard
-│   ├── ui_push.py       Web-Push-Verwaltung
+│   ├── ui_incident.py        Board, Aufgaben, Fahrzeuge, Media-Upload
+│   ├── ui_major_incident.py  Großschadenslage, Einsatzkarte, Disposition
+│   ├── ui_gsl_staff.py       Stab, SKKM-Einsatzjournal, Funkjournal
+│   ├── lagekarte_api.py      Lagekarte, Abschnitte, Marker, Druck
+│   ├── ui_weather.py         Wetter-Panel, globale /wetter-Seite
+│   ├── ui_media.py           Galerie (/medien), geschützte Datei-Auslieferung
+│   ├── ui_breathing.py       Atemschutzüberwachung
+│   ├── ui_archive.py         Archiv, PDF-Export
+│   ├── ui_admin.py           Stammdaten, Benutzer, API-Keys, Audit
+│   ├── ui_settings.py        Org-Einstellungen, ZIP-Update, System-Admin
+│   ├── ui_backup.py          Konfig-Export/Import (JSON, Dry-Run)
+│   ├── ui_sysadmin.py        System-Admin-Konsole (/admin/system/orgs)
+│   ├── ui_invitation.py      Einladungslinks für neue Org-Admins
+│   ├── ui_ai_prompts.py      KI-Prompt-Verwaltung
+│   ├── ui_profile.py         Benutzer-Profil (Name/E-Mail/Passwort/Avatar)
+│   ├── ui_stats.py           Statistik-Dashboard
+│   ├── ui_push.py            Web-Push-Verwaltung
 │   ├── ui_password_reset.py
-│   ├── api_v1.py        REST-API (Alarmierung, Lage-Alarm)
-│   ├── ws.py            WebSocket Pub/Sub
-│   └── auth.py          Login / Logout / QR-Login / Geräte-Login
+│   ├── public.py             Öffentliches Bürger-Meldeportal (+ SMS-Verifikation)
+│   ├── api_v1.py             REST-API (Alarmierung, Lage-Alarm)
+│   ├── device_api.py         SMS-Gateway-/Geräte-WebSocket-Anbindung
+│   ├── ws.py                 WebSocket Pub/Sub
+│   └── auth.py               Login / Logout / QR-Login / Geräte-Login
 ├── services/
-│   ├── incident_service.py  Einsatz-Logik, Spalten, Tasks
-│   ├── media_service.py     Upload-Pipeline (Bild/PDF/Video/HEIC)
-│   ├── pdf_service.py       WeasyPrint PDF-Generierung
-│   ├── push_service.py      Web-Push (VAPID)
-│   ├── broadcast.py         WS-Pub/Sub-Manager
-│   ├── autoclose.py         Auto-Schließen Hintergrund-Service
-│   ├── ai_service.py        Anthropic Claude Integration
-│   ├── alarm_service.py     Alarmtyp-Lookup + org-aware
-│   ├── seed_service.py      Seed-Template-Anwendung bei Org-Anlage
-│   ├── sms_service.py       SMS-Versand via Gateway-Container
-│   ├── mail_service.py      SMTP (Passwort-Reset, Einladungen)
-│   └── update_service.py    ZIP-Update + Alembic-Migration
+│   ├── incident_service.py      Einsatz-Logik, Spalten, Tasks
+│   ├── major_incident_service.py Großschadenslage: Stellen, Phasen, Cross-Marker
+│   ├── resource_service.py      GSL-Ressourcen + Mehrfach-Disposition
+│   ├── lagekarte.py             Lagekarte-Geometrie-Persistenz
+│   ├── lagemeldung_service.py   SKKM-Regelkreis: Timer-Logik
+│   ├── gsl_lagemeldung_reminder.py Auto-Auftrag bei Überfälligkeit (Loop)
+│   ├── gsl_staff_service.py     Stab, Einsatzjournal, Funkjournal
+│   ├── site_pages.py            Einsatzstellen-Druck/Seiten
+│   ├── weather_service.py       Wetter-Aggregation + Cache + Fallback
+│   ├── kachelmann_service.py    Kachelmann Plus-API-Client
+│   ├── weather_focus.py         Sturm-/Waldbrand-Szenario-Analyse
+│   ├── geocoding.py / geo_service.py  Adresse ↔ Koordinaten
+│   ├── address_autocomplete.py  Adress-Suche (Bürgerportal, Pin)
+│   ├── media_service.py         Upload-Pipeline (Bild/PDF/Video/HEIC)
+│   ├── lage_media_service.py    GSL-Medien (Einsatzstellen-Fotos)
+│   ├── storage_service.py       Speicher-Quota-Verwaltung
+│   ├── pdf_service.py           WeasyPrint PDF-Generierung
+│   ├── push_service.py          Web-Push (VAPID)
+│   ├── broadcast.py             WS-Pub/Sub-Manager
+│   ├── autoclose.py             Auto-Schließen Hintergrund-Service
+│   ├── task_reminder.py         Auftrags-/Meldungs-Fälligkeits-Reminder
+│   ├── breathing_service.py     Atemschutz-Logik
+│   ├── ai_service.py            Anthropic Claude Integration
+│   ├── alarm_service.py         Alarmtyp-Lookup + org-aware
+│   ├── seed_service.py          Seed-Template-Anwendung bei Org-Anlage
+│   ├── sms_service.py           SMS-Versand via Gateway-Container
+│   ├── mail_service.py          SMTP (Passwort-Reset, Einladungen)
+│   └── update_service.py        ZIP-Update + Alembic-Migration
 ├── static/
 │   ├── css/app.css          Fertiger Tailwind-Build (committet)
-│   ├── js/                  alpine.min.js, htmx.min.js, sortable.min.js, app.js, ...
-│   └── img/                 Logo, Favicon, Icons
+│   ├── js/                  alpine, htmx, sortable, leaflet (+geoman, markercluster),
+│   │                        quill, app.js, ...
+│   └── img/                 Logo, Favicon, Icons, Leaflet-Marker, taktische Symbole
 └── templates/
     ├── base.html            Master-Layout (Nav, Modal, Toasts, WS-Alert)
     ├── incident/            Board-Komponenten, Task/Fahrzeug-Modals
+    ├── incident_major/      Großschadenslage: Board, Einsatzkarte, Lagekarte, Stab
+    ├── weather/             Wetter-Panel, /wetter-Seite
+    ├── profile/             Benutzer-Profil
+    ├── public/              Öffentliches Bürger-Meldeportal
     ├── media/               gallery.html
     ├── admin/               sysadmin_orgs.html, konfig.html, ...
     └── ...
-alembic/versions/            Migrationen 0001–0055
+alembic/versions/            Migrationen 0001–0079
 docs/
 ├── MIGRATION_RUNBOOK.md     Vollständiger Migrationsleitfaden
 ├── multi-tenancy-konzept.md Technisches Konzeptdokument
 └── wiki/                    GitHub-Wiki-Quelldateien
-tests/                       pytest-Suite (8 Testmodule, 60+ Unit-Tests)
+tests/                       pytest-Suite (26 Testmodule, 335+ Tests)
 app_storage/incident_media/  Medien-Dateien (Auth-geschützt, nicht im Repo)
 ```
 
