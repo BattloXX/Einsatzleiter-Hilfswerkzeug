@@ -43,9 +43,6 @@
 }
 .media-thumb:hover { opacity: .8; }
 .site-log__author-name { display:block; font-size:.65rem; color:var(--text-muted); margin-top:2px; }
-/* input-row im engen Seitenpanel umbrechen */
-.site-detail .input-row { flex-wrap: wrap; }
-.site-detail .input-row .form-input { flex: 1; min-width: 120px; }
 </style>
 
 <div class="modal__header" x-data="{editing:false}" data-open-site-id="{{ site.id }}">
@@ -417,10 +414,10 @@
         <option value=”note”>Notiz</option>
       </select>
     </div>
-    <div class=”input-row”>
+    <div style=”display:flex;gap:6px;align-items:center;”>
       <input type=”text” name=”text” class=”form-input” placeholder=”Eintrag erfassen…”
-             required autocomplete=”off” maxlength=”500”>
-      <button type=”submit” class=”btn btn--secondary btn--sm”>Eintrag speichern</button>
+             required autocomplete=”off” maxlength=”500” style=”flex:1;min-width:0;”>
+      <button type=”submit” class=”btn btn--secondary btn--sm”>Speichern</button>
     </div>
     <p class=”form-hint” style=”margin-top:4px;”>Nur „Lagemeldung” setzt den Lagemeldungs-Timer zurück.</p>
   </form>
