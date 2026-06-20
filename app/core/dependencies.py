@@ -17,6 +17,15 @@ from app.core.tenant import set_tenant_context
 from app.db import get_db
 
 
+def _set_uas_state(request: HTTPConnection, org_id: int | None, db: Session) -> None:
+    """Setzt request.state.uas_module_enabled fail-safe (nie crashen)."""
+    try:
+        from app.services.uas_service import uas_effective_enabled
+        request.state.uas_module_enabled = uas_effective_enabled(org_id, db)
+    except Exception:
+        request.state.uas_module_enabled = False
+
+
 def _resolve_current_org(
     request: HTTPConnection,
     db: Session = Depends(get_db),
@@ -26,7 +35,12 @@ def _resolve_current_org(
     - Reguläre Nutzer: user.org_id
     - system_admin ohne ?org=: kein Filter (sieht alles)
     - system_admin mit ?org=N: impersoniert Org N (Audit-Eintrag)
+
+    Setzt zusätzlich request.state.uas_module_enabled (True/False).
     """
+    # UAS-Modul-Default: aus (wird unten ggf. überschrieben)
+    request.state.uas_module_enabled = False
+
     user = getattr(request.state, "user", None)
     if user is None:
         set_tenant_context(db, None)
@@ -48,12 +62,14 @@ def _resolve_current_org(
                 ip=request.client.host if request.client else None,
             )
             set_tenant_context(db, org_id)
+            _set_uas_state(request, org_id, db)
             return org_id
         set_tenant_context(db, None)
         return None
 
     org_id = user.org_id
     set_tenant_context(db, org_id)
+    _set_uas_state(request, org_id, db)
     return org_id
 
 

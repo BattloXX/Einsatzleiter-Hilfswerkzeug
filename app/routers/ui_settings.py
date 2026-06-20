@@ -109,6 +109,7 @@ async def save_org_settings(
     gsl_lagemeldung_interval_raw: str = Form(""),
     gsl_lagemeldung_sofort_raw: str = Form(""),
     gsl_lagemeldung_auto_auftrag_raw: str = Form(""),
+    uas_module_enabled_raw: str = Form(""),
 ):
     is_sysadmin = has_role(user, "system_admin")
     effective_org_id = target_org_id if is_sysadmin and target_org_id else user.org_id
@@ -237,6 +238,21 @@ async def save_org_settings(
     if ok:
         org_s.gsl_lagemeldung_interval_sofort_minutes = val
     org_s.gsl_lagemeldung_auto_auftrag = gsl_lagemeldung_auto_auftrag_raw in ("1", "true", "on")
+
+    # UAS-Modul: Org-Toggle (nur wirksam wenn System-Flag ebenfalls aktiv)
+    old_uas = org_s.uas_module_enabled
+    new_uas = uas_module_enabled_raw in ("1", "true", "on")
+    org_s.uas_module_enabled = new_uas
+    if old_uas != new_uas:
+        from app.core.audit import write_audit
+        write_audit(
+            db,
+            "uas.org_toggle",
+            org_id=effective_org_id,
+            user_id=user.id,
+            payload={"alt": old_uas, "neu": new_uas},
+            ip=request.client.host if request.client else None,
+        )
 
     # Wird die Lagemeldungs-Pflicht gerade erst aktiviert (Intervall aus → an), Timer für
     # bereits laufende Einsatzstellen sofort nachziehen – sonst erst beim nächsten
@@ -467,6 +483,56 @@ def seed_templates_page(request: Request, db=Depends(get_db), user: User = Depen
         "user": user,
         "by_profile": by_profile,
     })
+
+
+# ── System-Modul-Toggles (system_admin only) ─────────────────────────────────
+
+@router.post("/settings/system/uas-toggle")
+def toggle_uas_system(
+    request: Request,
+    db=Depends(get_db),
+    user: User = Depends(require_system_admin),
+    enabled_raw: str = Form(""),
+):
+    """Systemweiten UAS-Flag umschalten (nur system_admin).
+
+    Setzt SystemSettings key "uas_module_enabled" auf "true" oder "false".
+    Beim Ausschalten bleiben alle Org-Daten und Org-Toggles erhalten;
+    Re-Aktivierung stellt die Sichtbarkeit sofort wieder her.
+    """
+    new_enabled = enabled_raw in ("1", "true", "on")
+    new_value = "true" if new_enabled else "false"
+
+    row = db.query(SystemSettings).filter(SystemSettings.key == "uas_module_enabled").first()
+    old_value = row.value if row else "false"
+
+    if row is None:
+        from datetime import UTC, datetime
+        row = SystemSettings(
+            key="uas_module_enabled",
+            value=new_value,
+            updated_at=datetime.now(UTC),
+            updated_by_user_id=user.id,
+        )
+        db.add(row)
+    else:
+        from datetime import UTC, datetime
+        row.value = new_value
+        row.updated_at = datetime.now(UTC)
+        row.updated_by_user_id = user.id
+
+    from app.core.audit import write_audit
+    write_audit(
+        db,
+        "uas.system_toggle",
+        user_id=user.id,
+        payload={"alt": old_value, "neu": new_value},
+        ip=request.client.host if request.client else None,
+    )
+    db.commit()
+
+    org_suffix = f"&org_id={request.query_params.get('org_id', '')}" if request.query_params.get("org_id") else ""
+    return RedirectResponse(f"/admin/settings?saved=1{org_suffix}", status_code=303)
 
 
 # ── System-Update (system_admin only) ────────────────────────────────────────

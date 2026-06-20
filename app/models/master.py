@@ -314,6 +314,10 @@ class OrgSettings(Base):
     # Automatischen Funkjournal-Auftrag bei Überfälligkeit erstellen
     gsl_lagemeldung_auto_auftrag:            Mapped[bool]       = mapped_column(Boolean, default=True)
 
+    # UAS-Modul: je Org aktivierbar, aber nur wenn System-Flag (SystemSettings key
+    # "uas_module_enabled") ebenfalls "true" ist → effektiv = System AND Org.
+    uas_module_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     org: Mapped[FireDept] = relationship(back_populates="settings")
 
 

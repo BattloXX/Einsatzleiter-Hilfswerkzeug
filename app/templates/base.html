@@ -52,6 +52,9 @@
       {% if WEATHER_ENABLED %}
       <a href="/wetter" class="nav-link {% if request.url.path.startswith('/wetter') %}active{% endif %}">🌦 Wetter</a>
       {% endif %}
+      {% if request.state.uas_module_enabled %}
+      <a href="/uas" class="nav-link {% if request.url.path.startswith('/uas') %}active{% endif %}">&#x1F681; Drohne</a>
+      {% endif %}
       {% if is_admin %}
       <div class="nav-dropdown" x-data="{open:false}" @click.outside="open=false">
         <button class="nav-link nav-link--dropdown {% if '/admin' in request.url.path %}active{% endif %}"
