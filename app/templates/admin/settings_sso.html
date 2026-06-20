@@ -109,10 +109,11 @@
       <div class="form-group" style="margin:0">
         <label for="client_secret">Client Secret</label>
         {% if config and config.client_secret_enc %}
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        {# F-02: kein Sentinel-String mehr; secret_changed=1 signalisiert neues Secret #}
+        <div id="secret-status" style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
           <span style="color:var(--color-success);font-size:.85rem">&#10003; Secret gesetzt</span>
           <button type="button" class="btn btn--ghost btn--sm"
-                  onclick="document.getElementById('secret-replace').style.display='';this.parentElement.style.display='none'">
+                  onclick="document.getElementById('secret-status').style.display='none';document.getElementById('secret-replace').style.display='';document.getElementById('secret_changed').value='1'">
             Ersetzen
           </button>
         </div>
@@ -122,26 +123,42 @@
         </div>
         {% else %}
         <input type="password" id="client_secret" name="client_secret"
-               class="form-input" autocomplete="new-password" placeholder="Client Secret eingeben">
+               class="form-input" autocomplete="new-password" placeholder="Client Secret eingeben"
+               oninput="document.getElementById('secret_changed').value='1'">
         {% endif %}
+        <input type="hidden" id="secret_changed" name="secret_changed" value="{{ '0' if config and config.client_secret_enc else '1' }}">
         <p class="form-hint">Wird Fernet-verschlusselt in der Datenbank gespeichert &mdash; nie im Klartext angezeigt</p>
       </div>
 
       <div class="form-group" style="margin:0">
-        <label for="authority_base">Authority-URL (optional)</label>
-        <input type="text" id="authority_base" name="authority_base"
-               value="{{ config.authority_base or '' if config else '' }}"
-               placeholder="https://login.microsoftonline.com"
-               class="form-input">
-        <p class="form-hint">Nur fur Sovereign Clouds (Government, China). Leer = Standard</p>
+        {# F-01: authority_base als Whitelist-Select — kein freies Textfeld #}
+        <label for="authority_base">Authority-URL</label>
+        <select id="authority_base" name="authority_base" class="form-control" style="max-width:400px">
+          <option value=""
+                  {% if not config or not config.authority_base %}selected{% endif %}>
+            https://login.microsoftonline.com (Standard / Public Cloud)
+          </option>
+          <option value="https://login.microsoftonline.us"
+                  {% if config and config.authority_base == 'https://login.microsoftonline.us' %}selected{% endif %}>
+            https://login.microsoftonline.us (US Government)
+          </option>
+          <option value="https://login.partner.microsoftonline.cn"
+                  {% if config and config.authority_base == 'https://login.partner.microsoftonline.cn' %}selected{% endif %}>
+            https://login.partner.microsoftonline.cn (China)
+          </option>
+          <option value="https://login.microsoftonline.de"
+                  {% if config and config.authority_base == 'https://login.microsoftonline.de' %}selected{% endif %}>
+            https://login.microsoftonline.de (Germany, legacy)
+          </option>
+        </select>
+        <p class="form-hint">Nur fur Sovereign Clouds andern. Standard ist fast immer richtig.</p>
       </div>
 
       <div style="display:flex;gap:10px">
         <button type="submit" class="btn btn--primary">Speichern</button>
         <button type="button" class="btn btn--ghost"
                 hx-post="/admin/sso/test"
-                {% if is_sysadmin and org %}hx-vals='{"target_org_id": "{{ org.id }}"}'{% endif %}
-                hx-headers='{"X-CSRFToken": "{{ request.state.csrf_token }}"}'
+                hx-vals='{"_csrf": "{{ request.state.csrf_token }}"{% if is_sysadmin and org %}, "target_org_id": "{{ org.id }}"{% endif %}}'
                 hx-target="#sso-test-result"
                 hx-swap="innerHTML">
           Verbindung testen
@@ -208,6 +225,20 @@
         </label>
         <p class="form-hint" style="color:var(--color-warn)">
           Achtung: Behalten Sie mindestens einen lokalen Admin-Account mit Passwort als Notfallzugang (Break-Glass)!
+        </p>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" name="allow_email_linking" value="1"
+                 {% if config and config.allow_email_linking %}checked{% endif %}
+                 class="toggle-checkbox">
+          <span class="toggle-switch"></span>
+          Bestehenden lokalen Account per E-Mail automatisch mit SSO verknupfen
+        </label>
+        <p class="form-hint" style="color:var(--color-warn)">
+          Nur aktivieren wenn die E-Mail-Adressen in Entra ID vertrauenswurdig sind und ausschliesslich von Ihrer Organisation kontrolliert werden.
+          Deaktiviert = sicherer Standard.
         </p>
       </div>
 

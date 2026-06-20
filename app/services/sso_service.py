@@ -21,9 +21,38 @@ class SsoError(Exception):
         self.message = message
 
 
-# ── JWKS-Cache (in-memory, keyed by tenant_id) ───────────────────────────────
+# ── authority_base Whitelist (F-01: SSRF-Schutz) ─────────────────────────────
+
+ALLOWED_AUTHORITY_BASES: frozenset[str] = frozenset({
+    "https://login.microsoftonline.com",        # Public Cloud
+    "https://login.microsoftonline.us",          # US Government
+    "https://login.partner.microsoftonline.cn",  # China
+    "https://login.microsoftonline.de",          # Germany (legacy)
+})
+
+
+def validate_authority_base(value: str | None) -> str | None:
+    """Gibt bereinigte authority_base zurück oder None (= Public Cloud Default).
+    Wirft ValueError bei unerlaubtem Wert."""
+    if not value or not value.strip():
+        return None
+    stripped = value.strip().rstrip("/")
+    if stripped not in ALLOWED_AUTHORITY_BASES:
+        raise ValueError(
+            f"authority_base nicht erlaubt: '{stripped}'. "
+            f"Erlaubt: {sorted(ALLOWED_AUTHORITY_BASES)}"
+        )
+    return stripped
+
+
+# ── JWKS-Cache (in-memory, keyed by tenant_id + authority_base) ──────────────
+# F-06: Cache-Key enthält authority_base, damit Änderungen sofort wirken.
 
 _jwks_cache: dict[str, tuple[dict, float]] = {}
+
+
+def _cache_key(tenant_id: str, authority_base: str | None) -> str:
+    return f"{tenant_id}|{authority_base or ''}"
 
 
 def _authority(tenant_id: str, authority_base: str | None = None) -> str:
@@ -33,7 +62,8 @@ def _authority(tenant_id: str, authority_base: str | None = None) -> str:
 
 async def _get_jwks(tenant_id: str, authority_base: str | None = None) -> dict:
     """Lädt JWKS für einen Tenant, cached für SSO_JWKS_CACHE_TTL Sekunden."""
-    cached = _jwks_cache.get(tenant_id)
+    key = _cache_key(tenant_id, authority_base)
+    cached = _jwks_cache.get(key)
     if cached and (time.time() - cached[1]) < settings.SSO_JWKS_CACHE_TTL:
         return cached[0]
     return await _fetch_jwks(tenant_id, authority_base)
@@ -48,7 +78,7 @@ async def _fetch_jwks(tenant_id: str, authority_base: str | None = None) -> dict
         resp = await client.get(jwks_uri)
         resp.raise_for_status()
         jwks = resp.json()
-    _jwks_cache[tenant_id] = (jwks, time.time())
+    _jwks_cache[_cache_key(tenant_id, authority_base)] = (jwks, time.time())
     return jwks
 
 
@@ -149,10 +179,11 @@ async def validate_id_token(
     except JWTError as exc:
         raise SsoError("idtoken_invalid", f"id_token Header unlesbar: {exc}") from exc
 
-    # kid-Miss → JWKS neu laden (Key-Rollover)
+    # kid-Miss → JWKS neu laden (Key-Rollover), Cache für diesen Tenant invalidieren
     kid = header.get("kid")
     key_ids = {k.get("kid") for k in jwks.get("keys", [])}
     if kid and kid not in key_ids:
+        _jwks_cache.pop(_cache_key(tenant_id, authority_base), None)
         jwks = await _fetch_jwks(tenant_id, authority_base)
 
     issuer = f"{_authority(tenant_id, authority_base)}"
@@ -164,7 +195,7 @@ async def validate_id_token(
             algorithms=["RS256"],
             audience=client_id,
             issuer=issuer,
-            options={"leeway": 120},
+            options={"leeway": 60},
         )
     except ExpiredSignatureError as exc:
         raise SsoError("idtoken_invalid", "id_token abgelaufen") from exc

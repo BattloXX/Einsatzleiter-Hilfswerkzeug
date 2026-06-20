@@ -67,8 +67,10 @@ async def login(
             status_code=401,
         )
 
-    # enforce_sso: kein lokales Login wenn Org SSO erzwingt und kein lokales Passwort
-    if user.org_id and not user.password_hash:
+    # F-05: enforce_sso — prüft auth_provider, nicht password_hash
+    # Gilt für alle SSO-User (auth_provider=="entra"), auch wenn nachträglich Passwort gesetzt.
+    # Break-Glass: lokale Accounts (auth_provider=="local") mit Passwort bleiben immer loginbar.
+    if user.org_id and getattr(user, "auth_provider", "local") == "entra":
         from app.models.sso import OrgSsoConfig
         sso_cfg = db.query(OrgSsoConfig).filter(
             OrgSsoConfig.org_id == user.org_id,

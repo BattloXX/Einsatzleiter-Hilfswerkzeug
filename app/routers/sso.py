@@ -216,8 +216,22 @@ async def sso_callback(
         db.commit()
         return RedirectResponse("/login?error=no_group_denied", status_code=302)
 
+    # F-04: Org-Aktivitätsprüfung VOR JIT-Provisioning
+    if not org.is_active or org.deleted_at:
+        write_audit(db, "auth.sso.denied", org_id=org.id, ip=ip,
+                    payload={"code": "org_inactive"})
+        db.commit()
+        return RedirectResponse("/login?error=sso_failed", status_code=302)
+
     # JIT-Provisioning
-    oid = claims.get("oid") or claims.get("sub", "")
+    # F-11: leerer OID ist ungültig
+    oid = claims.get("oid") or claims.get("sub")
+    if not oid:
+        write_audit(db, "auth.sso.denied", org_id=org.id, ip=ip,
+                    payload={"code": "idtoken_invalid", "reason": "missing_oid"})
+        db.commit()
+        return RedirectResponse("/login?error=sso_failed", status_code=302)
+
     tid = claims.get("tid", "")
     display_name = claims.get("name") or email_raw
     full_name = claims.get("name")
@@ -227,18 +241,23 @@ async def sso_callback(
     user = db.query(User).filter(User.entra_oid == oid).first()
     jit_provisioned = False
 
-    if not user and email:
-        user = db.query(User).filter(
-            User.email == email, User.org_id == org.id
+    # F-07: E-Mail-Linking nur wenn explizit erlaubt (opt-in, default False)
+    if not user and email and getattr(config, "allow_email_linking", False):
+        existing = db.query(User).filter(
+            User.email == email, User.org_id == org.id,
+            User.auth_provider == "local",
         ).first()
-        if user:
-            # Bestehenden lokalen Account auf SSO heben
-            user.entra_oid = oid
-            user.entra_tid = tid
-            user.auth_provider = "entra"
+        if existing:
+            existing.entra_oid = oid
+            existing.entra_tid = tid
+            existing.auth_provider = "entra"
+            user = existing
+            write_audit(db, "auth.sso.email_linked", org_id=org.id, user_id=existing.id, ip=ip,
+                        payload={"email": email})
 
     if not user:
-        username = _unique_username(db, upn, slug)
+        # F-12: slug bereinigen bevor er in Usernamen eingebettet wird
+        username = _unique_username(db, upn, re.sub(r"[^a-z0-9-]", "", slug.lower())[:20])
         user = User(
             username=username,
             password_hash=None,
@@ -266,12 +285,6 @@ async def sso_callback(
                 user.full_name = full_name
             if email:
                 user.email = email
-
-    if not org.is_active or org.deleted_at:
-        write_audit(db, "auth.sso.denied", org_id=org.id, ip=ip,
-                    payload={"code": "org_inactive"})
-        db.commit()
-        return RedirectResponse("/login?error=sso_failed", status_code=302)
 
     # Rollen synchronisieren
     old_role_ids = {ur.role_id for ur in user.user_roles}
@@ -307,7 +320,8 @@ async def sso_callback(
 # ── GET /sso/discover ─────────────────────────────────────────────────────────
 
 @router.get("/sso/discover")
-async def sso_discover(email: str, db: Session = Depends(get_db)):
+@(_limiter.limit("20/minute") if _limiter else lambda f: f)  # F-08: Rate-Limit
+async def sso_discover(request: Request, email: str, db: Session = Depends(get_db)):
     """Ermittelt die SSO-Login-URL für eine E-Mail-Domain."""
     if not settings.SSO_ENABLED or "@" not in email:
         return JSONResponse({"found": False})
@@ -326,15 +340,13 @@ async def sso_discover(email: str, db: Session = Depends(get_db)):
         if domain in cfg.allowed_domain_list:
             org = cfg.org
             if org and org.is_active and not org.deleted_at:
-                matches.append({
-                    "slug": org.slug,
-                    "name": org.name,
-                    "login_url": f"/sso/{org.slug}/login",
-                })
+                # F-08: kein org.name in Response (verhindert Kundenlisten-Enumeration)
+                matches.append(f"/sso/{org.slug}/login")
 
     if len(matches) == 1:
-        return JSONResponse({"found": True, "redirect": matches[0]["login_url"],
-                             "org": matches[0]["name"]})
+        return JSONResponse({"found": True, "redirect": matches[0]})
     if len(matches) > 1:
-        return JSONResponse({"found": True, "multiple": True, "orgs": matches})
+        # Bei mehreren Treffern: nur Login-URLs, keine Namen
+        return JSONResponse({"found": True, "multiple": True,
+                             "orgs": [{"login_url": u} for u in matches]})
     return JSONResponse({"found": False})

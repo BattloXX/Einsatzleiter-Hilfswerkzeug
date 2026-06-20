@@ -125,6 +125,12 @@ class Settings(BaseSettings):
     KACHELMANN_BASE_URL: str = "https://api.kachelmannwetter.com/v02"
     KACHELMANN_API_KEY: str = ""
 
+    # Fernet-Verschlüsselung (Client Secrets, KI-API-Keys)
+    # Eigener Key für Datenverschlüsselung; unabhängig von SECRET_KEY rotierbar.
+    # Generieren: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Leer → Fallback auf SHA256("fernet-v1:" + SECRET_KEY) [abwärtskompatibel].
+    FERNET_KEY: str = ""
+
     # SSO / Microsoft Entra ID
     SSO_ENABLED: bool = True
     MS_LOGIN_BASE_URL: str = "https://login.microsoftonline.com"

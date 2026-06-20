@@ -30,6 +30,8 @@ class OrgSsoConfig(Base):
     deny_if_no_group: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     sync_profile: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     enforce_sso: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # F-07: E-Mail-Linking (lokaler Account → SSO) nur wenn explizit aktiviert
+    allow_email_linking: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(

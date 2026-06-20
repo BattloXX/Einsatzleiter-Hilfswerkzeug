@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.config import settings
 from app.core.audit import write_audit
 from app.core.crypto import decrypt_secret, encrypt_secret
+from app.services.sso_service import validate_authority_base
 from app.core.permissions import require_role
 from app.core.templating import templates
 from app.db import get_db
@@ -92,17 +93,25 @@ async def sso_settings_save(
     tenant_id: str = Form(""),
     client_id: str = Form(""),
     client_secret: str = Form(""),
+    secret_changed: str = Form(""),    # F-02: "1" = neues Secret vorhanden
     authority_base: str = Form(""),
     allowed_domains: str = Form(""),
     default_role_id: str = Form(""),
     deny_if_no_group: str = Form(""),
     sync_profile: str = Form(""),
     enforce_sso: str = Form(""),
+    allow_email_linking: str = Form(""),  # F-07
 ):
     from fastapi.responses import RedirectResponse
     effective_org_id = _get_org_id(user, target_org_id)
     if not effective_org_id:
         return RedirectResponse("/admin/sso?flash=error_no_org", status_code=302)
+
+    # F-01: authority_base Whitelist-Validierung
+    try:
+        validated_authority = validate_authority_base(authority_base)
+    except ValueError:
+        return RedirectResponse("/admin/sso?flash=error_authority", status_code=302)
 
     cfg = _get_or_create_config(db, effective_org_id)
 
@@ -112,17 +121,29 @@ async def sso_settings_save(
     cfg.enabled = enabled == "1"
     cfg.tenant_id = tenant_id or None
     cfg.client_id = client_id or None
-    cfg.authority_base = authority_base.strip() or None
+    cfg.authority_base = validated_authority
     cfg.allowed_domains = allowed_domains.strip() or None
-    cfg.default_role_id = int(default_role_id) if default_role_id.isdigit() else None
+
+    # F-13: default_role_id darf nicht system_admin sein
+    if default_role_id.isdigit():
+        role = db.get(Role, int(default_role_id))
+        cfg.default_role_id = role.id if role and role.code != "system_admin" else None
+    else:
+        cfg.default_role_id = None
+
     cfg.deny_if_no_group = deny_if_no_group == "1"
-    cfg.sync_profile = sync_profile != "0"
+    cfg.sync_profile = sync_profile == "1"       # F-14: explizites Opt-in
     cfg.enforce_sso = enforce_sso == "1"
+    cfg.allow_email_linking = allow_email_linking == "1"  # F-07
     cfg.updated_at = datetime.now(UTC)
 
-    raw_secret = client_secret.strip()
-    if raw_secret and raw_secret != "••••":
-        cfg.client_secret_enc = encrypt_secret(raw_secret)
+    # F-02: Secret nur ersetzen wenn secret_changed=1 explizit gesetzt
+    if secret_changed == "1":
+        raw_secret = client_secret.strip()
+        if raw_secret:
+            cfg.client_secret_enc = encrypt_secret(raw_secret)
+            write_audit(db, "sso.config.secret_rotated", org_id=effective_org_id,
+                        user_id=user.id, ip=request.client.host if request.client else None)
 
     write_audit(db, "sso.config.updated", org_id=effective_org_id, user_id=user.id,
                 ip=request.client.host if request.client else None)
