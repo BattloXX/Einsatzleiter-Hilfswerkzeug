@@ -60,6 +60,11 @@ _TENANT_TABLE_NAMES: frozenset[str] = frozenset({
     "lage_hint",
     "default_message",
     "ai_prompt_versions",
+    # UAS-Modul (TenantScoped via Mixin)
+    "uas_device",
+    "uas_pilot",
+    "uas_flugbewegung",
+    "uas_wartung",
     # Sondermodelle mit abweichendem Spaltenname
     "incident",        # primary_org_id
     "vehicle_master",  # dept_id

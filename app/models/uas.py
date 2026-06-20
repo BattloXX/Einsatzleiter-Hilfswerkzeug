@@ -1,0 +1,261 @@
+"""UAS-Modul Datenmodelle (PR 1).
+
+Alle Tabellen sind org-scoped (org_id NOT NULL FK → fire_dept).
+Tenant-Scoping läuft über den SQLAlchemy-Session-Event-Listener (TenantScoped-Mixin).
+UAS-Tabellen werden manuell in _TENANT_TABLE_NAMES eingetragen (app/core/tenant.py).
+"""
+from __future__ import annotations
+
+import enum
+import secrets
+from datetime import UTC, date, datetime
+
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.tenant import TenantScoped
+from app.db import Base
+
+
+# ── Enums ─────────────────────────────────────────────────────────────────────
+
+class UASDeviceCeKlasse(str, enum.Enum):
+    C0 = "C0"
+    C1 = "C1"
+    C2 = "C2"
+    C3 = "C3"
+    C4 = "C4"
+    keine = "keine"  # privat/unbemustert
+
+
+class UASDeviceUnterkategorie(str, enum.Enum):
+    A1 = "A1"
+    A2 = "A2"
+    A3 = "A3"
+
+
+class UASDeviceStatus(str, enum.Enum):
+    aktiv = "aktiv"
+    wartung = "wartung"
+    ausgemustert = "ausgemustert"
+
+
+class UASBosStufe(str, enum.Enum):
+    stufe_0 = "0"  # keine BOS-Ausbildung
+    stufe_1 = "1"
+    stufe_2 = "2"
+
+
+class UASWartungArt(str, enum.Enum):
+    monatliche_sichtkontrolle = "monatliche_sichtkontrolle"
+    jahresservice = "jahresservice"
+    reparatur = "reparatur"
+
+
+class UASWartungErgebnis(str, enum.Enum):
+    io = "io"    # in Ordnung
+    nio = "nio"  # nicht in Ordnung
+
+
+class UASFlugbewegungArt(str, enum.Enum):
+    einsatz = "einsatz"
+    ausbildung = "ausbildung"
+    check = "check"
+
+
+# ── Geräteregister ────────────────────────────────────────────────────────────
+
+class UASDevice(TenantScoped, Base):
+    """Geräteregister: ein Drohnen-/UAS-Gerät je Datensatz (RL 4.1, Anh. 8.9)."""
+    __tablename__ = "uas_device"
+    __table_args__ = (
+        Index("ix_uas_device_org_status", "org_id", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
+
+    # Gerätedaten
+    bezeichnung: Mapped[str] = mapped_column(String(150), nullable=False)
+    hersteller: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    typ: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+
+    # Registrierung & Kennzeichnung (RL 4.1)
+    registriernummer: Mapped[str | None] = mapped_column(String(100), nullable=True)  # eID/Betreiber-Nr.
+
+    # Klassifizierung (EASA VO 2019/945, Anh. 8.9)
+    ce_klasse: Mapped[str] = mapped_column(
+        String(10), nullable=False, default=UASDeviceCeKlasse.C2.value
+    )
+    unterkategorie: Mapped[str] = mapped_column(
+        String(5), nullable=False, default=UASDeviceUnterkategorie.A2.value
+    )
+    mtom_g: Mapped[int | None] = mapped_column(Integer, nullable=True)        # Startmasse in Gramm
+    leergewicht_g: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Ausstattung
+    hat_waermebildkamera: Mapped[bool] = mapped_column(Boolean, default=False)
+    allwettertauglich: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Versicherung (RL 4.8)
+    versicherung_polizze: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    versicherung_gueltig_bis: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # Betrieb
+    sybos_id: Mapped[str | None] = mapped_column(String(50), nullable=True)   # (RL 7.6)
+    beschaffungsdatum: Mapped[date | None] = mapped_column(Date, nullable=True)
+    tauschintervall_jahre: Mapped[int] = mapped_column(Integer, default=7)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=UASDeviceStatus.aktiv.value
+    )
+
+    # QR-Deep-Link-Token (für Wartungsbuch-Scan)
+    qr_token: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True,
+        default=lambda: secrets.token_urlsafe(32)
+    )
+
+    notizen: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
+
+    wartungen: Mapped[list[UASWartung]] = relationship(
+        back_populates="device", cascade="all, delete-orphan"
+    )
+    flugbewegungen: Mapped[list[UASFlugbewegung]] = relationship(
+        back_populates="device"
+    )
+
+
+# ── Piloten & Zertifikate ──────────────────────────────────────────────────────
+
+class UASPilot(TenantScoped, Base):
+    """Pilot / Zertifikat-Träger (RL 4.1, 5.2–5.7, Anh. 8.6–8.8)."""
+    __tablename__ = "uas_pilot"
+    __table_args__ = (
+        Index("ix_uas_pilot_org_aktiv", "org_id", "aktiv"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
+
+    # Verknüpfung zur Mitgliedertabelle (nullable für externe Helfer)
+    person_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("member.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Stammdaten
+    nachname: Mapped[str] = mapped_column(String(100), nullable=False)
+    vorname: Mapped[str] = mapped_column(String(100), nullable=False)
+    geburtsdatum: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # Voraussetzungen (RL 4.1)
+    ist_truppfuehrer: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # EASA-Zertifikate (Anh. 8.6/8.7)
+    a1a3_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    a1a3_gueltig_bis: Mapped[date | None] = mapped_column(Date, nullable=True)
+    a2_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    a2_gueltig_bis: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # BOS-Ausbildung (Anh. 8.8)
+    bos_stufe: Mapped[str] = mapped_column(
+        String(5), nullable=False, default=UASBosStufe.stufe_0.value
+    )
+    bos_ausbildung_datum: Mapped[date | None] = mapped_column(Date, nullable=True)
+    bos_rezert_bis: Mapped[date | None] = mapped_column(Date, nullable=True)   # alle 5 Jahre
+
+    # LFV-Zulassung (RL 4.1)
+    lfv_zugelassen: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Rollen innerhalb des Teams (JSON: {"teamleiter": true, "pilot": true, "operator": false})
+    qualifikationen: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    aktiv: Mapped[bool] = mapped_column(Boolean, default=True)
+    notizen: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    flugbewegungen: Mapped[list[UASFlugbewegung]] = relationship(
+        back_populates="pilot"
+    )
+
+
+# ── Flugbewegungen (Currency) ─────────────────────────────────────────────────
+
+class UASFlugbewegung(TenantScoped, Base):
+    """Je Flugbewegung eine Zeile – Grundlage für Currency-Prüfung (3 in 90 Tagen, RL 4.1).
+
+    Wird automatisch beim Abschluss eines uas_flug-Datensatzes erstellt (PR 4).
+    Kann auch manuell für Ausbildungsflüge vor Systemeinführung eingetragen werden.
+    """
+    __tablename__ = "uas_flugbewegung"
+    __table_args__ = (
+        Index("ix_uas_flugbewegung_pilot_datum", "pilot_id", "datum"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
+
+    pilot_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("uas_pilot.id", ondelete="CASCADE"), nullable=False
+    )
+    device_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("uas_device.id", ondelete="SET NULL"), nullable=True
+    )
+    datum: Mapped[date] = mapped_column(Date, nullable=False)
+    dauer_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    art: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=UASFlugbewegungArt.einsatz.value
+    )
+    # Rückverweis auf den Flugbuch-Eintrag (nullable: manuelle Einträge haben keinen)
+    uas_flug_id: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True   # FK zu uas_flug (PR 4), ohne DB-Constraint bis PR 4
+    )
+
+    pilot: Mapped[UASPilot] = relationship(back_populates="flugbewegungen")
+    device: Mapped[UASDevice | None] = relationship(back_populates="flugbewegungen")
+
+
+# ── Wartungsbuch ──────────────────────────────────────────────────────────────
+
+class UASWartung(TenantScoped, Base):
+    """Wartungsbuch-Eintrag je Gerät (RL Anh. 8.5)."""
+    __tablename__ = "uas_wartung"
+    __table_args__ = (
+        Index("ix_uas_wartung_device_datum", "device_id", "datum"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
+
+    device_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("uas_device.id", ondelete="CASCADE"), nullable=False
+    )
+    datum: Mapped[date] = mapped_column(Date, nullable=False)
+    art: Mapped[str] = mapped_column(
+        String(40), nullable=False,
+        default=UASWartungArt.monatliche_sichtkontrolle.value
+    )
+    # Prüfpunkte als JSON-Liste: [{"key": "...", "label": "...", "erledigt": true, "bemerkung": ""}]
+    pruefpunkte: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pruefer: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    ergebnis: Mapped[str] = mapped_column(
+        String(5), nullable=False, default=UASWartungErgebnis.io.value
+    )
+    bemerkung: Mapped[str | None] = mapped_column(Text, nullable=True)
+    naechste_faellig: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    device: Mapped[UASDevice] = relationship(back_populates="wartungen")
