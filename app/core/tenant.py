@@ -67,6 +67,8 @@ _TENANT_TABLE_NAMES: frozenset[str] = frozenset({
     "uas_wartung",
     "uas_einsatz",
     "uas_einsatz_rolle",
+    "uas_flug",
+    "uas_checkliste",
     # Sondermodelle mit abweichendem Spaltenname
     "incident",        # primary_org_id
     "vehicle_master",  # dept_id

@@ -16,6 +16,7 @@ from app.core.tenant import set_tenant_context
 from app.db import Base, get_db
 from app.main import app
 from app.seed_data import seed
+from app.models import uas as _uas_models  # noqa: F401 – alle UAS-Tabellen in Base.metadata registrieren
 
 
 # SQLite unterstützt kein BigInteger-Autoincrement — BigInteger als INTEGER kompilieren

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Neuer Flug – Drohneneinsatz #{{ einsatz.id }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>&#x1F4DD; Neuer Flug – Einsatz #{{ einsatz.id }}</h1>
+    <p class="page-header__sub">Flugbuch-Eintrag (RL Anh. 8.1 / Checkliste v9)</p>
+  </div>
+</div>
+
+<form method="post" class="card" style="max-width:800px" x-data="flugForm()" x-init="init()">
+  <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+  <div class="card-body">
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Datum <span class="req">*</span></label>
+        <input type="date" name="datum" value="{{ heute }}" class="form-control" style="max-width:180px" required>
+      </div>
+      <div class="form-group">
+        <label>Pilot <span class="req">*</span></label>
+        <select name="pilot_id" class="form-control" required>
+          <option value="">– bitte w&auml;hlen –</option>
+          {% for pw in piloten %}
+          {% set p = pw.pilot %}
+          {% set fs = pw.freigabe.status %}
+          <option value="{{ p.id }}" style="{% if fs == 'rot' %}color:#e53e3e{% elif fs == 'gelb' %}color:#d97706{% endif %}">
+            {{ p.nachname }}, {{ p.vorname }}
+            {% if fs == 'gruen' %}(&#x2713;){% elif fs == 'gelb' %}(&#x26A0;){% else %}(&#x26D4; gesperrt){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ger&auml;t</label>
+        <select name="device_id" class="form-control">
+          <option value="">– bitte w&auml;hlen –</option>
+          {% for g in geraete %}
+          <option value="{{ g.id }}">{{ g.bezeichnung }} ({{ g.ce_klasse }}/{{ g.unterkategorie }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Durchf&uuml;hrungsart</label>
+        <select name="durchfuehrung" class="form-control" style="max-width:140px" x-model="durchfuehrung">
+          {% for d in durchfuehrungen %}
+          <option value="{{ d.value }}">{{ d.value | upper }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Rechtliche Grundlage</label>
+        <select name="grundlage" class="form-control" style="max-width:180px">
+          {% for g in grundlagen %}
+          <option value="{{ g.value }}">{{ g.value | replace('_', ' ') | upper }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" x-show="durchfuehrung === 'bvlos'">
+        <label>Bescheid-Nr. <span class="req" x-show="durchfuehrung === 'bvlos'">*</span></label>
+        <input type="text" name="bescheid_nr" class="form-control" maxlength="100"
+               :required="durchfuehrung === 'bvlos'" placeholder="ACG-Bescheid-Nr.">
+        <small class="form-hint">Pflicht bei BVLOS (RL 4.4)</small>
+      </div>
+    </div>
+
+    <h3 class="section-title">Ortangaben</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Startort</label>
+        <input type="text" name="start_ort" class="form-control" maxlength="200">
+      </div>
+      <div class="form-group">
+        <label>Landungsort</label>
+        <input type="text" name="landung_ort" class="form-control" maxlength="200">
+      </div>
+    </div>
+
+    <h3 class="section-title">Flugsicherheitswerte (Anh. 8.2 v9)</h3>
+    <div class="form-grid" x-data="{hoehe: ''}">
+      <div class="form-group">
+        <label>Geplante Flugh&ouml;he (m &uuml;ber Grund)</label>
+        <input type="number" name="geplante_flughoehe_m" class="form-control" style="max-width:120px"
+               min="0" max="500" step="0.5"
+               x-model="hoehe" @input="berechneSicherheit()"
+               id="hoehe_input">
+        <small class="form-hint" x-show="hoehe > 120" style="color:var(--color-error,#e53e3e)">
+          &#x26A0; &uuml;ber 120 m OPEN-Limit!
+        </small>
+      </div>
+
+      <template x-if="hoehe > 0">
+        <div class="form-group" style="grid-column:1/-1">
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <div style="background:var(--surface-low);padding:.5rem .75rem;border-radius:4px;font-size:.85rem">
+              CV: <strong x-text="Math.round(hoehe * 0.1 * 10)/10 + ' m'"></strong>
+            </div>
+            <div style="background:var(--surface-low);padding:.5rem .75rem;border-radius:4px;font-size:.85rem">
+              GRB: <strong x-text="Math.round((hoehe * 1.1) * 10)/10 + ' m'"></strong>
+            </div>
+            <div style="background:var(--surface-low);padding:.5rem .75rem;border-radius:4px;font-size:.85rem">
+              Mind. Abstand Menschenansammlung: <strong x-text="Math.round((hoehe * 1.2 + 120) * 10)/10 + ' m'"></strong>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <h3 class="section-title">Nacht / Personal</h3>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:.5rem">
+        <input type="checkbox" name="nachtbetrieb" value="1"
+               @change="if($event.target.checked) alert('Nachtbetrieb: Beleuchtung sicherstellen (RL 4.3)!')">
+        Nachtbetrieb (RL 4.3 – Beleuchtung erforderlich)
+      </label>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Gesamteinsatzleiter</label>
+        <input type="text" name="gesamteinsatzleiter" class="form-control" maxlength="150">
+      </div>
+      <div class="form-group">
+        <label>Einsatzleiter Drohne (Teamleiter)</label>
+        <input type="text" name="einsatzleiter_drohne" class="form-control" maxlength="150">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Bemerkungen</label>
+      <textarea name="bemerkungen" class="form-control" rows="3" maxlength="2000"></textarea>
+    </div>
+
+  </div>
+  <div class="card-footer" style="display:flex;gap:.75rem;padding:1rem 1.25rem">
+    <button type="submit" class="btn btn--primary">Flug anlegen + Vorflug-Checkliste</button>
+    <a href="/uas/einsatz/{{ einsatz.id }}" class="btn btn--ghost">Abbrechen</a>
+  </div>
+</form>
+
+<script>
+function flugForm() {
+  return {
+    durchfuehrung: 'vlos',
+    init() {}
+  }
+}
+</script>
+
+<style>
+.section-title { margin-top:1.5rem;margin-bottom:.75rem;font-size:.9rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);
+  border-bottom:1px solid var(--border);padding-bottom:.5rem }
+.req { color:var(--color-error,#e53e3e) }
+</style>
+{% endblock %}

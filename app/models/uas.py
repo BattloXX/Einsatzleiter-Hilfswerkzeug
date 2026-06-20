@@ -350,3 +350,123 @@ class UASEinsatzRolleEintrag(TenantScoped, Base):
 
     einsatz: Mapped[UASEinsatz] = relationship(back_populates="rollen")
     pilot: Mapped[UASPilot | None] = relationship()
+
+
+# ── Flugbuch & Checklisten (PR 4) ─────────────────────────────────────────────
+
+class UASFlugDurchfuehrung(str, enum.Enum):
+    vlos = "vlos"
+    evlos = "evlos"
+    bvlos = "bvlos"
+
+
+class UASFlugGrundlage(str, enum.Enum):
+    open_a1 = "open_a1"
+    open_a2 = "open_a2"
+    open_a3 = "open_a3"
+    specific_bescheid = "specific_bescheid"
+
+
+class UASFlugStatus(str, enum.Enum):
+    offen = "offen"
+    abgeschlossen = "abgeschlossen"
+
+
+class UASChecklisteTyp(str, enum.Enum):
+    vorflug = "vorflug"
+    nachflug = "nachflug"
+    check = "check"
+
+
+class UASFlug(TenantScoped, Base):
+    """Flugbuch-Eintrag je Flug (RL Anh. 8.1, 8.2 v9). Append-only nach Abschluss."""
+    __tablename__ = "uas_flug"
+    __table_args__ = (
+        Index("ix_uas_flug_einsatz", "uas_einsatz_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
+
+    uas_einsatz_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("uas_einsatz.id", ondelete="RESTRICT"), nullable=False
+    )
+    lfd_nr: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    datum: Mapped[date] = mapped_column(Date, nullable=False)
+
+    pilot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("uas_pilot.id", ondelete="SET NULL"), nullable=True
+    )
+    device_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("uas_device.id", ondelete="SET NULL"), nullable=True
+    )
+
+    start_ort: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    landung_ort: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    start_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    landung_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    dauer_min: Mapped[int | None] = mapped_column(Integer, nullable=True)  # berechnet
+
+    durchfuehrung: Mapped[str] = mapped_column(
+        String(10), nullable=False, default=UASFlugDurchfuehrung.vlos.value
+    )
+    payload: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    grundlage: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=UASFlugGrundlage.open_a1.value
+    )
+    bescheid_nr: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Berechnete Felder (RL Anh. 8.2/v9)
+    geplante_flughoehe_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    contingency_volume_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ground_risk_buffer_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    abstand_menschenansammlung_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    flughoehe_konform: Mapped[bool] = mapped_column(Boolean, default=False)  # 1:1-Regel
+
+    nachtbetrieb: Mapped[bool] = mapped_column(Boolean, default=False)
+    beleuchtung_bestaetigt: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    gesamteinsatzleiter: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    einsatzleiter_drohne: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    unfall: Mapped[bool] = mapped_column(Boolean, default=False)
+    bemerkungen: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    status: Mapped[str] = mapped_column(
+        String(15), nullable=False, default=UASFlugStatus.offen.value
+    )
+    inhalt_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
+
+    checklisten: Mapped[list[UASCheckliste]] = relationship(
+        back_populates="flug", cascade="all, delete-orphan"
+    )
+
+
+class UASCheckliste(TenantScoped, Base):
+    """Vor-/Nachflug-Checkliste mit 4-Augen-Prinzip (RL 4.2, Anh. 8.2 v9)."""
+    __tablename__ = "uas_checkliste"
+    __table_args__ = (
+        Index("ix_uas_checkliste_flug", "uas_flug_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
+
+    uas_flug_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("uas_flug.id", ondelete="CASCADE"), nullable=False
+    )
+    typ: Mapped[str] = mapped_column(
+        String(15), nullable=False, default=UASChecklisteTyp.vorflug.value
+    )
+    punkte: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    erledigt_von_pilot: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    erledigt_von_zweitperson: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    abgeschlossen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    flug: Mapped[UASFlug] = relationship(back_populates="checklisten")

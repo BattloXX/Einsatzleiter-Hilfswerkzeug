@@ -1076,3 +1076,318 @@ def eintreffmeldung_form(
         "alle_geraete": alle_geraete,
         "jetzt": date.today().isoformat(),
     })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PR 4: Flugbuch & Checklisten
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/einsatz/{einsatz_id}/flug/neu", response_class=HTMLResponse)
+def flug_neu_form(
+    einsatz_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import (
+        UASDevice, UASEinsatz, UASFlugDurchfuehrung, UASFlugGrundlage, UASPilot,
+    )
+    from app.services.uas_compliance import pilot_freigabe_status
+
+    einsatz = db.query(UASEinsatz).filter(
+        UASEinsatz.id == einsatz_id, UASEinsatz.org_id == user.org_id
+    ).first()
+    if not einsatz:
+        raise HTTPException(404)
+
+    piloten = db.query(UASPilot).filter(
+        UASPilot.org_id == user.org_id, UASPilot.aktiv == True  # noqa: E712
+    ).order_by(UASPilot.nachname).all()
+    geraete = db.query(UASDevice).filter(
+        UASDevice.org_id == user.org_id, UASDevice.status == "aktiv"
+    ).order_by(UASDevice.bezeichnung).all()
+
+    return templates.TemplateResponse(request, "uas/flug_form.html", {
+        "user": user,
+        "einsatz": einsatz,
+        "piloten": [{"pilot": p, "freigabe": pilot_freigabe_status(p, db)} for p in piloten],
+        "geraete": geraete,
+        "durchfuehrungen": list(UASFlugDurchfuehrung),
+        "grundlagen": list(UASFlugGrundlage),
+        "heute": date.today().isoformat(),
+    })
+
+
+@router.post("/einsatz/{einsatz_id}/flug/neu")
+async def flug_neu_save(
+    einsatz_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+    datum: str = Form(...),
+    pilot_id: str = Form(""),
+    device_id: str = Form(""),
+    start_ort: str = Form(""),
+    landung_ort: str = Form(""),
+    durchfuehrung: str = Form("vlos"),
+    grundlage: str = Form("open_a1"),
+    bescheid_nr: str = Form(""),
+    geplante_flughoehe_m: str = Form(""),
+    nachtbetrieb: str = Form(""),
+    gesamteinsatzleiter: str = Form(""),
+    einsatzleiter_drohne: str = Form(""),
+    bemerkungen: str = Form(""),
+):
+    from app.models.uas import UASEinsatz, UASFlug, UASFlugStatus
+    from app.services.uas_flugbuch import berechne_flugsicherheitswerte
+
+    einsatz = db.query(UASEinsatz).filter(
+        UASEinsatz.id == einsatz_id, UASEinsatz.org_id == user.org_id
+    ).first()
+    if not einsatz:
+        raise HTTPException(404)
+
+    # Laufende Nummer
+    from app.models.uas import UASFlug as _UASFlug
+    lfd = (db.query(_UASFlug).filter(_UASFlug.uas_einsatz_id == einsatz_id).count() or 0) + 1
+
+    hoehe = float(geplante_flughoehe_m) if geplante_flughoehe_m.strip() else None
+    sicherheit = berechne_flugsicherheitswerte(hoehe) if hoehe else {}
+
+    # BVLOS erfordert Bescheid
+    if durchfuehrung == "bvlos" and not bescheid_nr.strip():
+        raise HTTPException(400, detail="BVLOS erfordert Bescheid-Nr. (RL 4.4)")
+
+    # Flughöhe > 120 m → Warnung (nur im UI, kein hard-Block)
+
+    flug = UASFlug(
+        org_id=user.org_id,
+        uas_einsatz_id=einsatz_id,
+        lfd_nr=lfd,
+        datum=date.fromisoformat(datum),
+        pilot_id=int(pilot_id) if pilot_id.strip() else None,
+        device_id=int(device_id) if device_id.strip() else None,
+        start_ort=start_ort.strip() or None,
+        landung_ort=landung_ort.strip() or None,
+        durchfuehrung=durchfuehrung,
+        grundlage=grundlage,
+        bescheid_nr=bescheid_nr.strip() or None,
+        geplante_flughoehe_m=hoehe,
+        contingency_volume_m=sicherheit.get("contingency_volume_m"),
+        ground_risk_buffer_m=sicherheit.get("ground_risk_buffer_m"),
+        abstand_menschenansammlung_m=sicherheit.get("abstand_menschenansammlung_m"),
+        nachtbetrieb=nachtbetrieb in ("1", "on"),
+        gesamteinsatzleiter=gesamteinsatzleiter.strip() or None,
+        einsatzleiter_drohne=einsatzleiter_drohne.strip() or None,
+        bemerkungen=bemerkungen.strip() or None,
+        status=UASFlugStatus.offen.value,
+    )
+    db.add(flug)
+    db.flush()
+
+    # Vorflug-Checkliste automatisch anlegen
+    from app.models.uas import UASCheckliste
+    from app.services.uas_flugbuch import CHECKLISTE_VORFLUG
+    vfl = UASCheckliste(
+        org_id=user.org_id,
+        uas_flug_id=flug.id,
+        typ="vorflug",
+        punkte=json.dumps(CHECKLISTE_VORFLUG, ensure_ascii=False),
+    )
+    db.add(vfl)
+    db.commit()
+    return RedirectResponse(f"/uas/flug/{flug.id}", status_code=303)
+
+
+@router.get("/flug/{flug_id}", response_class=HTMLResponse)
+def flug_detail(
+    flug_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASFlug
+    from app.services.uas_flugbuch import berechne_flugsicherheitswerte, pruefe_1zu1_regel
+
+    flug = db.query(UASFlug).filter(
+        UASFlug.id == flug_id, UASFlug.org_id == user.org_id
+    ).first()
+    if not flug:
+        raise HTTPException(404)
+
+    sicherheit = {}
+    konform = None
+    if flug.geplante_flughoehe_m:
+        sicherheit = berechne_flugsicherheitswerte(flug.geplante_flughoehe_m)
+        konform = pruefe_1zu1_regel(
+            flug.geplante_flughoehe_m,
+            flug.abstand_menschenansammlung_m,
+        )
+
+    checklisten = sorted(flug.checklisten, key=lambda c: c.created_at)
+    checklisten_parsed = []
+    for cl in checklisten:
+        punkte = []
+        if cl.punkte:
+            try:
+                punkte = json.loads(cl.punkte)
+            except Exception:
+                pass
+        checklisten_parsed.append({"checkliste": cl, "punkte": punkte})
+
+    return templates.TemplateResponse(request, "uas/flug_detail.html", {
+        "user": user,
+        "flug": flug,
+        "sicherheit": sicherheit,
+        "flughoehe_konform": konform,
+        "checklisten": checklisten_parsed,
+    })
+
+
+@router.post("/flug/{flug_id}/abschliessen")
+async def flug_abschliessen(
+    flug_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+    landung_at: str = Form(""),
+    start_at: str = Form(""),
+):
+    from datetime import UTC, datetime
+
+    from app.models.uas import UASFlug, UASFlugStatus
+    from app.services.uas_flugbuch import berechne_dauer_min, inhalt_hash
+
+    flug = db.query(UASFlug).filter(
+        UASFlug.id == flug_id, UASFlug.org_id == user.org_id
+    ).first()
+    if not flug:
+        raise HTTPException(404)
+    if flug.status == UASFlugStatus.abgeschlossen.value:
+        raise HTTPException(400, detail="Flug bereits abgeschlossen (Append-Only)")
+
+    def _dt(s: str) -> datetime | None:
+        s = s.strip()
+        if not s:
+            return None
+        try:
+            return datetime.fromisoformat(s)
+        except ValueError:
+            return None
+
+    if start_at:
+        flug.start_at = _dt(start_at)
+    if landung_at:
+        flug.landung_at = _dt(landung_at)
+
+    flug.dauer_min = berechne_dauer_min(flug.start_at, flug.landung_at)
+    flug.status = UASFlugStatus.abgeschlossen.value
+
+    # Audit-Hash setzen (Verbesserung 9)
+    data = {
+        "id": flug.id, "datum": str(flug.datum), "pilot_id": flug.pilot_id,
+        "device_id": flug.device_id, "dauer_min": flug.dauer_min,
+        "durchfuehrung": flug.durchfuehrung, "grundlage": flug.grundlage,
+    }
+    flug.inhalt_hash = inhalt_hash(data)
+
+    db.commit()
+
+    # Automatische Flugbewegung für Currency
+    if flug.pilot_id:
+        from app.models.uas import UASFlugbewegung
+        bewegung = UASFlugbewegung(
+            org_id=user.org_id,
+            pilot_id=flug.pilot_id,
+            device_id=flug.device_id,
+            datum=flug.datum,
+            dauer_min=flug.dauer_min,
+            art="einsatz",
+            uas_flug_id=flug.id,
+        )
+        db.add(bewegung)
+        db.commit()
+
+    return RedirectResponse(f"/uas/flug/{flug_id}", status_code=303)
+
+
+@router.post("/flug/{flug_id}/checkliste/{cl_id}/speichern")
+async def checkliste_speichern(
+    flug_id: int,
+    cl_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+    erledigt_von_pilot: str = Form(""),
+    erledigt_von_zweitperson: str = Form(""),
+):
+    from datetime import UTC, datetime
+
+    from app.models.uas import UASCheckliste
+
+    cl = db.query(UASCheckliste).filter(
+        UASCheckliste.id == cl_id,
+        UASCheckliste.uas_flug_id == flug_id,
+        UASCheckliste.org_id == user.org_id,
+    ).first()
+    if not cl:
+        raise HTTPException(404)
+
+    form = await request.form()
+    punkte = []
+    if cl.punkte:
+        try:
+            punkte = json.loads(cl.punkte)
+        except Exception:
+            pass
+
+    for p in punkte:
+        p["erledigt"] = str(form.get(f"punkt_{p['key']}", "")) in ("on", "1")
+        p["bemerkung"] = str(form.get(f"bemerkung_{p['key']}", "")).strip()
+
+    cl.punkte = json.dumps(punkte, ensure_ascii=False)
+    cl.erledigt_von_pilot = erledigt_von_pilot.strip() or None
+    cl.erledigt_von_zweitperson = erledigt_von_zweitperson.strip() or None
+
+    if all(p["erledigt"] for p in punkte):
+        cl.abgeschlossen_at = datetime.now(UTC)
+
+    db.commit()
+    return RedirectResponse(f"/uas/flug/{flug_id}", status_code=303)
+
+
+@router.post("/flug/{flug_id}/nachflug-checkliste")
+async def nachflug_checkliste_anlegen(
+    flug_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASCheckliste, UASFlug
+    from app.services.uas_flugbuch import CHECKLISTE_NACHFLUG
+
+    flug = db.query(UASFlug).filter(
+        UASFlug.id == flug_id, UASFlug.org_id == user.org_id
+    ).first()
+    if not flug:
+        raise HTTPException(404)
+
+    existing = next(
+        (c for c in flug.checklisten if c.typ == "nachflug"), None
+    )
+    if not existing:
+        cl = UASCheckliste(
+            org_id=user.org_id,
+            uas_flug_id=flug_id,
+            typ="nachflug",
+            punkte=json.dumps(CHECKLISTE_NACHFLUG, ensure_ascii=False),
+        )
+        db.add(cl)
+        db.commit()
+    return RedirectResponse(f"/uas/flug/{flug_id}", status_code=303)
