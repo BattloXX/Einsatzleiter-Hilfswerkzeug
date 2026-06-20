@@ -46,7 +46,7 @@ def upgrade() -> None:
             sa.Column("client_secret_enc", sa.Text(), nullable=True),
             sa.Column("authority_base", sa.String(200), nullable=True),
             sa.Column("allowed_domains", sa.String(500), nullable=True),
-            sa.Column("default_role_id", sa.Integer(),
+            sa.Column("default_role_id", sa.BigInteger(),
                       sa.ForeignKey("role.id"), nullable=True),
             sa.Column("deny_if_no_group", sa.Boolean(), nullable=False, server_default="0"),
             sa.Column("sync_profile", sa.Boolean(), nullable=False, server_default="1"),
@@ -65,7 +65,7 @@ def upgrade() -> None:
                       nullable=False, index=True),
             sa.Column("entra_group_id", sa.String(36), nullable=False),
             sa.Column("label", sa.String(150), nullable=True),
-            sa.Column("role_id", sa.Integer(),
+            sa.Column("role_id", sa.BigInteger(),
                       sa.ForeignKey("role.id", ondelete="CASCADE"),
                       nullable=False),
         )
