@@ -1678,3 +1678,135 @@ async def karte_objekt_loeschen(
         db.delete(obj)
         db.commit()
     return RedirectResponse(f"/uas/einsatz/{einsatz_id}/karte", status_code=303)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PR 7: PDF-Export (WeasyPrint, ÖBFV Anh. 8.1–8.6)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from fastapi.responses import Response as _Response
+
+
+@router.get("/flug/{flug_id}/pdf/flugbuch")
+def flug_pdf_flugbuch(
+    flug_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASDevice, UASFlug, UASPilot
+    from app.services.uas_pdf import flugbuch_pdf
+
+    flug = db.query(UASFlug).filter(UASFlug.id == flug_id, UASFlug.org_id == user.org_id).first()
+    if not flug:
+        raise HTTPException(404)
+    pilot = db.query(UASPilot).filter(UASPilot.id == flug.pilot_id).first() if flug.pilot_id else None
+    device = db.query(UASDevice).filter(UASDevice.id == flug.device_id).first() if flug.device_id else None
+    pdf = flugbuch_pdf(flug, pilot, device)
+    return _Response(content=pdf, media_type="application/pdf",
+                     headers={"Content-Disposition": f"attachment; filename=flugbuch_flug{flug_id}.pdf"})
+
+
+@router.get("/flug/{flug_id}/pdf/checkliste/{checkliste_id}")
+def flug_pdf_checkliste(
+    flug_id: int,
+    checkliste_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASCheckliste
+    from app.services.uas_pdf import checkliste_pdf
+
+    cl = db.query(UASCheckliste).filter(
+        UASCheckliste.id == checkliste_id,
+        UASCheckliste.uas_flug_id == flug_id,
+        UASCheckliste.org_id == user.org_id,
+    ).first()
+    if not cl:
+        raise HTTPException(404)
+    pdf = checkliste_pdf(cl, flug_id=flug_id)
+    return _Response(content=pdf, media_type="application/pdf",
+                     headers={"Content-Disposition": f"attachment; filename=checkliste_{cl.typ}_flug{flug_id}.pdf"})
+
+
+@router.get("/ereignis/{ereignis_id}/pdf/protokoll")
+def ereignis_pdf_protokoll(
+    ereignis_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASEreignis
+    from app.services.uas_pdf import ereignis_pdf
+
+    e = db.query(UASEreignis).filter(UASEreignis.id == ereignis_id, UASEreignis.org_id == user.org_id).first()
+    if not e:
+        raise HTTPException(404)
+    pdf = ereignis_pdf(e)
+    return _Response(content=pdf, media_type="application/pdf",
+                     headers={"Content-Disposition": f"attachment; filename=ereignis_{ereignis_id}_protokoll.pdf"})
+
+
+@router.get("/ereignis/{ereignis_id}/pdf/acg")
+def ereignis_pdf_acg(
+    ereignis_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASEreignis
+    from app.services.uas_pdf import acg_unfall_pdf
+
+    e = db.query(UASEreignis).filter(UASEreignis.id == ereignis_id, UASEreignis.org_id == user.org_id).first()
+    if not e:
+        raise HTTPException(404)
+    pdf = acg_unfall_pdf(e)
+    return _Response(content=pdf, media_type="application/pdf",
+                     headers={"Content-Disposition": f"attachment; filename=acg_unfall_{ereignis_id}.pdf"})
+
+
+@router.get("/geraet/{geraet_id}/pdf/wartungsbuch")
+def geraet_pdf_wartungsbuch(
+    geraet_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASDevice, UASWartung
+    from app.services.uas_pdf import wartungsbuch_pdf
+
+    device = db.query(UASDevice).filter(UASDevice.id == geraet_id, UASDevice.org_id == user.org_id).first()
+    if not device:
+        raise HTTPException(404)
+    wartungen = db.query(UASWartung).filter(
+        UASWartung.uas_device_id == geraet_id, UASWartung.org_id == user.org_id
+    ).order_by(UASWartung.faellig_am).all()
+    pdf = wartungsbuch_pdf(wartungen, device)
+    return _Response(content=pdf, media_type="application/pdf",
+                     headers={"Content-Disposition": f"attachment; filename=wartungsbuch_geraet{geraet_id}.pdf"})
+
+
+@router.get("/einsatz/{einsatz_id}/pdf/eintreffmeldung")
+def einsatz_pdf_eintreffmeldung(
+    einsatz_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASEinsatz, UASEinsatzRolleEintrag, UASPilot
+    from app.services.uas_pdf import eintreffmeldung_pdf
+
+    einsatz = db.query(UASEinsatz).filter(
+        UASEinsatz.id == einsatz_id, UASEinsatz.org_id == user.org_id
+    ).first()
+    if not einsatz:
+        raise HTTPException(404)
+    rollen = db.query(UASEinsatzRolleEintrag).filter(
+        UASEinsatzRolleEintrag.uas_einsatz_id == einsatz_id
+    ).all()
+    pilot_ids = {r.pilot_id for r in rollen if r.pilot_id}
+    piloten = db.query(UASPilot).filter(UASPilot.id.in_(pilot_ids)).all() if pilot_ids else []
+    pdf = eintreffmeldung_pdf(einsatz, piloten)
+    return _Response(content=pdf, media_type="application/pdf",
+                     headers={"Content-Disposition": f"attachment; filename=eintreffmeldung_einsatz{einsatz_id}.pdf"})
