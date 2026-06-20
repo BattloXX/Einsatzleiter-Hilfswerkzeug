@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Medien – Flug #{{ flug.id }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>&#x1F4F7; Medien – Flug #{{ flug.id }}</h1>
+    <p class="page-header__sub">DSGVO-Workflow gem. RL 7.3 / 7.4</p>
+  </div>
+  <div class="page-header__actions">
+    <a href="/uas/flug/{{ flug.id }}" class="btn btn--ghost">&#x2190; Flug</a>
+    <a href="/uas/dsgvo-uebersicht" class="btn btn--ghost">DSGVO-&Uuml;bersicht</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:1rem">
+
+<div>
+{% if medien %}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Dateiname</th><th>Typ</th><th>DSGVO-Status</th><th>L&ouml;schfrist</th><th>Begr&uuml;ndung</th><th>Aktion</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for m in medien %}
+  <tr {% if m.dsgvo_status == 'geloescht' %}style="opacity:.5"{% endif %}>
+    <td>{{ m.dateiname }}</td>
+    <td>{{ m.medientyp | title }}</td>
+    <td>
+      <span class="badge badge--{% if m.dsgvo_status == 'geloescht' %}neutral{% elif m.dsgvo_status == 'zur_loeschung' %}error{% elif m.dsgvo_status == 'begruendet' %}success{% else %}warning{% endif %}">
+        {{ m.dsgvo_status | replace('_',' ') | title }}
+      </span>
+    </td>
+    <td>{{ m.loeschfrist or '–' }}</td>
+    <td style="font-size:.8rem;max-width:180px">{{ m.begruendung or '–' }}</td>
+    <td>
+      {% if m.dsgvo_status != 'geloescht' %}
+      <form method="post" action="/uas/medien/{{ m.id }}/status" style="display:flex;gap:.3rem;align-items:center">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        <select name="dsgvo_status" class="form-control" style="width:auto;font-size:.8rem;padding:.2rem .4rem">
+          <option value="erfasst">Erfasst</option>
+          <option value="begruendet">Begr&uuml;ndet</option>
+          <option value="zur_loeschung">Zur L&ouml;schung</option>
+          <option value="geloescht">Gel&ouml;scht &#x26A0;</option>
+        </select>
+        <button type="submit" class="btn btn--ghost btn--sm">OK</button>
+      </form>
+      {% else %}
+      <span style="color:var(--text-muted);font-size:.78rem">{{ m.geloescht_at | string | truncate(16, True, '') }}</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:var(--text-muted)">Noch keine Medien erfasst.</p>
+{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Medien erfassen</h2></div>
+  <form method="post" action="/uas/flug/{{ flug.id }}/medien/hinzufuegen">
+    <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+    <div class="card-body" style="display:flex;flex-direction:column;gap:.6rem">
+      <div>
+        <label class="form-label">Dateiname *</label>
+        <input type="text" name="dateiname" class="form-control" required maxlength="512"
+               placeholder="foto_001.jpg">
+      </div>
+      <div>
+        <label class="form-label">Medientyp</label>
+        <select name="medientyp" class="form-control">
+          <option value="foto">Foto</option>
+          <option value="video">Video</option>
+          <option value="dokument">Dokument</option>
+          <option value="sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Begr&uuml;ndung (RL 7.3)</label>
+        <textarea name="begruendung" class="form-control" rows="2"
+                  placeholder="Einsatzrelevante Aufnahme weil ..."></textarea>
+      </div>
+      <div>
+        <label class="form-label">L&ouml;schfrist</label>
+        <input type="date" name="loeschfrist" class="form-control">
+        <small style="color:var(--text-muted)">Standard: 30 Tage nach Einsatzende (RL 7.4)</small>
+      </div>
+      <button type="submit" class="btn btn--primary btn--sm">Erfassen</button>
+    </div>
+  </form>
+</div>
+
+</div>
+{% endblock %}

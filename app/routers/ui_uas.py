@@ -1810,3 +1810,133 @@ def einsatz_pdf_eintreffmeldung(
     pdf = eintreffmeldung_pdf(einsatz, piloten)
     return _Response(content=pdf, media_type="application/pdf",
                      headers={"Content-Disposition": f"attachment; filename=eintreffmeldung_einsatz{einsatz_id}.pdf"})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PR 8: Medien & DSGVO-Workflow (RL 7.3 / 7.4)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/flug/{flug_id}/medien", response_class=HTMLResponse)
+def flug_medien(
+    flug_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASFlug, UASMedien
+
+    flug = db.query(UASFlug).filter(UASFlug.id == flug_id, UASFlug.org_id == user.org_id).first()
+    if not flug:
+        raise HTTPException(404)
+    medien = (
+        db.query(UASMedien)
+        .filter(UASMedien.uas_flug_id == flug_id, UASMedien.org_id == user.org_id)
+        .order_by(UASMedien.created_at)
+        .all()
+    )
+    return templates.TemplateResponse(request, "uas/flug_medien.html", {
+        "user": user,
+        "flug": flug,
+        "medien": medien,
+    })
+
+
+@router.post("/flug/{flug_id}/medien/hinzufuegen")
+async def flug_medien_hinzufuegen(
+    flug_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+    dateiname: str = Form(...),
+    medientyp: str = Form("foto"),
+    begruendung: str = Form(""),
+    loeschfrist: str = Form(""),
+):
+    from datetime import datetime
+    from app.models.uas import UASFlug, UASMedien, UASMedienDsgvoStatus
+
+    flug = db.query(UASFlug).filter(UASFlug.id == flug_id, UASFlug.org_id == user.org_id).first()
+    if not flug:
+        raise HTTPException(404)
+
+    frist = None
+    if loeschfrist.strip():
+        try:
+            from datetime import date
+            frist = date.fromisoformat(loeschfrist.strip())
+        except ValueError:
+            pass
+
+    status = UASMedienDsgvoStatus.begruendet.value if begruendung.strip() else UASMedienDsgvoStatus.erfasst.value
+    m = UASMedien(
+        org_id=user.org_id,
+        uas_flug_id=flug_id,
+        dateiname=dateiname.strip(),
+        dateipfad="",  # Dateispeicherung extern via separaten Upload-Endpoint
+        medientyp=medientyp,
+        dsgvo_status=status,
+        begruendung=begruendung.strip() or None,
+        loeschfrist=frist,
+        erstellt_von=getattr(user, "name", None) or getattr(user, "email", None),
+    )
+    db.add(m)
+    db.commit()
+    return RedirectResponse(f"/uas/flug/{flug_id}/medien", status_code=303)
+
+
+@router.post("/medien/{medien_id}/status")
+async def medien_status_aendern(
+    medien_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+    dsgvo_status: str = Form(...),
+    begruendung: str = Form(""),
+):
+    from datetime import UTC, datetime
+    from app.models.uas import UASMedien, UASMedienDsgvoStatus
+
+    m = db.query(UASMedien).filter(UASMedien.id == medien_id, UASMedien.org_id == user.org_id).first()
+    if not m:
+        raise HTTPException(404)
+
+    valid_stati = {s.value for s in UASMedienDsgvoStatus}
+    if dsgvo_status not in valid_stati:
+        raise HTTPException(400)
+
+    m.dsgvo_status = dsgvo_status
+    if begruendung.strip():
+        m.begruendung = begruendung.strip()
+    if dsgvo_status == UASMedienDsgvoStatus.geloescht.value:
+        m.geloescht_at = datetime.now(UTC)
+
+    db.commit()
+    flug_id = m.uas_flug_id
+    return RedirectResponse(f"/uas/flug/{flug_id}/medien", status_code=303)
+
+
+@router.get("/dsgvo-uebersicht", response_class=HTMLResponse)
+def dsgvo_uebersicht(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from datetime import date
+    from app.models.uas import UASMedien, UASMedienDsgvoStatus
+
+    heute = date.today()
+    alle = db.query(UASMedien).filter(UASMedien.org_id == user.org_id).all()
+    faellig = [m for m in alle if m.loeschfrist and m.loeschfrist <= heute
+               and m.dsgvo_status != UASMedienDsgvoStatus.geloescht.value]
+    offen = [m for m in alle if m.dsgvo_status == UASMedienDsgvoStatus.erfasst.value]
+    return templates.TemplateResponse(request, "uas/dsgvo_uebersicht.html", {
+        "user": user,
+        "alle": alle,
+        "faellig": faellig,
+        "offen": offen,
+        "heute": heute,
+    })

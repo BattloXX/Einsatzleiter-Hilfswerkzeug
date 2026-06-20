@@ -553,3 +553,50 @@ class UASKartenobjekt(TenantScoped, Base):
     radius_m: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+
+# ── Medien & DSGVO (PR 8) ────────────────────────────────────────────────────
+
+class UASMedienTyp(str, enum.Enum):
+    foto = "foto"
+    video = "video"
+    dokument = "dokument"
+    sonstiges = "sonstiges"
+
+
+class UASMedienDsgvoStatus(str, enum.Enum):
+    erfasst = "erfasst"
+    begruendet = "begruendet"
+    zur_loeschung = "zur_loeschung"
+    geloescht = "geloescht"
+
+
+class UASMedien(TenantScoped, Base):
+    """Aufnahmen/Medien eines Drohnenflugs mit DSGVO-Workflow (RL 7.3, RL 7.4)."""
+    __tablename__ = "uas_medien"
+    __table_args__ = (
+        Index("ix_uas_medien_flug", "uas_flug_id"),
+        Index("ix_uas_medien_einsatz", "uas_einsatz_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # org_id via TenantScoped
+
+    uas_flug_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("uas_flug.id", ondelete="SET NULL"), nullable=True
+    )
+    uas_einsatz_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("uas_einsatz.id", ondelete="SET NULL"), nullable=True
+    )
+    dateiname: Mapped[str] = mapped_column(String(512), nullable=False)
+    dateipfad: Mapped[str] = mapped_column(String(1024), nullable=False)
+    medientyp: Mapped[str] = mapped_column(String(30), nullable=False, default=UASMedienTyp.foto.value)
+    dsgvo_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, default=UASMedienDsgvoStatus.erfasst.value
+    )
+    begruendung: Mapped[str | None] = mapped_column(Text, nullable=True)
+    loeschfrist: Mapped[date | None] = mapped_column(Date, nullable=True)
+    geloescht_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    erstellt_von: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
