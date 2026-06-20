@@ -67,6 +67,17 @@ async def login(
             status_code=401,
         )
 
+    # enforce_sso: kein lokales Login wenn Org SSO erzwingt und kein lokales Passwort
+    if user.org_id and not user.password_hash:
+        from app.models.sso import OrgSsoConfig
+        sso_cfg = db.query(OrgSsoConfig).filter(
+            OrgSsoConfig.org_id == user.org_id,
+            OrgSsoConfig.enabled == True,  # noqa: E712
+            OrgSsoConfig.enforce_sso == True,  # noqa: E712
+        ).first()
+        if sso_cfg:
+            return RedirectResponse("/login?error=enforce_sso", status_code=302)
+
     # Lockout-Status prüfen
     if user.locked_until:
         locked_until = user.locked_until
@@ -85,7 +96,7 @@ async def login(
         user.locked_until = None
         user.failed_login_count = 0
 
-    if not verify_password(password, user.password_hash):
+    if not user.password_hash or not verify_password(password, user.password_hash):
         user.failed_login_count = (user.failed_login_count or 0) + 1
         if user.failed_login_count >= settings.LOGIN_MAX_FAILED:
             user.locked_until = now + timedelta(minutes=settings.LOGIN_LOCKOUT_MINUTES)

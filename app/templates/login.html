@@ -23,10 +23,25 @@
       <div class="alert alert--error">{{ error }}</div>
       {% endif %}
 
-      {% if request.query_params.get('error') == 'qr_invalid' %}
+      {% set qerr = request.query_params.get('error') %}
+      {% if qerr == 'qr_invalid' %}
       <div class="alert alert--error">QR-Code ungültig oder abgelaufen.</div>
-      {% elif request.query_params.get('error') == 'incident_closed' %}
+      {% elif qerr == 'incident_closed' %}
       <div class="alert alert--warn">Der Einsatz ist bereits abgeschlossen.</div>
+      {% elif qerr == 'sso_disabled' %}
+      <div class="alert alert--error">Microsoft-Anmeldung ist für diese Organisation nicht aktiviert.</div>
+      {% elif qerr == 'sso_unknown_org' %}
+      <div class="alert alert--error">Organisation nicht gefunden.</div>
+      {% elif qerr == 'sso_failed' %}
+      <div class="alert alert--error">Anmeldung mit Microsoft fehlgeschlagen. Bitte erneut versuchen.</div>
+      {% elif qerr == 'tenant_mismatch' %}
+      <div class="alert alert--error">Microsoft-Konto gehört nicht zur konfigurierten Organisation.</div>
+      {% elif qerr == 'domain_not_allowed' %}
+      <div class="alert alert--error">Die E-Mail-Domain ist für diese Organisation nicht zugelassen.</div>
+      {% elif qerr == 'no_group_denied' %}
+      <div class="alert alert--error">Kein Zugriff – Benutzer ist keiner berechtigten Gruppe zugeordnet.</div>
+      {% elif qerr == 'enforce_sso' %}
+      <div class="alert alert--warn">Für diesen Account ist ausschliesslich die Microsoft-Anmeldung erlaubt.</div>
       {% endif %}
 
       <form method="post" action="/login" class="login-form">
@@ -47,6 +62,74 @@
       <div style="text-align:center; margin-top:14px;">
         <a href="/passwort-vergessen" class="link-sm" title="Passwort per E-Mail zurücksetzen">Passwort vergessen?</a>
       </div>
+
+      <div style="margin:18px 0 0;display:flex;align-items:center;gap:10px;color:var(--color-text-muted,#6b7280)">
+        <div style="flex:1;height:1px;background:var(--color-border,#374151)"></div>
+        <span style="font-size:.75rem">oder</span>
+        <div style="flex:1;height:1px;background:var(--color-border,#374151)"></div>
+      </div>
+
+      <div style="margin-top:14px" x-data="{slug:'',loading:false,err:'',discovered:false}" @keydown.escape="slug='';err='';discovered=false">
+        <button type="button"
+                class="btn btn--ghost btn--full"
+                style="gap:8px;display:flex;align-items:center;justify-content:center"
+                @click="discovered=!discovered;err=''"
+                x-text="discovered ? 'Abbrechen' : 'Mit Microsoft 365 anmelden'">
+          Mit Microsoft 365 anmelden
+        </button>
+
+        <div x-show="discovered" x-cloak style="margin-top:12px">
+          <div class="form-group" style="margin-bottom:8px">
+            <label for="sso-email" style="font-size:.8rem">E-Mail oder Organisation (Kürzel)</label>
+            <input type="text" id="sso-email" x-model="slug"
+                   placeholder="name@organisation.at oder org-kürzel"
+                   class="form-input"
+                   @keydown.enter.prevent="$dispatch('sso-go')"
+                   autocomplete="email">
+          </div>
+          <p x-show="err" x-text="err" style="color:var(--color-error,#ef4444);font-size:.8rem;margin:4px 0 8px"></p>
+          <button type="button" class="btn btn--primary btn--full"
+                  :disabled="loading"
+                  @click="$dispatch('sso-go')"
+                  x-text="loading ? 'Suche...' : 'Weiter'">Weiter</button>
+        </div>
+      </div>
+
+      <script>
+        document.addEventListener('sso-go', async function() {
+          var inp = document.getElementById('sso-email');
+          var val = (inp ? inp.value : '').trim();
+          if (!val) return;
+          // Direkter Slug-Einstieg (kein @)
+          if (val.indexOf('@') === -1) {
+            window.location.href = '/sso/' + encodeURIComponent(val) + '/login';
+            return;
+          }
+          // E-Mail → Discovery
+          try {
+            var resp = await fetch('/sso/discover?email=' + encodeURIComponent(val));
+            var data = await resp.json();
+            if (data.found && data.redirect) {
+              window.location.href = data.redirect;
+            } else if (data.found && data.multiple) {
+              var orgs = data.orgs;
+              var choice = orgs.length === 1 ? orgs[0] : null;
+              if (!choice) {
+                var names = orgs.map(function(o) { return o.name; }).join(', ');
+                // Fallback: ersten nehmen – in Produktion Dialog zeigen
+                choice = orgs[0];
+              }
+              window.location.href = choice.login_url;
+            } else {
+              var errEl = document.querySelector('[x-data] p[x-show]');
+              if (errEl) errEl.textContent = 'Keine Organisation für diese E-Mail gefunden.';
+            }
+          } catch(e) {
+            var errEl2 = document.querySelector('[x-data] p[x-show]');
+            if (errEl2) errEl2.textContent = 'Fehler bei der Suche. Bitte erneut versuchen.';
+          }
+        });
+      </script>
 
       <div class="login-qr-hint" id="qr-hint-area">
         <span>Einsatz per QR-Code beitreten?</span>

@@ -11,7 +11,7 @@
   {% set active_group = 'verwaltung' %}
 {% elif '/admin/settings' in _p or '/admin/ki-prompts' in _p or '/admin/system' in _p
        or '/admin/seiten' in _p or '/admin/backup' in _p or '/admin/organisations' in _p
-       or '/admin/konfig' in _p %}
+       or '/admin/konfig' in _p or '/admin/sso' in _p %}
   {% set active_group = 'einstellungen' %}
 {% else %}
   {% set active_group = 'stammdaten' %}
@@ -268,6 +268,11 @@
                class="admin-nav__item {% if '/admin/settings' in request.url.path %}is-active{% endif %}"
                {{ tip('Organisations-Stammdaten, Logo, Farbe') }}>
               <span class="admin-nav__icon">🏛️</span>Organisation
+            </a>
+            <a href="/admin/sso"
+               class="admin-nav__item {% if '/admin/sso' in request.url.path %}is-active{% endif %}"
+               {{ tip('Microsoft 365 / Entra ID Single Sign-On konfigurieren') }}>
+              <span class="admin-nav__icon">🔑</span>SSO / Microsoft 365
             </a>
             {% if is_sysadmin %}
             <a href="/admin/ki-prompts"

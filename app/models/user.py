@@ -28,7 +28,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     display_name: Mapped[str] = mapped_column(String(150), nullable=False)
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
@@ -46,6 +46,10 @@ class User(Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Profil-Avatar (relativer Pfad unterhalb MEDIA_STORAGE_DIR)
     avatar_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # Entra ID / SSO
+    entra_oid: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    entra_tid: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    auth_provider: Mapped[str] = mapped_column(String(20), nullable=False, default="local")
 
     user_roles: Mapped[list[UserRole]] = relationship(back_populates="user", lazy="joined")
     push_subscriptions: Mapped[list[PushSubscription]] = relationship(back_populates="user")

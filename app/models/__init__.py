@@ -47,6 +47,7 @@ from app.models.master import (
     VehicleMaster,
 )
 from app.models.password_reset import PasswordResetToken
+from app.models.sso import OrgSsoConfig, OrgSsoGroupMap
 from app.models.user import (
     ApiKey,
     AuditLog,
@@ -61,6 +62,7 @@ from app.models.user import (
 )
 
 __all__ = [
+    "OrgSsoConfig", "OrgSsoGroupMap",
     "User", "Role", "UserRole", "ApiKey", "AuditLog", "PushSubscription",
     "DeviceToken", "FcmToken", "PushLog", "SmsGatewayToken",
     "FireDept", "VehicleMaster", "Member", "Qualification", "MemberQualification",

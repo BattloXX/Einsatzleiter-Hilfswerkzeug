@@ -1,0 +1,288 @@
+{% extends "admin/_layout.html" %}
+{% from "admin/_breadcrumb.html" import breadcrumb %}
+{% block title %}SSO / Microsoft 365{% endblock %}
+{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'SSO / Microsoft 365'}]) }}{% endblock %}
+
+{% block admin_content %}
+<div class="page-header">
+  <div>
+    <h1>SSO / Microsoft 365</h1>
+    <p class="page-header__sub">Entra-ID-Verbindung konfigurieren &mdash; Benutzer melden sich mit dem Microsoft-Konto an</p>
+  </div>
+</div>
+
+{% if flash == 'saved' %}
+<div class="alert alert--success mb-4">Einstellungen gespeichert.</div>
+{% elif flash and flash.startswith('error') %}
+<div class="alert alert--error mb-4">Fehler beim Speichern.</div>
+{% endif %}
+
+{% if not sso_globally_enabled %}
+<div class="alert alert--warn mb-4">
+  <strong>SSO ist global deaktiviert</strong> (<code>SSO_ENABLED=false</code> in der Server-Konfiguration).
+  Diese Einstellungen werden ignoriert, bis der Plattform-Admin SSO wieder aktiviert.
+</div>
+{% endif %}
+
+{% if is_sysadmin and all_orgs %}
+<section class="card mb-4">
+  <div class="card-body" style="padding:16px 20px">
+    <label style="font-weight:600;margin-bottom:6px;display:block">Organisation:</label>
+    <select class="form-control" style="max-width:320px"
+            onchange="location.href='/admin/sso?org_id='+this.value">
+      <option value="">-- bitte wahlen --</option>
+      {% for o in all_orgs %}
+      <option value="{{ o.id }}" {% if org and org.id == o.id %}selected{% endif %}>{{ o.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</section>
+{% endif %}
+
+{% if not org %}
+<div class="alert alert--info">Bitte eine Organisation auswahlen.</div>
+{% else %}
+
+{# Redirect-URI Infobox #}
+<section class="card mb-4">
+  <div class="card-header"><h2>Einrichtungsanleitung</h2></div>
+  <div class="card-body" style="padding:16px 20px">
+    <p style="margin-bottom:8px">
+      Erstellen Sie in Ihrem <strong>Microsoft Entra ID</strong> (Azure Portal) eine App-Registrierung
+      mit folgendem Redirect-URI:
+    </p>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <code class="form-input" style="font-size:.85rem;color:var(--color-primary);flex:1;background:var(--surface-low)">{{ redirect_uri }}</code>
+      <button type="button" class="btn btn--ghost btn--sm"
+              onclick="navigator.clipboard.writeText('{{ redirect_uri }}').then(function(){this.textContent='Kopiert!';setTimeout(function(){document.activeElement.textContent='Kopieren';},1500)}.bind(this))"
+              style="white-space:nowrap">Kopieren</button>
+    </div>
+    <ul style="font-size:.85rem;color:var(--color-text-muted);margin:0;padding-left:18px;line-height:1.7">
+      <li>Registrierungsart: <strong>Single-Tenant</strong> (nur eigener Tenant) empfohlen</li>
+      <li>Platform: <strong>Web</strong>, Redirect-URI wie oben</li>
+      <li>Zugriffstoken + ID-Token aktivieren</li>
+      <li>Client-Secret anlegen und unten eintragen</li>
+      <li>Optional: Groups-Claim aktivieren (Token Configuration &rarr; Add groups claim &rarr; Security groups)</li>
+    </ul>
+  </div>
+</section>
+
+<form method="post" action="/admin/sso/save">
+  <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+  {% if is_sysadmin and org %}
+  <input type="hidden" name="target_org_id" value="{{ org.id }}">
+  {% endif %}
+
+  <section class="card mb-4">
+    <div class="card-header"><h2>Verbindung</h2></div>
+    <div class="card-body" style="padding:16px 20px;display:grid;gap:16px">
+
+      <div class="form-group" style="margin:0">
+        <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" name="enabled" value="1"
+                 {% if config and config.enabled %}checked{% endif %}
+                 class="toggle-checkbox">
+          <span class="toggle-switch"></span>
+          SSO aktiviert
+        </label>
+        <p class="form-hint" style="margin:4px 0 0 0">Schaltet Microsoft-Login fur diese Organisation ein</p>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label for="tenant_id">Tenant ID (Directory ID)</label>
+        <input type="text" id="tenant_id" name="tenant_id"
+               value="{{ config.tenant_id or '' if config else '' }}"
+               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+               class="form-input" autocomplete="off">
+        <p class="form-hint">GUID des Microsoft-Entra-Verzeichnisses</p>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label for="client_id">Client ID (Application ID)</label>
+        <input type="text" id="client_id" name="client_id"
+               value="{{ config.client_id or '' if config else '' }}"
+               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+               class="form-input" autocomplete="off">
+        <p class="form-hint">GUID der App-Registrierung in Entra ID</p>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label for="client_secret">Client Secret</label>
+        {% if config and config.client_secret_enc %}
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="color:var(--color-success);font-size:.85rem">&#10003; Secret gesetzt</span>
+          <button type="button" class="btn btn--ghost btn--sm"
+                  onclick="document.getElementById('secret-replace').style.display='';this.parentElement.style.display='none'">
+            Ersetzen
+          </button>
+        </div>
+        <div id="secret-replace" style="display:none">
+          <input type="password" id="client_secret" name="client_secret"
+                 class="form-input" autocomplete="new-password" placeholder="Neues Client Secret eingeben">
+        </div>
+        {% else %}
+        <input type="password" id="client_secret" name="client_secret"
+               class="form-input" autocomplete="new-password" placeholder="Client Secret eingeben">
+        {% endif %}
+        <p class="form-hint">Wird Fernet-verschlusselt in der Datenbank gespeichert &mdash; nie im Klartext angezeigt</p>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label for="authority_base">Authority-URL (optional)</label>
+        <input type="text" id="authority_base" name="authority_base"
+               value="{{ config.authority_base or '' if config else '' }}"
+               placeholder="https://login.microsoftonline.com"
+               class="form-input">
+        <p class="form-hint">Nur fur Sovereign Clouds (Government, China). Leer = Standard</p>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn btn--primary">Speichern</button>
+        <button type="button" class="btn btn--ghost"
+                hx-post="/admin/sso/test"
+                {% if is_sysadmin and org %}hx-vals='{"target_org_id": "{{ org.id }}"}'{% endif %}
+                hx-headers='{"X-CSRFToken": "{{ request.state.csrf_token }}"}'
+                hx-target="#sso-test-result"
+                hx-swap="innerHTML">
+          Verbindung testen
+        </button>
+      </div>
+      <div id="sso-test-result" style="font-size:.85rem"></div>
+    </div>
+  </section>
+
+  <section class="card mb-4">
+    <div class="card-header"><h2>Provisioning &amp; Sicherheit</h2></div>
+    <div class="card-body" style="padding:16px 20px;display:grid;gap:16px">
+
+      <div class="form-group" style="margin:0">
+        <label for="allowed_domains">Erlaubte E-Mail-Domains</label>
+        <input type="text" id="allowed_domains" name="allowed_domains"
+               value="{{ config.allowed_domains or '' if config else '' }}"
+               placeholder="wolfurt.at, feuerwehr-wolfurt.at"
+               class="form-input">
+        <p class="form-hint">Kommagetrennt. Leer = alle Domains erlaubt</p>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label for="default_role_id">Standard-Rolle (wenn keine Gruppe gemappt)</label>
+        <select id="default_role_id" name="default_role_id" class="form-control" style="max-width:280px">
+          <option value="">-- keine --</option>
+          {% for r in roles %}
+          <option value="{{ r.id }}"
+                  {% if config and config.default_role_id == r.id %}selected{% endif %}>
+            {{ r.label }} ({{ r.code }})
+          </option>
+          {% endfor %}
+        </select>
+        <p class="form-hint">Wird verwendet, wenn kein Gruppen-Mapping greift und <em>Deny bei fehlender Gruppe</em> deaktiviert ist</p>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" name="deny_if_no_group" value="1"
+                 {% if config and config.deny_if_no_group %}checked{% endif %}
+                 class="toggle-checkbox">
+          <span class="toggle-switch"></span>
+          Zugriff verweigern wenn keine Gruppe gemappt
+        </label>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" name="sync_profile" value="1"
+                 {% if not config or config.sync_profile %}checked{% endif %}
+                 class="toggle-checkbox">
+          <span class="toggle-switch"></span>
+          Profil bei jedem Login synchronisieren (Name, E-Mail)
+        </label>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" name="enforce_sso" value="1"
+                 {% if config and config.enforce_sso %}checked{% endif %}
+                 class="toggle-checkbox">
+          <span class="toggle-switch"></span>
+          Nur Microsoft-Login erlauben (lokalen Login fur SSO-User deaktivieren)
+        </label>
+        <p class="form-hint" style="color:var(--color-warn)">
+          Achtung: Behalten Sie mindestens einen lokalen Admin-Account mit Passwort als Notfallzugang (Break-Glass)!
+        </p>
+      </div>
+
+      <div>
+        <button type="submit" class="btn btn--primary">Speichern</button>
+      </div>
+    </div>
+  </section>
+</form>
+
+{# Gruppen-Mapping #}
+<section class="card mb-4">
+  <div class="card-header"><h2>Gruppen-Mapping</h2></div>
+  <div class="card-body" style="padding:16px 20px">
+    <p style="font-size:.85rem;color:var(--color-text-muted);margin-bottom:12px">
+      Entra-Sicherheitsgruppen (Object ID) auf App-Rollen abbilden.
+      Die Rollen werden bei jedem Login aus Entra aktualisiert &mdash; Entra ist die Quelle der Wahrheit.
+    </p>
+
+    <div id="sso-group-map-table">
+      {% set org_id = org.id if org else none %}
+      {% include "admin/_sso_group_map.html" %}
+    </div>
+
+    <form hx-post="/admin/sso/group-map/add"
+          {% if is_sysadmin and org %}hx-vals='{"target_org_id": "{{ org.id }}"}'{% endif %}
+          hx-headers='{"X-CSRFToken": "{{ request.state.csrf_token }}"}'
+          hx-target="#sso-group-map-table"
+          hx-swap="innerHTML"
+          hx-on::after-request="this.reset()"
+          style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:end">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <div class="form-group" style="margin:0">
+        <label style="font-size:.8rem">Group Object ID (GUID)</label>
+        <input type="text" name="entra_group_id" required
+               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+               class="form-input" style="font-size:.85rem">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:.8rem">Bezeichnung (optional)</label>
+        <input type="text" name="label"
+               placeholder="z.B. ELHW-Einsatzleiter"
+               class="form-input" style="font-size:.85rem">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:.8rem">Rolle</label>
+        <select name="role_id" required class="form-control" style="font-size:.85rem">
+          {% for r in roles %}
+          <option value="{{ r.id }}">{{ r.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn--primary btn--sm" style="align-self:flex-end">
+        + Hinzufugen
+      </button>
+    </form>
+  </div>
+</section>
+
+<section class="card mb-4" style="border-color:var(--color-border)">
+  <div class="card-header"><h2>Direktlink fur Benutzer</h2></div>
+  <div class="card-body" style="padding:16px 20px">
+    <p style="font-size:.85rem;color:var(--color-text-muted);margin-bottom:8px">
+      Teilen Sie diesen Link mit Ihren Benutzern &mdash; er fuhrt direkt zum Microsoft-Login:
+    </p>
+    <div style="display:flex;align-items:center;gap:8px">
+      <code class="form-input" style="font-size:.85rem;color:var(--color-primary);flex:1;background:var(--surface-low)">
+        {{ settings_public_base_url }}/sso/{{ org.slug }}/login
+      </code>
+      <button type="button" class="btn btn--ghost btn--sm"
+              onclick="navigator.clipboard.writeText('{{ settings_public_base_url }}/sso/{{ org.slug }}/login').then(function(){this.textContent='Kopiert!';setTimeout(function(){document.activeElement.textContent='Kopieren';},1500)}.bind(this))"
+              style="white-space:nowrap">Kopieren</button>
+    </div>
+  </div>
+</section>
+
+{% endif %}
+{% endblock %}

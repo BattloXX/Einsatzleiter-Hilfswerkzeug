@@ -25,6 +25,7 @@ from app.routers import (
     device_api,
     lagekarte_api,
     public,
+    sso,
     ui_admin,
     ui_ai_prompts,
     ui_archive,
@@ -39,6 +40,7 @@ from app.routers import (
     ui_profile,
     ui_push,
     ui_settings,
+    ui_sso,
     ui_stats,
     ui_sysadmin,
     ui_uas,
@@ -351,6 +353,7 @@ if limiter is not None:
 
 # Routers
 app.include_router(auth.router)
+app.include_router(sso.router)
 app.include_router(public.router)
 app.include_router(ui_password_reset.router)
 app.include_router(api_v1.router)
@@ -369,6 +372,7 @@ app.include_router(ui_admin.router)
 app.include_router(ui_stats.router)
 app.include_router(ui_push.router)
 app.include_router(ui_settings.router)
+app.include_router(ui_sso.router)
 app.include_router(ui_sysadmin.router)
 app.include_router(ui_ai_prompts.router)
 app.include_router(ui_profile.router)

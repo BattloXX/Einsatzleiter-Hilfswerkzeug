@@ -125,6 +125,14 @@ class Settings(BaseSettings):
     KACHELMANN_BASE_URL: str = "https://api.kachelmannwetter.com/v02"
     KACHELMANN_API_KEY: str = ""
 
+    # SSO / Microsoft Entra ID
+    SSO_ENABLED: bool = True
+    MS_LOGIN_BASE_URL: str = "https://login.microsoftonline.com"
+    SSO_HTTP_TIMEOUT: int = 10
+    SSO_FLOW_MAX_AGE: int = 600   # 10 min für state/nonce/PKCE-Cookie
+    SSO_JWKS_CACHE_TTL: int = 3600
+    SSO_SCOPES: str = "openid profile email User.Read"
+
     @property
     def effective_public_base_url(self) -> str:
         return self.PUBLIC_BASE_URL or self.APP_BASE_URL
