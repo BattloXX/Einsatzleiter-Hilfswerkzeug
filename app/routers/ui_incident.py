@@ -771,6 +771,22 @@ async def incident_dashboard(
         qr_img.save(buf, format="PNG")
         qr_img_b64 = base64.b64encode(buf.getvalue()).decode()
 
+    uas_einsatz = None
+    uas_flug_count = 0
+    if getattr(request.state, "uas_module_enabled", False):
+        from app.models.uas import UASEinsatz, UASFlug
+        uas_einsatz = db.query(UASEinsatz).filter(
+            UASEinsatz.incident_id == incident_id
+        ).first()
+        if uas_einsatz:
+            _ = list(uas_einsatz.rollen)
+            for r in uas_einsatz.rollen:
+                if r.pilot:
+                    _ = r.pilot
+            uas_flug_count = db.query(UASFlug).filter(
+                UASFlug.uas_einsatz_id == uas_einsatz.id
+            ).count()
+
     return templates.TemplateResponse(
         request,
         "incident/dashboard.html",
@@ -791,6 +807,8 @@ async def incident_dashboard(
             "breathing_troops": breathing_troops,
             "qr_img": qr_img_b64,
             "qr_url": qr_url_str,
+            "uas_einsatz": uas_einsatz,
+            "uas_flug_count": uas_flug_count,
         },
     )
 

@@ -631,6 +631,62 @@
     .status-tag--achtung     { background: rgba(249,115,22,.15); border: 1px solid rgba(249,115,22,.3); color: #fdba74; }
     .status-tag--hinweis     { background: rgba(234,179,8,.15);  border: 1px solid rgba(234,179,8,.3);  color: #fef08a; }
     .status-tag--information { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3); color: #93c5fd; }
+
+    /* ── UAS-PANEL ──────────────────────────────────────────────────────────── */
+    .uas-status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 2px 10px; border-radius: 4px;
+      font-family: var(--font-mono); font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+    .uas-status--alarmiert    { background: rgba(242,176,46,.18); border: 1px solid rgba(242,176,46,.35); color: var(--amber); }
+    .uas-status--angemeldet   { background: rgba(24,119,242,.18); border: 1px solid rgba(24,119,242,.35); color: #63a4f8; }
+    .uas-status--im_einsatz   { background: rgba(24,169,87,.18);  border: 1px solid rgba(24,169,87,.35);  color: #5fcf8e; }
+    .uas-status--abgemeldet   { background: rgba(100,116,139,.18);border: 1px solid rgba(100,116,139,.35);color: #94a3b8; }
+    .uas-status--abgeschlossen{ background: rgba(100,116,139,.18);border: 1px solid rgba(100,116,139,.35);color: #94a3b8; }
+
+    .uas-role-row {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .4rem .53rem;
+      background: var(--surface-highest);
+      border: 1px solid var(--border-soft);
+      border-radius: .33rem;
+      margin-bottom: .33rem;
+    }
+    .uas-role-tag {
+      font-family: var(--font-mono); font-size: .65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: 1px 6px; border-radius: 3px;
+      background: rgba(120,80,220,.18); border: 1px solid rgba(120,80,220,.3); color: #c4b5fd;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .uas-role-name { font-size: .88rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .uas-stat-row { display: flex; gap: .53rem; margin: .6rem 0; }
+    .uas-stat {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: .53rem .4rem;
+      background: var(--surface-highest); border: 1px solid var(--border-soft); border-radius: .4rem;
+    }
+    .uas-stat__num { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 700; line-height: 1; color: #c4b5fd; }
+    .uas-stat__lbl { font-size: .72rem; color: var(--text-muted); margin-top: 3px; }
+
+    .uas-link {
+      display: flex; align-items: center; justify-content: center; gap: .4rem;
+      margin-top: .6rem; padding: .5rem;
+      background: rgba(120,80,220,.1); border: 1px solid rgba(120,80,220,.25);
+      border-radius: .33rem; color: #c4b5fd;
+      font-size: .82rem; font-weight: 600; text-decoration: none;
+      transition: background .15s;
+    }
+    .uas-link:hover { background: rgba(120,80,220,.2); }
+
+    .uas-info-row {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .35rem .53rem;
+      font-size: .82rem; color: var(--text-muted);
+    }
+    .uas-info-row strong { color: var(--text); }
   </style>
 </head>
 <body>
@@ -769,7 +825,7 @@
   {% endif %}
 
   <!-- ══ MAIN ══ -->
-  <div class="main">
+  <div class="main"{% if uas_einsatz %} style="grid-template-columns: 2.2fr 1.3fr 1.5fr 1.3fr;"{% endif %}>
 
     <!-- ── FAHRZEUGE ── -->
     <div class="vehicles-col">
@@ -1015,6 +1071,74 @@
         </div>
       </div>
     </div>
+
+    <!-- ── DROHNE (UAS) ── -->
+    {% if uas_einsatz %}
+    {% set uas_status_labels = {
+      'alarmiert': 'Alarmiert',
+      'angemeldet': 'Angemeldet',
+      'im_einsatz': 'Im Einsatz',
+      'abgemeldet': 'Abgemeldet',
+      'abgeschlossen': 'Abgeschlossen'
+    } %}
+    {% set uas_role_labels = {
+      'teamleiter': 'TL',
+      'pilot': 'PIC',
+      'operator': 'Operator',
+      'luftraumbeobachter': 'LRB',
+      'versorger': 'Vers.',
+      'bildschirmbeobachter': 'BSB',
+      'geraetewart': 'GW'
+    } %}
+    <div class="panel">
+      <div class="panel-hd">
+        <div class="panel-hd__top">
+          <div class="panel-hd__title">
+            <span class="panel-hd__icon">🚁</span> Drohne
+          </div>
+          <span class="uas-status-badge uas-status--{{ uas_einsatz.status }}">
+            {% if uas_einsatz.status == 'im_einsatz' %}<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#5fcf8e;animation:blink 2s ease-in-out infinite;margin-right:3px;"></span>{% endif %}
+            {{ uas_status_labels.get(uas_einsatz.status, uas_einsatz.status) }}
+          </span>
+        </div>
+        {% if uas_einsatz.tetra_rufname %}
+        <div class="uas-info-row" style="padding-top:.4rem;">
+          <span style="font-size:.8rem;color:var(--text-dim);">📡</span>
+          <span>Rufname: <strong>{{ uas_einsatz.tetra_rufname }}</strong></span>
+        </div>
+        {% endif %}
+        <div class="uas-stat-row">
+          <div class="uas-stat">
+            <span class="uas-stat__num">{{ uas_flug_count }}</span>
+            <span class="uas-stat__lbl">Flüge</span>
+          </div>
+          <div class="uas-stat">
+            <span class="uas-stat__num">{{ uas_einsatz.rollen|length }}</span>
+            <span class="uas-stat__lbl">Team</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel-body">
+        {% if uas_einsatz.rollen %}
+        {% for r in uas_einsatz.rollen %}
+        {% set person_name = (r.pilot.vorname ~ ' ' ~ r.pilot.nachname) if r.pilot else r.helfer_name or '—' %}
+        <div class="uas-role-row">
+          <span class="uas-role-tag">{{ uas_role_labels.get(r.rolle, r.rolle) }}</span>
+          <span class="uas-role-name">{{ person_name }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-panel" style="min-height:40px;">
+          <div class="empty-icon" style="font-size:1.4rem;">🚁</div>
+          Kein Team zugewiesen
+        </div>
+        {% endif %}
+        <a href="/uas/einsatz/{{ uas_einsatz.id }}" class="uas-link" target="_blank" rel="noopener">
+          <span>🔗</span> Drohneneinsatz öffnen
+        </a>
+      </div>
+    </div>
+    {% endif %}
 
   </div><!-- /main -->
 
