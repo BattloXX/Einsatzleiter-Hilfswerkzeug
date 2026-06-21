@@ -75,3 +75,36 @@
 .print-label{font-weight:600;}
 /* ── Test System Badge ───────────────────────────────────── */
 .test-system-badge{background:#1d4ed8;color:#fff;font-size:13px;font-weight:800;letter-spacing:.1em;padding:3px 10px;border-radius:4px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;white-space:nowrap;flex-shrink:0;}
+
+/* ── Lage-Page-Layout (Großschadenslage) ─────────────────────── */
+.lage-page{display:flex;flex-direction:column;height:calc(100vh - var(--topnav-h));}
+.lage-ctx-bar{flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);}
+.lage-ctx-bar__head{display:flex;align-items:center;gap:8px;padding:6px 12px;flex-wrap:wrap;min-height:44px;}
+.lage-ctx-bar__title{font-weight:700;font-size:.95rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lage-ctx-bar__tabs-row{display:flex;align-items:center;gap:4px;padding:0 8px 5px;border-top:1px solid rgba(255,255,255,.04);}
+.lage-ctx-bar__tabs{display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none;}
+.lage-ctx-bar__tabs::-webkit-scrollbar{display:none;}
+.lage-tab{display:inline-flex;align-items:center;white-space:nowrap;padding:5px 9px;border-radius:5px;font-size:.78rem;color:var(--text-muted);text-decoration:none;flex-shrink:0;transition:background .12s,color .12s;}
+.lage-tab:hover{background:rgba(255,255,255,.07);color:var(--text);text-decoration:none;}
+.lage-tab--active{background:rgba(255,255,255,.1);color:var(--text);font-weight:600;}
+.lage-page__body{flex:1;min-height:0;overflow-y:auto;}
+@media(max-width:760px){.lage-page{height:auto;}.lage-page__body{overflow:visible;}.lage-ctx-bar__head{padding:5px 10px;gap:6px;}.lage-ctx-bar__tabs-row{padding:0 4px 4px;}.lage-ctx-bar__title{font-size:.88rem;}}
+/* ── Mobile Bottom-Nav ────────────────────────────────────────── */
+.bottom-nav{display:none;}
+@media(max-width:900px){.bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--surface-low);border-top:1px solid var(--border);height:calc(56px + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);z-index:110;box-shadow:0 -2px 12px rgba(0,0,0,.35);}.bottom-nav__item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:var(--text-muted);font-size:.6rem;font-weight:500;padding:8px 4px;border:none;background:none;cursor:pointer;transition:color .15s;min-height:44px;}.bottom-nav__item:hover,.bottom-nav__item--active{color:#fff;text-decoration:none;}.bottom-nav__icon{font-size:1.3rem;line-height:1;}.main-content{padding-bottom:calc(56px + env(safe-area-inset-bottom,0px));}.toast-container{bottom:calc(64px + env(safe-area-inset-bottom,0px));}}
+/* ── Admin: Verwaltung-Link im Topnav ─────────────────────────── */
+.topnav__admin-link{padding:6px 12px;border-radius:.5rem;color:rgba(255,255,255,.75);font-size:.85rem;font-weight:500;white-space:nowrap;text-decoration:none;border:1px solid rgba(255,255,255,.2);transition:var(--transition);}
+.topnav__admin-link:hover{background:rgba(255,255,255,.12);color:#fff;text-decoration:none;border-color:rgba(255,255,255,.35);}
+/* ── Admin Sidebar: Zurück-Link ───────────────────────────────── */
+.admin-back-link{display:flex;align-items:center;gap:6px;padding:8px 18px 12px;font-size:.82rem;color:var(--text-muted);text-decoration:none;border-bottom:1px solid var(--border);margin-bottom:6px;transition:color .12s;}
+.admin-back-link:hover{color:var(--on-surface);text-decoration:none;}
+/* ── mobile-menu section: Lage oben ohne border ──────────────── */
+.mobile-menu__section--top{border-top:none!important;margin-top:0!important;padding-top:0!important;border-bottom:1px solid var(--border);margin-bottom:14px;padding-bottom:8px;}
+
+/* ── Lage-Status-Badge ────────────────────────────────────────── */
+.lage-status{font-size:.75rem;padding:2px 8px;border-radius:10px;white-space:nowrap;}
+.lage-status--active{background:rgba(34,197,94,.15);color:#4ade80;}
+.lage-status--closed{background:rgba(107,114,128,.2);color:#9ca3af;}
+.lage-status--standby{background:rgba(245,158,11,.15);color:#fbbf24;}
+/* ── exercise-topbar (global) ─────────────────────────────────── */
+.exercise-topbar{background:#92400e;color:#fde68a;text-align:center;font-weight:700;font-size:.82rem;padding:4px;letter-spacing:.05em;}

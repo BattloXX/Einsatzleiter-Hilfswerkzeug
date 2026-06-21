@@ -1,28 +1,10 @@
-﻿{% extends "base.html" %}
+{% extends "incident_major/_lage_layout.html" %}
 {% block title %}{{ lage.name }} – Dashboard{% endblock %}
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/leaflet.min.css">
 <style>
-.lage-status { font-size:.75rem; padding:2px 8px; border-radius:10px; white-space:nowrap; }
-.lage-status--active  { background:rgba(34,197,94,.15); color:#4ade80; }
-.lage-status--closed  { background:rgba(107,114,128,.2); color:#9ca3af; }
-.lage-status--standby { background:rgba(245,158,11,.15); color:#fbbf24; }
 .dash-wrap   { padding: 14px 16px; max-width: 1200px; margin: 0 auto; }
-.dash-topbar {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 8px 14px; border-bottom: 1px solid var(--border);
-  background: var(--surface); margin-bottom: 14px;
-}
-.dash-topbar__title { font-weight: 700; font-size: 1.05rem; flex: 1; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lage-subnav { display: flex; gap: 4px; }
-.lage-subnav a { font-size: .78rem; padding: 3px 9px; border-radius: 4px;
-  color: var(--text-muted); text-decoration: none; }
-.lage-subnav a:hover { background: rgba(255,255,255,.07); color: var(--text); }
-.lage-subnav a.active { background: rgba(255,255,255,.1); color: var(--text); font-weight: 600; }
-@media (max-width: 900px) { .lage-subnav { display: none; } }
-
 .stat-row    { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 .stat-card   {
   flex: 1; min-width: 120px; padding: 12px 14px;
@@ -45,14 +27,12 @@
   margin-bottom: 10px; letter-spacing: .04em;
 }
 
-/* Phase bar */
 .phase-bar-wrap { display: flex; height: 14px; border-radius: 4px; overflow: hidden; gap: 2px; }
 .phase-bar-seg  { transition: flex .3s; min-width: 0; border-radius: 2px; }
 .phase-legend   { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; }
 .phase-legend__item { display: flex; align-items: center; gap: 5px; font-size: .72rem; }
 .phase-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 
-/* Prio pills */
 .prio-grid { display: flex; gap: 8px; flex-wrap: wrap; }
 .prio-pill {
   display: flex; align-items: center; gap: 7px;
@@ -63,7 +43,6 @@
 .prio-pill__count { font-size: 1.3rem; font-weight: 700; min-width: 24px; }
 .prio-pill__lbl   { color: var(--text-muted); font-size: .72rem; }
 
-/* Recent log */
 .act-entry { display: flex; gap: 8px; padding: 5px 0;
   border-top: 1px solid rgba(255,255,255,.05); font-size: .78rem; }
 .act-time  { color: var(--text-muted); white-space: nowrap; flex-shrink: 0; min-width: 44px; }
@@ -71,54 +50,13 @@
   max-width: 100px; flex-shrink: 0; }
 .act-text  { flex: 1; color: var(--text); }
 
-/* Map */
 #lage-map { height: 320px; border-radius: 6px; background: #111827; }
 </style>
 {% endblock %}
 
-{% block mobile_lage_nav %}
-<div class="mobile-menu__section mobile-menu__section--top">
-  <div class="mobile-menu__section-title">🚨 {{ lage.name }}</div>
-  <a href="/lage/{{ lage.id }}" class="mobile-menu__link">📋 Board</a>
-  <a href="/lage/{{ lage.id }}/dashboard" class="mobile-menu__link active">📊 Dashboard</a>
-  {% if mi_features.stab %}<a href="/lage/{{ lage.id }}/stab" class="mobile-menu__link">👥 Stab</a>{% endif %}
-  {% if mi_features.funkjournal %}<a href="/lage/{{ lage.id }}/funkjournal" class="mobile-menu__link">📻 Funkjournal</a>{% endif %}
-  {% if mi_features.meldungen %}<a href="/lage/{{ lage.id }}/meldungen" class="mobile-menu__link">📥 Meldungen</a>{% endif %}
-  {% if mi_features.zeitreise %}<a href="/lage/{{ lage.id }}/zeitreise" class="mobile-menu__link">🕐 Zeitreise</a>{% endif %}
-  {% if mi_features.sektoren %}<a href="/lage/{{ lage.id }}/sektoren" class="mobile-menu__link">🗂 Abschnitte</a>{% endif %}
-  {% if mi_features.karte %}<a href="/lage/{{ lage.id }}/karte" class="mobile-menu__link">🗺 Karte</a>{% endif %}
-  {% if mi_features.ressourcen %}<a href="/lage/{{ lage.id }}/ressourcen" class="mobile-menu__link">🚒 Ressourcen</a>{% endif %}
-  {% if mi_features.geraeteverleih %}<a href="/lage/{{ lage.id }}/verleih" class="mobile-menu__link">📦 Geräteverleih</a>{% endif %}
-  <a href="/lage/{{ lage.id }}/druck" class="mobile-menu__link" target="_blank">🖨 Drucken</a>
-</div>
-{% endblock %}
-
-{% block content %}
-{% if lage.is_exercise %}
-<div style="background:#92400e;color:#fde68a;text-align:center;font-weight:700;font-size:.82rem;padding:4px;letter-spacing:.05em;">⚠ ÜBUNG / SIMULATION ⚠</div>
-{% endif %}
-
-<div class="dash-topbar">
-  <a href="/lage/{{ lage.id }}" class="btn btn--ghost btn--sm" title="Zurück zum Board">←</a>
-  <div class="dash-topbar__title" title="{{ lage.name }}">{{ lage.name }}</div>
-  <span class="lage-status lage-status--{{ lage.status.value }}">{{ lage.status.value }}</span>
-  <nav class="lage-subnav">
-    <a href="/lage/{{ lage.id }}">📋 Board{% if open_count %} ({{ open_count }}){% endif %}</a>
-    <a href="/lage/{{ lage.id }}/dashboard" class="active">📊 Dashboard</a>
-    {% if mi_features.stab %}<a href="/lage/{{ lage.id }}/stab">👥 Stab</a>{% endif %}
-    {% if mi_features.funkjournal %}<a href="/lage/{{ lage.id }}/funkjournal">📻 Funkjournal</a>{% endif %}
-    {% if mi_features.meldungen %}<a href="/lage/{{ lage.id }}/meldungen">📥 Meldungen{% if new_meldungen_count %} ({{ new_meldungen_count }}){% endif %}</a>{% endif %}
-    {% if mi_features.zeitreise %}<a href="/lage/{{ lage.id }}/zeitreise">🕐 Zeitreise</a>{% endif %}
-    {% if mi_features.sektoren %}<a href="/lage/{{ lage.id }}/sektoren">🗂 Abschnitte</a>{% endif %}
-    {% if mi_features.karte %}<a href="/lage/{{ lage.id }}/karte">🗺 Karte</a>{% endif %}
-    {% if mi_features.ressourcen %}<a href="/lage/{{ lage.id }}/ressourcen">🚒 Ressourcen</a>{% endif %}
-    <a href="/lage/{{ lage.id }}/druck" target="_blank">🖨 Drucken</a>
-  </nav>
-</div>
-
+{% block lage_content %}
 <div class="dash-wrap">
 
-  {# ── Schnellkennzahlen ────────────────────────────────────────────────────── #}
   <div class="stat-row">
     <div class="stat-card">
       <div class="stat-card__val">{{ total_sites }}</div>
@@ -148,7 +86,6 @@
   <div class="dash-grid">
     <div>
 
-      {# ── Phasenverteilung ──────────────────────────────────────────────────── #}
       <div class="dash-section">
         <div class="dash-section__title">PHASENVERTEILUNG</div>
         {% set phase_colors = {
@@ -188,7 +125,6 @@
         </div>
       </div>
 
-      {# ── Prioritäten ───────────────────────────────────────────────────────── #}
       <div class="dash-section">
         <div class="dash-section__title">PRIORITÄTEN (AKTIVE STELLEN)</div>
         <div class="prio-grid">
@@ -207,13 +143,11 @@
         </div>
       </div>
 
-      {# ── Karte ─────────────────────────────────────────────────────────────── #}
       <div class="dash-section">
         <div class="dash-section__title">KARTE</div>
         <div id="lage-map"></div>
       </div>
 
-      {# ── KI-Lagebericht ────────────────────────────────────────────────────── #}
       <div class="dash-section" x-data="{loading:false}">
         <div class="dash-section__title" style="display:flex;align-items:center;justify-content:space-between;">
           <span>KI-LAGEBERICHT</span>
@@ -236,7 +170,6 @@
 
     </div>
 
-    {# ── Letzte Aktivitäten ──────────────────────────────────────────────────── #}
     <div class="dash-section" style="max-height:calc(100vh - 200px);overflow-y:auto;">
       <div class="dash-section__title">LETZTE AKTIVITÄTEN</div>
       {% for item in activity_feed %}
@@ -265,21 +198,19 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block lage_scripts %}
 <script src="/static/js/leaflet.min.js"></script>
 <script>
 (function () {
   var sites   = {{ map_sites_json | safe }};
   var sectors = {{ sectors_json | safe }};
   var map = L.map('lage-map', { preferCanvas: true });
-  // subdomains: 'abc' PFLICHT — ohne Option → Leaflet nutzt keinen Subdomain-Ersatz → HTTP 503
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     subdomains: 'abc',
     maxZoom: 19,
   }).addTo(map);
 
-  // Abschnitt-Polygone (unter den Markern)
   var sectionPane = map.createPane('sectionPane');
   sectionPane.style.zIndex = 350;
   sectors.forEach(function(s) {
@@ -308,7 +239,6 @@
   if (bounds.length) {
     map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
   } else if (sectors.length) {
-    // Karte auf Polygon-Ausdehnung ausrichten wenn keine Sites
     var allBounds = [];
     sectors.forEach(function(s) {
       if (!s.geometry) return;

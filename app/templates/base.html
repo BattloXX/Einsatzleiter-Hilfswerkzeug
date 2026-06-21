@@ -22,7 +22,7 @@
   {% set user_roles = user.roles|map(attribute='code')|list %}
   {% set is_admin = ('admin' in user_roles or 'org_admin' in user_roles or 'system_admin' in user_roles) %}
   <nav class="topnav" id="topnav">
-    <button type="button" class="topnav__burger" aria-label="Menü öffnen"
+    <button type="button" class="topnav__burger" aria-label="Menu oeffnen"
             @click="mobileMenuOpen = !mobileMenuOpen"
             :aria-expanded="mobileMenuOpen ? 'true' : 'false'">
       <span class="topnav__burger-bar"></span>
@@ -51,52 +51,6 @@
       <a href="/medien" class="nav-link {% if request.url.path.startswith('/medien') %}active{% endif %}">Medien</a>
       {% if WEATHER_ENABLED %}
       <a href="/wetter" class="nav-link {% if request.url.path.startswith('/wetter') %}active{% endif %}">🌦 Wetter</a>
-      {% endif %}
-      {% if is_admin %}
-      <div class="nav-dropdown" x-data="{open:false}" @click.outside="open=false">
-        <button class="nav-link nav-link--dropdown {% if '/admin' in request.url.path %}active{% endif %}"
-                @click="open=!open">⚙ Admin ▾</button>
-        <div class="nav-dropdown__menu" x-show="open" x-cloak>
-          <div class="nav-dropdown__group">
-            <span class="nav-dropdown__label">Stammdaten</span>
-            <a href="/admin/fahrzeuge" class="nav-dropdown__item">🚒 Fahrzeuge</a>
-            <a href="/admin/mitglieder" class="nav-dropdown__item">👥 Mitglieder</a>
-            <a href="/admin/qualifikationen" class="nav-dropdown__item">🎖️ Qualifikationen</a>
-            <a href="/admin/alarmtypen" class="nav-dropdown__item">🚨 Alarmtypen</a>
-            <a href="/admin/ausrueckordnung" class="nav-dropdown__item">📋 Ausrückordnung</a>
-            <a href="/admin/auftragsvorlagen" class="nav-dropdown__item">✅ Auftragsvorlagen</a>
-            <a href="/admin/meldungsvorlagen" class="nav-dropdown__item">💬 Meldungsvorlagen</a>
-            <a href="/admin/lage-hinweise" class="nav-dropdown__item">💡 Lage-Hinweise</a>
-            <a href="/admin/default-meldungen" class="nav-dropdown__item">🔔 Default-Meldungen</a>
-            {% if request.state.uas_module_enabled %}
-            <a href="/uas" class="nav-dropdown__item">&#x1F681; Drohne / UAS</a>
-            {% endif %}
-          </div>
-          <div class="nav-dropdown__group">
-            <span class="nav-dropdown__label">Verwaltung</span>
-            <a href="/admin/benutzer" class="nav-dropdown__item">🔑 Benutzer</a>
-            <a href="/admin/geraete-login" class="nav-dropdown__item">📱 Geräte-Login</a>
-            <a href="/admin/push-nachrichten" class="nav-dropdown__item">📣 Push-Nachrichten</a>
-            <a href="/admin/api-keys" class="nav-dropdown__item">🔐 API-Keys</a>
-            <a href="/admin/lagekarte-tokens" class="nav-dropdown__item">🗺️ Lagekarte-Tokens</a>
-            <a href="/admin/audit" class="nav-dropdown__item">📜 Audit-Log</a>
-          </div>
-          <div class="nav-dropdown__group">
-            <span class="nav-dropdown__label">Einstellungen</span>
-            <a href="/admin/settings" class="nav-dropdown__item">🏛️ Organisation</a>
-            <a href="/admin/sso" class="nav-dropdown__item">🔑 SSO / Microsoft 365</a>
-            {% if 'system_admin' in user_roles %}
-            <a href="/admin/ki-prompts" class="nav-dropdown__item">✨ KI-Prompts</a>
-            <a href="/admin/system-einstellungen" class="nav-dropdown__item">⚙️ System</a>
-            <a href="/admin/system/server-log" class="nav-dropdown__item">📋 Server-Log</a>
-            <a href="/admin/seiten" class="nav-dropdown__item">🌍 Seiten</a>
-            <a href="/admin/system/update" class="nav-dropdown__item">⬆️ System-Update</a>
-            <a href="/admin/backup" class="nav-dropdown__item">📦 Backup</a>
-            <a href="/admin/organisations" class="nav-dropdown__item">🌐 Alle Orgs</a>
-            {% endif %}
-          </div>
-        </div>
-      </div>
       {% endif %}
     </div>
     {% if incident is defined and incident and leader_candidates is defined %}
@@ -159,8 +113,11 @@
              style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;">
         {% endif %}
         {{ user.display_name }}</a>
+      {% if is_admin %}
+      <a href="/admin" class="topnav__admin-link {% if '/admin' in request.url.path %}active{% endif %}">⚙ Verwaltung</a>
+      {% endif %}
       <button type="button" class="btn btn--ghost btn--sm pwa-install-btn" style="display:none"
-              title="App auf Gerät installieren">📲 Installieren</button>
+              title="App auf Geraet installieren">📲 Installieren</button>
       <button type="button" class="btn btn--ghost btn--sm pwa-install-ios" style="display:none"
               title="App auf iPhone/iPad installieren">📲 Installieren</button>
       <a href="/logout" class="btn btn--ghost btn--sm">Abmelden</a>
@@ -181,62 +138,24 @@
              style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;">
         {% endif %}
         {{ user.display_name }}</span>
-      <button type="button" class="mobile-menu__close" aria-label="Schließen"
+      <button type="button" class="mobile-menu__close" aria-label="Schliessen"
               @click="mobileMenuOpen = false">×</button>
     </header>
     <nav class="mobile-menu__nav">
-      {% block mobile_lage_nav %}{% endblock %}
-      <a href="/" class="mobile-menu__link {% if request.url.path == '/' %}active{% endif %}">📋 Übersicht</a>
+      <a href="/" class="mobile-menu__link {% if request.url.path == '/' %}active{% endif %}">🏠 Übersicht</a>
+      <a href="/lage" class="mobile-menu__link {% if request.url.path.startswith('/lage') %}active{% endif %}">🚨 Lage</a>
       <a href="/archiv" class="mobile-menu__link {% if '/archiv' in request.url.path %}active{% endif %}">📚 Archiv</a>
       <a href="/statistik" class="mobile-menu__link {% if '/statistik' in request.url.path %}active{% endif %}">📊 Statistik</a>
       <a href="/medien" class="mobile-menu__link {% if request.url.path.startswith('/medien') %}active{% endif %}">🖼️ Medien</a>
-      {% if request.state.uas_module_enabled %}<a href="/uas" class="mobile-menu__link {% if request.url.path.startswith('/uas') %}active{% endif %}">🚁 Drohne / UAS</a>{% endif %}
-
-      {% if is_admin %}
-      <div class="mobile-menu__section">
-        <div class="mobile-menu__section-title">⚙ Administration</div>
-        <a href="/admin" class="mobile-menu__link">🏠 Dashboard</a>
-      </div>
-      <div class="mobile-menu__section">
-        <div class="mobile-menu__section-title">Stammdaten</div>
-        <a href="/admin/fahrzeuge" class="mobile-menu__link">🚒 Fahrzeuge</a>
-        <a href="/admin/mitglieder" class="mobile-menu__link">👥 Mitglieder</a>
-        <a href="/admin/qualifikationen" class="mobile-menu__link">🎖️ Qualifikationen</a>
-        <a href="/admin/alarmtypen" class="mobile-menu__link">🚨 Alarmtypen</a>
-        <a href="/admin/ausrueckordnung" class="mobile-menu__link">📋 Ausrückordnung</a>
-        <a href="/admin/auftragsvorlagen" class="mobile-menu__link">✅ Auftragsvorlagen</a>
-        <a href="/admin/meldungsvorlagen" class="mobile-menu__link">💬 Meldungsvorlagen</a>
-        <a href="/admin/lage-hinweise" class="mobile-menu__link">💡 Lage-Hinweise</a>
-        <a href="/admin/default-meldungen" class="mobile-menu__link">🔔 Default-Meldungen</a>
-        <a href="/admin/verleih-artikel" class="mobile-menu__link">📦 Geräteverleih</a>
-      </div>
-      <div class="mobile-menu__section">
-        <div class="mobile-menu__section-title">Verwaltung</div>
-        <a href="/admin/benutzer" class="mobile-menu__link">🔑 Benutzer</a>
-        <a href="/admin/geraete-login" class="mobile-menu__link">📱 Geräte-Login</a>
-        <a href="/admin/push-nachrichten" class="mobile-menu__link">📣 Push-Nachrichten</a>
-        <a href="/admin/api-keys" class="mobile-menu__link">🔐 API-Keys</a>
-        <a href="/admin/lagekarte-tokens" class="mobile-menu__link">🗺️ Lagekarte-Tokens</a>
-        <a href="/admin/audit" class="mobile-menu__link">📜 Audit-Log</a>
-      </div>
-      <div class="mobile-menu__section">
-        <div class="mobile-menu__section-title">Einstellungen</div>
-        <a href="/admin/settings" class="mobile-menu__link">🏛️ Organisation</a>
-        <a href="/admin/gsl-einstellungen" class="mobile-menu__link">🚨 GSL-Einstellungen</a>
-        {% if 'system_admin' in user_roles %}
-        <a href="/admin/ki-prompts" class="mobile-menu__link">✨ KI-Prompts</a>
-        <a href="/admin/system-einstellungen" class="mobile-menu__link">⚙️ System</a>
-        <a href="/admin/system/server-log" class="mobile-menu__link">📋 Server-Log</a>
-        <a href="/admin/seiten" class="mobile-menu__link">🌍 Seiten</a>
-        <a href="/admin/system/update" class="mobile-menu__link">⬆️ System-Update</a>
-        <a href="/admin/backup" class="mobile-menu__link">📦 Backup</a>
-        <a href="/admin/organisations" class="mobile-menu__link">🌐 Alle Orgs</a>
-        {% endif %}
-      </div>
+      {% if WEATHER_ENABLED %}
+      <a href="/wetter" class="mobile-menu__link {% if request.url.path.startswith('/wetter') %}active{% endif %}">🌦 Wetter</a>
       {% endif %}
     </nav>
     <footer class="mobile-menu__footer">
       <a href="/profil" class="mobile-menu__link {% if request.url.path.startswith('/profil') %}active{% endif %}">👤 Mein Profil</a>
+      {% if is_admin %}
+      <a href="/admin" class="mobile-menu__link {% if '/admin' in request.url.path %}active{% endif %}">⚙ Verwaltung</a>
+      {% endif %}
       <button type="button" class="btn btn--secondary btn--full pwa-install-btn" style="display:none">
         📲 App installieren
       </button>
@@ -247,7 +166,32 @@
     </footer>
   </aside>
 
-  <!-- iOS-Safari Install-Hinweis (kein beforeinstallprompt verfuegbar) -->
+  <!-- Bottom-Nav (mobil) -->
+  {% set _p = request.url.path %}
+  <nav class="bottom-nav" aria-label="Schnellnavigation">
+    <a href="/" class="bottom-nav__item {% if _p == '/' %}bottom-nav__item--active{% endif %}">
+      <span class="bottom-nav__icon">🏠</span>
+      <span>Übersicht</span>
+    </a>
+    <a href="/lage" class="bottom-nav__item {% if _p.startswith('/lage') %}bottom-nav__item--active{% endif %}">
+      <span class="bottom-nav__icon">🚨</span>
+      <span>Lage</span>
+    </a>
+    <a href="/archiv" class="bottom-nav__item {% if '/archiv' in _p %}bottom-nav__item--active{% endif %}">
+      <span class="bottom-nav__icon">📚</span>
+      <span>Archiv</span>
+    </a>
+    <a href="/statistik" class="bottom-nav__item {% if '/statistik' in _p %}bottom-nav__item--active{% endif %}">
+      <span class="bottom-nav__icon">📊</span>
+      <span>Statistik</span>
+    </a>
+    <button type="button" class="bottom-nav__item" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Mehr">
+      <span class="bottom-nav__icon">☰</span>
+      <span>Mehr</span>
+    </button>
+  </nav>
+
+  <!-- iOS-Safari Install-Hinweis -->
   <dialog id="iosInstallHint" class="modal">
     <div class="modal__content">
       <div class="modal__header">
@@ -258,8 +202,8 @@
         <p>Auf iOS funktioniert die Installation nur über Safari:</p>
         <ol style="padding-left:1.2em; line-height:1.7;">
           <li>Unten in der Safari-Leiste auf <strong>Teilen</strong> (⬆ Pfeil-aus-Box) tippen.</li>
-          <li>Im Menü <strong>„Zum Home-Bildschirm“</strong> wählen.</li>
-          <li>Mit <strong>„Hinzufügen“</strong> bestätigen.</li>
+          <li>Im Menü <strong>„Zum Home-Bildschirm"</strong> wählen.</li>
+          <li>Mit <strong>„Hinzufügen"</strong> bestätigen.</li>
         </ol>
         <p style="color:var(--text-muted); font-size:.85rem;">
           Anschließend startet einsatzleiter.cloud wie eine native App ohne Browser-Leiste.

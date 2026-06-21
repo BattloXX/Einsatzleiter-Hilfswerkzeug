@@ -203,7 +203,9 @@
     {% endif %}
   </div>
   <nav class="uas-inc-bar__nav">
-    {% if incident %}
+    {% if lage is defined and lage %}
+    <a href="/lage/{{ lage.id }}" class="uas-inc-tab" title="Zur&uuml;ck zur Lage">&#x2190; Lage</a>
+    {% elif incident %}
     <a href="/einsatz/{{ incident.id }}" class="uas-inc-tab" title="Zur&uuml;ck zum Board">&#x1F4CB; Board</a>
     <a href="/einsatz/{{ incident.id }}/dashboard" class="uas-inc-tab" target="_blank" rel="noopener">&#x1F4CA; Dashboard</a>
     <a href="/einsatz/{{ incident.id }}/funkjournal" class="uas-inc-tab">&#x1F4FB; Funk</a>

@@ -13,6 +13,8 @@
        or '/admin/seiten' in _p or '/admin/backup' in _p or '/admin/organisations' in _p
        or '/admin/konfig' in _p or '/admin/sso' in _p or '/admin/gsl-einstellungen' in _p %}
   {% set active_group = 'einstellungen' %}
+{% elif _p.startswith('/uas/') %}
+  {% set active_group = 'uas' %}
 {% else %}
   {% set active_group = 'stammdaten' %}
 {% endif %}
@@ -150,6 +152,9 @@
          x-show="navOpen || !isMobile()" x-cloak
          x-transition.opacity.duration.150ms>
       <nav class="admin-nav">
+
+        <!-- Zurueck -->
+        <a href="/" class="admin-back-link">&#x2190; Zurück zu Einsätzen</a>
 
         <!-- Dashboard -->
         <a href="/admin"
@@ -329,6 +334,33 @@
           </div>
         </div>
 
+        {% if request.state.uas_module_enabled %}
+        <!-- ── Drohne / UAS ─────────────────────────────────────────── -->
+        <button class="admin-nav__group-hdr" type="button" @click="toggle('uas')">
+          <span>&#x1F681; Drohne / UAS</span>
+          <span class="admin-nav__group-arrow" :class="groups.uas && 'is-open'">›</span>
+        </button>
+        <div x-show="groups.uas" x-transition.opacity.duration.120ms>
+          <div class="admin-nav__group-items">
+            <a href="/uas/geraete"
+               class="admin-nav__item {% if '/uas/geraete' in request.url.path %}is-active{% endif %}"
+               {{ tip('UAS-Geräteliste: Drohnen und Zubehoer') }}>
+              <span class="admin-nav__icon">🚁</span>Geräte
+            </a>
+            <a href="/uas/piloten"
+               class="admin-nav__item {% if '/uas/piloten' in request.url.path %}is-active{% endif %}"
+               {{ tip('Piloten mit Lizenzen und Qualifikationen') }}>
+              <span class="admin-nav__icon">👨‍✈️</span>Piloten
+            </a>
+            <a href="/uas/dsgvo-uebersicht"
+               class="admin-nav__item {% if '/uas/dsgvo' in request.url.path %}is-active{% endif %}"
+               {{ tip('DSGVO-Übersicht und Compliance-Status') }}>
+              <span class="admin-nav__icon">📋</span>DSGVO
+            </a>
+          </div>
+        </div>
+        {% endif %}
+
       </nav>
     </div>
   </aside>
@@ -343,7 +375,7 @@ function adminNav(activeGroup) {
   var STORE = 'admin_nav_groups';
   var s = {};
   try { s = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch(e) {}
-  var labels = { stammdaten: 'Stammdaten', verwaltung: 'Verwaltung', einstellungen: 'Einstellungen' };
+  var labels = { stammdaten: 'Stammdaten', verwaltung: 'Verwaltung', einstellungen: 'Einstellungen', uas: 'Drohne / UAS' };
   return {
     navOpen: false,
     sectionLabel: labels[activeGroup] || 'Administration',
@@ -351,6 +383,7 @@ function adminNav(activeGroup) {
       stammdaten: activeGroup === 'stammdaten' ? true : (s.stammdaten !== undefined ? s.stammdaten : true),
       verwaltung: activeGroup === 'verwaltung' ? true : (s.verwaltung !== undefined ? s.verwaltung : true),
       einstellungen: activeGroup === 'einstellungen' ? true : (s.einstellungen !== undefined ? s.einstellungen : false),
+      uas: activeGroup === 'uas' ? true : (s.uas !== undefined ? s.uas : false),
     },
     isMobile: function() { return window.matchMedia('(max-width: 1100px)').matches; },
     toggle: function(group) {
