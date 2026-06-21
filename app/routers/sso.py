@@ -286,21 +286,22 @@ async def sso_callback(
             if email:
                 user.email = email
 
-    # Rollen synchronisieren
-    old_role_ids = {ur.role_id for ur in user.user_roles}
-    if old_role_ids != role_ids:
-        old_codes = {ur.role.code for ur in user.user_roles if ur.role}
-        for ur in list(user.user_roles):
-            db.delete(ur)
-        db.flush()
-        for rid in role_ids:
-            db.add(UserRole(user_id=user.id, role_id=rid))
-        new_codes = {
-            db.get(Role, rid).code for rid in role_ids
-            if db.get(Role, rid)
-        }
-        write_audit(db, "auth.sso.role_sync", org_id=org.id, user_id=user.id, ip=ip,
-                    payload={"before": sorted(old_codes), "after": sorted(new_codes)})
+    # Rollen nur für neu angelegte JIT-Benutzer setzen – bestehende Benutzer behalten ihre Rechte
+    if jit_provisioned:
+        old_role_ids = {ur.role_id for ur in user.user_roles}
+        if old_role_ids != role_ids:
+            old_codes = {ur.role.code for ur in user.user_roles if ur.role}
+            for ur in list(user.user_roles):
+                db.delete(ur)
+            db.flush()
+            for rid in role_ids:
+                db.add(UserRole(user_id=user.id, role_id=rid))
+            new_codes = {
+                db.get(Role, rid).code for rid in role_ids
+                if db.get(Role, rid)
+            }
+            write_audit(db, "auth.sso.role_sync", org_id=org.id, user_id=user.id, ip=ip,
+                        payload={"before": sorted(old_codes), "after": sorted(new_codes)})
 
     user.last_login_at = datetime.now(UTC)
     write_audit(db, "auth.sso.login", org_id=org.id, user_id=user.id, ip=ip,
