@@ -503,3 +503,144 @@ def absolute_thumb_path(media: TaskMedia) -> Path | None:
     if not media.thumb_path:
         return None
     return _storage_root() / media.thumb_path
+
+
+# ── UAS-Medien-Pipeline ───────────────────────────────────────────────────────
+
+def _uas_flug_dir(org_id: int, flug_id: int) -> Path:
+    d = _storage_root() / "uas" / str(org_id) / str(flug_id)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+async def store_upload_for_uas_medien(
+    file: UploadFile,
+    flug_id: int,
+    org_id: int,
+    user,
+    db: Session,
+    begruendung: str = "",
+    loeschfrist=None,
+):
+    """Verarbeitet einen Datei-Upload fuer UAS-Medien.
+
+    Gleiche Pipeline wie task_media: Bilder werden komprimiert + Thumb erzeugt,
+    Videos per ffmpeg transkodiert. Gibt ein befuelltes UASMedien-Objekt zurueck
+    (noch nicht commitet).
+    """
+    from datetime import date as _date
+
+    from app.models.uas import UASMedien, UASMedienDsgvoStatus
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Leere Datei.")
+
+    mime = _detect_mime(raw)
+    if mime is None:
+        client_ct = (file.content_type or "").lower().split(";")[0].strip()
+        if client_ct in ALLOWED_MIMES:
+            mime = client_ct
+        else:
+            raise HTTPException(415, "Dateityp konnte nicht erkannt werden und ist nicht erlaubt.")
+    if mime not in ALLOWED_MIMES:
+        raise HTTPException(415, f"Dateityp '{mime}' wird nicht unterstuetzt.")
+
+    kind = _kind_for_mime(mime)
+    if not kind:
+        raise HTTPException(415, f"Dateityp '{mime}' wird nicht unterstuetzt.")
+
+    if len(raw) > _size_limit_for_kind(kind):
+        limit_mb = _size_limit_for_kind(kind) // (1024 * 1024)
+        raise HTTPException(413, f"Datei zu gross. Limit fuer {kind}: {limit_mb} MB.")
+
+    if kind == "image" and mime in {"image/heic", "image/heif"} and not _HEIC_OK:
+        raise HTTPException(415, "HEIC-Dateien werden auf diesem Server nicht unterstuetzt.")
+
+    dest_dir = _uas_flug_dir(org_id, flug_id)
+    storage_root = _storage_root().resolve()
+    original_filename = file.filename or "upload"
+
+    if kind == "image":
+        main_p, thumb_p, w, h, out_mime = _process_image(raw, dest_dir)
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
+        medientyp = "foto"
+        storage_path = str(main_p.resolve().relative_to(storage_root)).replace("\\", "/")
+        tpath = str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/")
+        width, height, duration_s = w, h, None
+    elif kind == "pdf":
+        main_p, _, pages = _process_pdf(raw, dest_dir, original_filename)
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
+        out_mime = "application/pdf"
+        medientyp = "dokument"
+        storage_path = str(main_p.resolve().relative_to(storage_root)).replace("\\", "/")
+        tpath = None
+        width, height, duration_s = None, None, None
+    else:  # video
+        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)
+        stored_bytes = main_p.stat().st_size
+        _reserve(db, org_id, stored_bytes)
+        out_mime = "video/mp4"
+        medientyp = "video"
+        storage_path = str(main_p.resolve().relative_to(storage_root)).replace("\\", "/")
+        tpath = str(thumb_p.resolve().relative_to(storage_root)).replace("\\", "/") if thumb_p else None
+        width, height, duration_s = w, h, dur
+
+    dsgvo = (
+        UASMedienDsgvoStatus.begruendet.value
+        if begruendung.strip()
+        else UASMedienDsgvoStatus.erfasst.value
+    )
+
+    m = UASMedien(
+        org_id=org_id,
+        uas_flug_id=flug_id,
+        dateiname=original_filename,
+        dateipfad=storage_path,
+        kind=kind,
+        thumb_path=tpath,
+        mime_type=out_mime,
+        bytes=stored_bytes,
+        width=width,
+        height=height,
+        duration_s=duration_s,
+        uploaded_by_user_id=user.id,
+        medientyp=medientyp,
+        dsgvo_status=dsgvo,
+        begruendung=begruendung.strip() or None,
+        loeschfrist=loeschfrist,
+        erstellt_von=getattr(user, "display_name", None) or getattr(user, "email", None),
+    )
+    db.add(m)
+    db.flush()
+    return m
+
+
+def absolute_uas_path(medien) -> Path:
+    return _storage_root() / medien.dateipfad
+
+
+def absolute_uas_thumb_path(medien) -> Path | None:
+    if not medien.thumb_path:
+        return None
+    return _storage_root() / medien.thumb_path
+
+
+def delete_uas_medien(medien, db: Session) -> None:
+    """Loescht UASMedien-Eintrag inkl. gespeicherte Dateien und gibt Quota frei."""
+    storage_root = _storage_root()
+    for rel in (medien.dateipfad, medien.thumb_path):
+        if not rel:
+            continue
+        path = storage_root / rel
+        try:
+            if path.exists():
+                path.unlink()
+        except OSError as e:
+            logger.warning("uas delete failed for %s: %s", path, e)
+    n_bytes = medien.bytes or 0
+    if n_bytes > 0:
+        _release(db, medien.org_id, n_bytes)
+    db.delete(medien)

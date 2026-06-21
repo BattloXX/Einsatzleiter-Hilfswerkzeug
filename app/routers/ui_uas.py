@@ -9,8 +9,8 @@ import json
 import secrets
 from datetime import date
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from app.core.permissions import require_role
@@ -1865,13 +1865,12 @@ async def flug_medien_hinzufuegen(
     db: Session = Depends(get_db),
     user: User = Depends(require_role("recorder")),
     _guard: None = Depends(require_uas_enabled),
-    dateiname: str = Form(...),
-    medientyp: str = Form("foto"),
+    datei: UploadFile = File(...),
     begruendung: str = Form(""),
     loeschfrist: str = Form(""),
 ):
-    from datetime import datetime
-    from app.models.uas import UASFlug, UASMedien, UASMedienDsgvoStatus
+    from app.models.uas import UASFlug
+    from app.services.media_service import store_upload_for_uas_medien
 
     flug = db.query(UASFlug).filter(UASFlug.id == flug_id, UASFlug.org_id == user.org_id).first()
     if not flug:
@@ -1880,24 +1879,88 @@ async def flug_medien_hinzufuegen(
     frist = None
     if loeschfrist.strip():
         try:
-            from datetime import date
             frist = date.fromisoformat(loeschfrist.strip())
         except ValueError:
             pass
 
-    status = UASMedienDsgvoStatus.begruendet.value if begruendung.strip() else UASMedienDsgvoStatus.erfasst.value
-    m = UASMedien(
+    await store_upload_for_uas_medien(
+        file=datei,
+        flug_id=flug_id,
         org_id=user.org_id,
-        uas_flug_id=flug_id,
-        dateiname=dateiname.strip(),
-        dateipfad="",  # Dateispeicherung extern via separaten Upload-Endpoint
-        medientyp=medientyp,
-        dsgvo_status=status,
-        begruendung=begruendung.strip() or None,
+        user=user,
+        db=db,
+        begruendung=begruendung,
         loeschfrist=frist,
-        erstellt_von=getattr(user, "name", None) or getattr(user, "email", None),
     )
-    db.add(m)
+    db.commit()
+    return RedirectResponse(f"/uas/flug/{flug_id}/medien", status_code=303)
+
+
+@router.get("/medien/datei/{medien_id}")
+def uas_medien_datei(
+    medien_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASMedien
+    from app.services.media_service import absolute_uas_path
+
+    m = db.query(UASMedien).filter(UASMedien.id == medien_id, UASMedien.org_id == user.org_id).first()
+    if not m or not m.dateipfad:
+        raise HTTPException(404)
+    path = absolute_uas_path(m)
+    if not path.exists():
+        raise HTTPException(404)
+    return FileResponse(
+        path,
+        media_type=m.mime_type or "application/octet-stream",
+        filename=m.dateiname,
+        content_disposition_type="inline",
+    )
+
+
+@router.get("/medien/thumb/{medien_id}")
+def uas_medien_thumb(
+    medien_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASMedien
+    from app.services.media_service import absolute_uas_path, absolute_uas_thumb_path
+
+    m = db.query(UASMedien).filter(UASMedien.id == medien_id, UASMedien.org_id == user.org_id).first()
+    if not m:
+        raise HTTPException(404)
+    thumb = absolute_uas_thumb_path(m)
+    if thumb and thumb.exists():
+        return FileResponse(thumb, media_type="image/jpeg")
+    if m.kind == "image" and m.dateipfad:
+        path = absolute_uas_path(m)
+        if path.exists():
+            return FileResponse(path, media_type=m.mime_type or "image/jpeg")
+    return Response(status_code=404)
+
+
+@router.post("/medien/{medien_id}/loeschen")
+async def uas_medien_loeschen(
+    medien_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("recorder")),
+    _guard: None = Depends(require_uas_enabled),
+):
+    from app.models.uas import UASMedien
+    from app.services.media_service import delete_uas_medien
+
+    m = db.query(UASMedien).filter(UASMedien.id == medien_id, UASMedien.org_id == user.org_id).first()
+    if not m:
+        raise HTTPException(404)
+    flug_id = m.uas_flug_id
+    delete_uas_medien(m, db)
     db.commit()
     return RedirectResponse(f"/uas/flug/{flug_id}/medien", status_code=303)
 

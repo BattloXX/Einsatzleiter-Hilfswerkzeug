@@ -1,10 +1,10 @@
-﻿{% extends "uas/_layout.html" %}
+{% extends "uas/_layout.html" %}
 {% block title %}Medien – Flug #{{ flug.id }}{% endblock %}
 
 {% block uas_content %}
 <div class="page-header">
   <div>
-    <h1>&#x1F4F7; Medien – Flug #{{ flug.id }}</h1>
+    <h1>&#x1F4F7; Medien – Flug #{{ flug.lfd_nr }}</h1>
     <p class="page-header__sub">DSGVO-Workflow gem. RL 7.3 / 7.4</p>
   </div>
   <div class="page-header__actions">
@@ -13,86 +13,238 @@
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 340px;gap:1rem">
+<div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;align-items:start">
 
+{# ── Medien-Liste ── #}
 <div>
 {% if medien %}
-<table class="data-table">
-  <thead>
-    <tr>
-      <th>Dateiname</th><th>Typ</th><th>DSGVO-Status</th><th>L&ouml;schfrist</th><th>Begr&uuml;ndung</th><th>Aktion</th>
-    </tr>
-  </thead>
-  <tbody>
+<div style="display:flex;flex-direction:column;gap:.6rem">
   {% for m in medien %}
-  <tr {% if m.dsgvo_status == 'geloescht' %}style="opacity:.5"{% endif %}>
-    <td>{{ m.dateiname }}</td>
-    <td>{{ m.medientyp | title }}</td>
-    <td>
-      <span class="badge badge--{% if m.dsgvo_status == 'geloescht' %}neutral{% elif m.dsgvo_status == 'zur_loeschung' %}error{% elif m.dsgvo_status == 'begruendet' %}success{% else %}warning{% endif %}">
-        {{ m.dsgvo_status | replace('_',' ') | title }}
-      </span>
-    </td>
-    <td>{{ m.loeschfrist or '–' }}</td>
-    <td style="font-size:.8rem;max-width:180px">{{ m.begruendung or '–' }}</td>
-    <td>
-      {% if m.dsgvo_status != 'geloescht' %}
-      <form method="post" action="/uas/medien/{{ m.id }}/status" style="display:flex;gap:.3rem;align-items:center">
-        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-        <select name="dsgvo_status" class="form-control" style="width:auto;font-size:.8rem;padding:.2rem .4rem">
-          <option value="erfasst">Erfasst</option>
-          <option value="begruendet">Begr&uuml;ndet</option>
-          <option value="zur_loeschung">Zur L&ouml;schung</option>
-          <option value="geloescht">Gel&ouml;scht &#x26A0;</option>
-        </select>
-        <button type="submit" class="btn btn--ghost btn--sm">OK</button>
-      </form>
+  <div class="medien-card {% if m.dsgvo_status == 'geloescht' %}medien-card--deleted{% endif %}">
+
+    {# Vorschau #}
+    <div class="medien-thumb">
+      {% if m.kind == 'image' and m.dateipfad %}
+      <a href="/uas/medien/datei/{{ m.id }}" target="_blank" rel="noopener">
+        <img src="/uas/medien/thumb/{{ m.id }}" alt="{{ m.dateiname }}"
+             style="width:100%;height:100%;object-fit:cover;border-radius:4px">
+      </a>
+      {% elif m.kind == 'video' and m.thumb_path %}
+      <a href="/uas/medien/datei/{{ m.id }}" target="_blank" rel="noopener"
+         style="position:relative;display:block">
+        <img src="/uas/medien/thumb/{{ m.id }}" alt="{{ m.dateiname }}"
+             style="width:100%;height:100%;object-fit:cover;border-radius:4px">
+        <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                     font-size:1.6rem;line-height:1;text-shadow:0 1px 4px rgba(0,0,0,.6)">
+          &#x25B6;
+        </span>
+      </a>
+      {% elif m.kind == 'pdf' %}
+      <a href="/uas/medien/datei/{{ m.id }}" target="_blank" rel="noopener"
+         style="display:flex;align-items:center;justify-content:center;height:100%;
+                color:var(--text-muted);font-size:2rem;text-decoration:none">
+        &#x1F4C4;
+      </a>
       {% else %}
-      <span style="color:var(--text-muted);font-size:.78rem">{{ m.geloescht_at | string | truncate(16, True, '') }}</span>
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;
+                  color:var(--text-muted);font-size:1.5rem">
+        {% if m.kind == 'video' %}&#x1F3A5;{% else %}&#x1F4CE;{% endif %}
+      </div>
       {% endif %}
-    </td>
-  </tr>
+    </div>
+
+    {# Metadaten #}
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.3rem">
+        <span style="font-size:.88rem;font-weight:600;color:var(--text);
+                     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px"
+              title="{{ m.dateiname }}">{{ m.dateiname }}</span>
+        <span class="badge badge--{% if m.dsgvo_status == 'geloescht' %}neutral{% elif m.dsgvo_status == 'zur_loeschung' %}error{% elif m.dsgvo_status == 'begruendet' %}success{% else %}warning{% endif %}">
+          {{ m.dsgvo_status | replace('_',' ') | title }}
+        </span>
+        {% if m.kind %}
+        <span class="badge badge--muted">{{ m.kind }}</span>
+        {% endif %}
+      </div>
+
+      <div style="font-size:.78rem;color:var(--text-muted);display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:.4rem">
+        {% if m.bytes %}<span>{{ (m.bytes / 1024 / 1024) | round(1) }} MB</span>{% endif %}
+        {% if m.width and m.height %}<span>{{ m.width }}&times;{{ m.height }}</span>{% endif %}
+        {% if m.duration_s %}<span>{{ (m.duration_s | int) // 60 }}:{{ '%02d' % (m.duration_s | int % 60) }}</span>{% endif %}
+        {% if m.loeschfrist %}<span>L&ouml;schfrist: {{ m.loeschfrist }}</span>{% endif %}
+        <span>{{ m.created_at | string | truncate(16, True, '') }}</span>
+      </div>
+
+      {% if m.begruendung %}
+      <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.4rem">
+        RL 7.3: {{ m.begruendung[:120] }}
+      </div>
+      {% endif %}
+
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+        {% if m.dsgvo_status != 'geloescht' %}
+        {# DSGVO-Status aendern #}
+        <form method="post" action="/uas/medien/{{ m.id }}/status" style="display:flex;gap:.3rem;align-items:center">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+          <select name="dsgvo_status" class="form-control"
+                  style="width:auto;font-size:.78rem;padding:.15rem .35rem">
+            <option value="erfasst"       {% if m.dsgvo_status == 'erfasst'       %}selected{% endif %}>Erfasst</option>
+            <option value="begruendet"    {% if m.dsgvo_status == 'begruendet'    %}selected{% endif %}>Begr&uuml;ndet</option>
+            <option value="zur_loeschung" {% if m.dsgvo_status == 'zur_loeschung' %}selected{% endif %}>Zur L&ouml;schung</option>
+            <option value="geloescht"     {% if m.dsgvo_status == 'geloescht'     %}selected{% endif %}>Gel&ouml;scht &#x26A0;</option>
+          </select>
+          <button type="submit" class="btn btn--ghost btn--sm">OK</button>
+        </form>
+
+        {# Datei herunterladen #}
+        {% if m.dateipfad %}
+        <a href="/uas/medien/datei/{{ m.id }}" class="btn btn--ghost btn--sm" target="_blank">
+          &#x1F4E5; &Ouml;ffnen
+        </a>
+        {% endif %}
+
+        {# Loeschen #}
+        <form method="post" action="/uas/medien/{{ m.id }}/loeschen" style="display:inline"
+              onsubmit="return confirm('Datei unwiderruflich l&ouml;schen?')">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+          <button type="submit" class="btn btn--ghost btn--sm"
+                  style="color:var(--color-error,#e53e3e)">&#x1F5D1; L&ouml;schen</button>
+        </form>
+
+        {% else %}
+        <span style="font-size:.78rem;color:var(--text-muted)">
+          {{ m.geloescht_at | string | truncate(16, True, '') }}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
   {% endfor %}
-  </tbody>
-</table>
+</div>
 {% else %}
-<p style="color:var(--text-muted)">Noch keine Medien erfasst.</p>
+<div style="padding:2rem 1rem;color:var(--text-muted);text-align:center">
+  <div style="font-size:2.5rem;margin-bottom:.5rem">&#x1F4F7;</div>
+  Noch keine Medien hochgeladen.
+</div>
 {% endif %}
 </div>
 
-<div class="card">
-  <div class="card-header"><h2>Medien erfassen</h2></div>
-  <form method="post" action="/uas/flug/{{ flug.id }}/medien/hinzufuegen">
+{# ── Upload-Sidebar ── #}
+<div class="card" style="position:sticky;top:calc(var(--topnav-h) + 4rem)">
+  <div class="card-header"><h2>Datei hochladen</h2></div>
+  <form method="post" action="/uas/flug/{{ flug.id }}/medien/hinzufuegen"
+        enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-    <div class="card-body" style="display:flex;flex-direction:column;gap:.6rem">
-      <div>
-        <label class="form-label">Dateiname *</label>
-        <input type="text" name="dateiname" class="form-control" required maxlength="512"
-               placeholder="foto_001.jpg">
+    <div class="card-body" style="display:flex;flex-direction:column;gap:.75rem">
+
+      <div class="upload-drop-zone" id="dropZone">
+        <input type="file" name="datei" id="dateiInput" required
+               accept="image/*,video/*,application/pdf"
+               style="display:none" onchange="updateLabel(this)">
+        <label for="dateiInput" style="cursor:pointer;display:flex;flex-direction:column;
+               align-items:center;gap:.4rem;padding:.5rem 0">
+          <span style="font-size:2rem">&#x1F4E4;</span>
+          <span id="dateiLabel" style="font-size:.85rem;color:var(--text-muted)">
+            Datei ausw&auml;hlen oder hierher ziehen
+          </span>
+        </label>
       </div>
-      <div>
-        <label class="form-label">Medientyp</label>
-        <select name="medientyp" class="form-control">
-          <option value="foto">Foto</option>
-          <option value="video">Video</option>
-          <option value="dokument">Dokument</option>
-          <option value="sonstiges">Sonstiges</option>
-        </select>
+
+      <div style="font-size:.75rem;color:var(--text-muted)">
+        Bilder: max. 10 MB &bull; Videos: max. 50 MB &bull; PDF: max. 20 MB<br>
+        Bilder werden auf 1920&times;1080 verkleinert, Videos auf 720p transkodiert.
       </div>
+
       <div>
         <label class="form-label">Begr&uuml;ndung (RL 7.3)</label>
         <textarea name="begruendung" class="form-control" rows="2"
                   placeholder="Einsatzrelevante Aufnahme weil ..."></textarea>
       </div>
+
       <div>
         <label class="form-label">L&ouml;schfrist</label>
         <input type="date" name="loeschfrist" class="form-control">
         <small style="color:var(--text-muted)">Standard: 30 Tage nach Einsatzende (RL 7.4)</small>
       </div>
-      <button type="submit" class="btn btn--primary btn--sm">Erfassen</button>
+
+      <button type="submit" class="btn btn--primary" id="uploadBtn">
+        &#x1F4E4; Hochladen
+      </button>
     </div>
   </form>
 </div>
 
 </div>
+
+<style>
+.medien-card {
+  display: flex;
+  gap: .75rem;
+  background: var(--surface-low);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: .65rem .75rem;
+  align-items: flex-start;
+}
+.medien-card--deleted { opacity: .45; }
+.medien-thumb {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  background: var(--surface-elevated, #1e2130);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+.upload-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 7px;
+  padding: .75rem;
+  text-align: center;
+  transition: border-color .15s, background .15s;
+}
+.upload-drop-zone.drag-over {
+  border-color: rgba(99,102,241,.6);
+  background: rgba(99,102,241,.06);
+}
+</style>
+
+<script>
+function updateLabel(input) {
+  var label = document.getElementById('dateiLabel');
+  if (input.files && input.files[0]) {
+    var f = input.files[0];
+    var mb = (f.size / 1024 / 1024).toFixed(1);
+    label.textContent = f.name + ' (' + mb + ' MB)';
+    label.style.color = 'var(--text)';
+  }
+}
+
+(function() {
+  var zone = document.getElementById('dropZone');
+  var input = document.getElementById('dateiInput');
+
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.classList.remove('drag-over');
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      updateLabel(input);
+    }
+  });
+
+  document.querySelector('form[enctype]').addEventListener('submit', function() {
+    var btn = document.getElementById('uploadBtn');
+    btn.disabled = true;
+    btn.textContent = 'Wird hochgeladen ...';
+  });
+})();
+</script>
 {% endblock %}
