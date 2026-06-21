@@ -56,6 +56,23 @@
     </div>
   </form>
 
+  {% if lage.status.value == 'closed' and can_reopen %}
+  <div style="margin-top:32px;border-top:1px solid var(--border-color,#333);padding-top:24px;">
+    <h3 style="margin-bottom:8px;font-size:1rem;color:#f87171;">Lage ist abgeschlossen</h3>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px;">
+      Diese Lage wurde am {{ lage.ended_at.strftime('%d.%m.%Y um %H:%M Uhr') if lage.ended_at else '–' }} beendet.
+      Nur Org-Admins und System-Admins können sie wiedereröffnen.
+    </p>
+    <form method="post" action="/lage/{{ lage.id }}/wiederoeffnen"
+          onsubmit="return confirm('Lage wirklich wiedereröffnen? Sie wird wieder als aktiv markiert.')">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <button type="submit" class="btn btn--primary">
+        Lage wiedereröffnen
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
   {% if qr_img %}
   <div style="margin-top:40px;border-top:1px solid var(--border-color,#333);padding-top:28px;">
     <h3 style="margin-bottom:12px;font-size:1rem;">QR-Code – Schnellzugang für Einsatzkräfte</h3>

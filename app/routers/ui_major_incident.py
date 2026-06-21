@@ -1511,6 +1511,7 @@ async def lage_bearbeiten_form(
         "user": user,
         "lage": lage,
         "can_manage": _can_manage(user),
+        "can_reopen": has_role(user, "admin", "org_admin"),
         "qr_url": qr_url,
         "qr_img": qr_img,
     })
@@ -1538,6 +1539,30 @@ async def lage_bearbeiten_save(
     db.commit()
     write_audit(db, "major_incident.edited", user_id=user.id,
                 payload={"lage_id": lage_id, "name": lage.name})
+    await broadcast_lage(lage_id, {"type": "lage_updated", "reload_board": True})
+    return RedirectResponse(f"/lage/{lage_id}", status_code=303)
+
+
+# ── Lage wiedereröffnen ───────────────────────────────────────────────────────
+
+@router.post("/lage/{lage_id}/wiederoeffnen")
+async def lage_wiederoeffnen(
+    request: Request,
+    lage_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin", "org_admin")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org_access(user, lage)
+    if lage.status != MajorIncidentStatus.closed:
+        return RedirectResponse(f"/lage/{lage_id}/bearbeiten", status_code=303)
+
+    lage.status = MajorIncidentStatus.active
+    lage.ended_at = None
+    write_audit(db, "major_incident.reopened", user_id=user.id,
+                payload={"lage_id": lage_id, "name": lage.name})
+    db.commit()
     await broadcast_lage(lage_id, {"type": "lage_updated", "reload_board": True})
     return RedirectResponse(f"/lage/{lage_id}", status_code=303)
 
