@@ -263,6 +263,64 @@ async def stueckliste_neu(
     })
 
 
+@router.post("/admin/verleih-stuecklisten/{sl_id}/bearbeiten", response_class=HTMLResponse)
+async def stueckliste_bearbeiten(
+    request: Request,
+    sl_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin", "org_admin")),
+):
+    user = request.state.user
+    sl = db.query(VerleihStueckliste).options(
+        selectinload(VerleihStueckliste.positionen)
+    ).filter_by(id=sl_id).first()
+    if not sl:
+        raise HTTPException(404, "Stückliste nicht gefunden")
+
+    form = await request.form()
+    bezeichnung = str(form.get("bezeichnung", "")).strip()
+    notizen = str(form.get("notizen", "")).strip()
+    if not bezeichnung:
+        raise HTTPException(400, "Bezeichnung erforderlich")
+
+    sl.bezeichnung = bezeichnung
+    sl.notizen = notizen or None
+
+    for pos in list(sl.positionen):
+        db.delete(pos)
+    db.flush()
+
+    artikel_ids = form.getlist("positionen_artikel_id[]")
+    mengen = form.getlist("positionen_menge[]")
+    pos_bezs = form.getlist("positionen_bezeichnung[]")
+    artikel_nrs = form.getlist("positionen_artikel_nr[]")
+    for i, bz in enumerate(pos_bezs):
+        bz = bz.strip()
+        if not bz:
+            continue
+        aid = artikel_ids[i] if i < len(artikel_ids) else ""
+        menge = int(mengen[i]) if i < len(mengen) and str(mengen[i]).isdigit() else 1
+        anr = artikel_nrs[i] if i < len(artikel_nrs) else ""
+        pos = VerleihStuecklistePosition(
+            stueckliste_id=sl.id,
+            artikel_id=int(aid) if aid.isdigit() else None,
+            bezeichnung=bz,
+            artikel_nr=anr.strip() or None,
+            menge=menge,
+        )
+        db.add(pos)
+
+    db.commit()
+    stuecklisten = svc.get_stuecklisten_aktiv(db)
+    artikel = svc.get_artikel_aktiv(db)
+    return templates.TemplateResponse(request, "verleih/stueckliste_list.html", {
+        "user": user,
+        "stuecklisten": stuecklisten,
+        "artikel": artikel,
+        "saved": True,
+    })
+
+
 @router.post("/admin/verleih-stuecklisten/{sl_id}/loeschen", response_class=HTMLResponse)
 async def stueckliste_loeschen(
     request: Request,
@@ -275,6 +333,35 @@ async def stueckliste_loeschen(
         sl.aktiv = False
         db.commit()
     return Response(content="", status_code=200)
+
+
+@router.get("/admin/verleih-uebersicht", response_class=HTMLResponse)
+async def admin_verleih_uebersicht(
+    request: Request,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin", "org_admin")),
+):
+    user = request.state.user
+    org_id = getattr(user, "org_id", None)
+    q = (
+        db.query(VerleihAusleihe)
+        .filter_by(status=VerleihStatus.ausgeliehen)
+        .options(selectinload(VerleihAusleihe.positionen))
+        .order_by(VerleihAusleihe.ausgeliehen_at.desc())
+    )
+    if org_id and not has_role(user, "admin"):
+        q = q.filter_by(org_id=org_id)
+    ausleihen = q.all()
+    lage_ids = {a.lage_id for a in ausleihen}
+    lagen = (
+        {l.id: l for l in db.query(MajorIncident).filter(MajorIncident.id.in_(lage_ids)).all()}
+        if lage_ids else {}
+    )
+    return templates.TemplateResponse(request, "verleih/admin_uebersicht.html", {
+        "user": user,
+        "ausleihen": ausleihen,
+        "lagen": lagen,
+    })
 
 
 # ── GSL: Ausleihe-Liste ───────────────────────────────────────────────────────
@@ -421,7 +508,8 @@ async def verleih_neu(
         journal = LageJournalEntry(
             major_incident_id=lage_id,
             category="sonstiges",
-            text=f"Geraeteverleih: {artikel_text} an {name} ausgeliehen",
+            text=f"Geräteverleih: {artikel_text} an {name} ausgeliehen",
+            body_html=f'<a href="/lage/{lage_id}/verleih" style="color:inherit;opacity:.75;font-size:.9em;">→ Geräteverleih öffnen</a>',
             author_name=get_author_name(request),
             user_id=getattr(user, "id", None),
         )
@@ -826,7 +914,8 @@ async def positionen_hinzufuegen(
         journal = LageJournalEntry(
             major_incident_id=lage_id,
             category="sonstiges",
-            text=f"Geraeteverleih Nachtrag: {artikel_text} an {ausleihe.name} hinzugefuegt",
+            text=f"Geräteverleih Nachtrag: {artikel_text} an {ausleihe.name} hinzugefügt",
+            body_html=f'<a href="/lage/{lage_id}/verleih" style="color:inherit;opacity:.75;font-size:.9em;">→ Geräteverleih öffnen</a>',
             author_name=get_author_name(request),
             user_id=getattr(user, "id", None),
         )

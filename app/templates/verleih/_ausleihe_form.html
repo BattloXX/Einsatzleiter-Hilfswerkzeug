@@ -116,16 +116,19 @@
                 &#128247;
               </button>
               <input type="hidden" :name="'pos_artikel_id[]'" x-model="row.artikel_id">
-              <button type="button" class="btn btn--ghost btn--xs" style="padding:2px 8px;"
+            </div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span style="font-size:.75rem;color:var(--text-muted);flex:1;">Menge</span>
+              <button type="button" class="btn btn--ghost btn--xs" style="padding:2px 10px;font-size:.9rem;"
                       @click="row.menge = Math.max(1, Number(row.menge) - 1)"
                       :disabled="!row.ist_mengenartikel && row.artikel_id">-</button>
-              <input type="number" class="form-input form-input--xs" style="width:44px;text-align:center;"
+              <input type="number" class="form-input form-input--xs" style="width:60px;text-align:center;font-weight:600;"
                      :name="'pos_menge[]'"
                      x-model="row.menge"
                      min="1"
                      :readonly="!row.ist_mengenartikel && row.artikel_id"
                      :title="!row.ist_mengenartikel && row.artikel_id ? 'Eindeutiger Artikel: Menge = 1' : ''">
-              <button type="button" class="btn btn--ghost btn--xs" style="padding:2px 8px;"
+              <button type="button" class="btn btn--ghost btn--xs" style="padding:2px 10px;font-size:.9rem;"
                       @click="row.menge = Number(row.menge) + 1"
                       :disabled="!row.ist_mengenartikel && row.artikel_id">+</button>
             </div>

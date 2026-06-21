@@ -1,0 +1,86 @@
+{% extends "admin/_layout.html" %}
+{% block title %}Geräteverleih – Aktive Ausleihen{% endblock %}
+
+{% block admin_content %}
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h1>Geräteverleih – Aktive Ausleihen</h1>
+      <p class="page-header__sub">Einsatzübergreifende Übersicht über alle noch nicht zurückgegebenen Geräte.</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="/admin/verleih-stuecklisten" class="btn btn--ghost">Stücklisten</a>
+      <a href="/admin/verleih-artikel" class="btn btn--ghost">Artikel</a>
+    </div>
+  </div>
+
+  {% if ausleihen %}
+  <div style="margin-bottom:10px;font-size:.85rem;color:var(--text-muted);">
+    {{ ausleihen|length }} aktive Ausleihe(n) einsatzübergreifend
+  </div>
+
+  <table class="table-admin">
+    <thead>
+      <tr>
+        <th style="width:80px;">Nr.</th>
+        <th>Ausleiher</th>
+        <th>Einsatz</th>
+        <th>Material</th>
+        <th style="width:130px;">Seit</th>
+        <th style="width:80px;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in ausleihen %}
+      {% set lage = lagen.get(a.lage_id) %}
+      <tr>
+        <td>
+          <code style="font-size:.8rem;">VL-{{ a.id }}</code>
+        </td>
+        <td>
+          <strong>{{ a.name }}</strong>
+          {% if a.telefon %}<br><span style="font-size:.78rem;color:var(--text-muted);">{{ a.telefon }}</span>{% endif %}
+          {% if a.adresse %}<br><span style="font-size:.78rem;color:var(--text-muted);">{{ a.adresse }}</span>{% endif %}
+        </td>
+        <td>
+          {% if lage %}
+          <a href="/lage/{{ lage.id }}/verleih" style="color:inherit;text-decoration:underline;">{{ lage.name }}</a>
+          {% else %}
+          <span style="color:var(--text-muted);">Einsatz #{{ a.lage_id }}</span>
+          {% endif %}
+        </td>
+        <td>
+          <ul style="margin:0;padding:0;list-style:none;font-size:.83rem;">
+            {% for p in a.positionen %}
+            {% if p.status.value == 'ausgeliehen' %}
+            <li style="display:flex;gap:6px;align-items:baseline;margin-bottom:2px;">
+              <span style="font-weight:600;min-width:24px;text-align:right;">{{ p.menge }}&times;</span>
+              <span>{{ p.bezeichnung }}</span>
+              {% if p.artikel_nr %}<code style="font-size:.75rem;color:var(--text-muted);">{{ p.artikel_nr }}</code>{% endif %}
+            </li>
+            {% endif %}
+            {% endfor %}
+          </ul>
+        </td>
+        <td style="font-size:.82rem;white-space:nowrap;">
+          {{ a.ausgeliehen_at.strftime('%d.%m.%Y') }}<br>
+          <span style="color:var(--text-muted);">{{ a.ausgeliehen_at.strftime('%H:%M') }} Uhr</span>
+        </td>
+        <td>
+          {% if lage %}
+          <a href="/lage/{{ lage.id }}/verleih" class="btn btn--ghost btn--xs">Öffnen</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% else %}
+  <div style="padding:48px 0;text-align:center;color:var(--text-muted);">
+    <div style="font-size:2rem;margin-bottom:12px;">&#10003;</div>
+    <p>Keine aktiven Ausleihen – alles zurückgegeben.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

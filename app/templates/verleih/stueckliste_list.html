@@ -9,6 +9,7 @@
       <p class="page-header__sub">Vorkonfigurierte Artikel-Kombinationen für Schnell-Auswahl beim Ausleihen.</p>
     </div>
     <div style="display:flex;gap:8px;">
+      <a href="/admin/verleih-uebersicht" class="btn btn--ghost">Übersicht aktive Ausleihen</a>
       <a href="/admin/verleih-artikel" class="btn btn--ghost">Artikel</a>
       <button class="btn btn--primary" onclick="document.getElementById('newSlModal').showModal()">+ Stückliste anlegen</button>
     </div>
@@ -22,6 +23,10 @@
       <strong>{{ sl.bezeichnung }}</strong>
       <div style="display:flex;gap:8px;">
         <span style="font-size:.78rem;color:var(--text-muted);">{{ sl.positionen|length }} Position(en)</span>
+        <button class="btn btn--ghost btn--xs"
+                onclick="document.getElementById('editSlModal-{{ sl.id }}').showModal()">
+          Bearbeiten
+        </button>
         <button class="btn btn--danger btn--xs"
                 hx-post="/admin/verleih-stuecklisten/{{ sl.id }}/loeschen"
                 hx-target="#sl-{{ sl.id }}"
@@ -45,6 +50,87 @@
       </tbody>
     </table>
   </div>
+
+  <!-- Edit-Dialog für Stückliste {{ sl.id }} -->
+  <dialog class="modal" id="editSlModal-{{ sl.id }}" style="max-width:680px;">
+    <div class="modal__content">
+      <div class="modal__header">
+        <h3>Stückliste bearbeiten</h3>
+        <button type="button" onclick="this.closest('dialog').close()" class="modal__close">x</button>
+      </div>
+      <form method="post" action="/admin/verleih-stuecklisten/{{ sl.id }}/bearbeiten"
+            x-data="stuecklisteEditForm({{ sl.id }})"
+            x-init="initRows()"
+            @submit="submitEditForm($event)">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        <!-- pass positionen as JSON via script -->
+        <script>
+          window['_slPos_{{ sl.id }}'] = [
+            {% for p in sl.positionen %}
+            {
+              bezeichnung: {{ (p.bezeichnung or (p.artikel.bezeichnung if p.artikel else '')) | tojson }},
+              artikel_nr: {{ (p.artikel_nr or '') | tojson }},
+              menge: {{ p.menge }},
+              artikel_id: {{ p.artikel_id | tojson if p.artikel_id else 'null' }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+          ];
+        </script>
+        <div class="modal__body">
+          <div class="form-group">
+            <label class="form-label">Bezeichnung *</label>
+            <input type="text" name="bezeichnung" class="form-input" required maxlength="200"
+                   value="{{ sl.bezeichnung }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notizen</label>
+            <textarea name="notizen" class="form-input" rows="2" maxlength="500">{{ sl.notizen or '' }}</textarea>
+          </div>
+
+          <div style="margin-top:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <label class="form-label" style="margin:0;">Positionen</label>
+              <button type="button" class="btn btn--ghost btn--xs" @click="addRow()">+ Position</button>
+            </div>
+            <table class="table-admin" style="margin:0;">
+              <thead><tr><th style="width:40%">Artikel (Auswahl oder Freitext)</th><th>Artikelnr</th><th style="width:70px;">Menge</th><th></th></tr></thead>
+              <tbody>
+                <template x-for="(row, idx) in rows" :key="idx">
+                  <tr>
+                    <td>
+                      <select class="form-select form-select--xs"
+                              :name="'positionen_artikel_id[]'"
+                              @change="onArtikelChange(idx, $event)">
+                        <option value="">— Freitext —</option>
+                        {% for a in artikel %}
+                        <option value="{{ a.id }}" data-bezeichnung="{{ a.bezeichnung }}" data-nr="{{ a.artikel_nr or '' }}"
+                                :selected="row.artikel_id == '{{ a.id }}'">
+                          {{ a.bezeichnung }}{% if a.artikel_nr %} ({{ a.artikel_nr }}){% endif %}
+                        </option>
+                        {% endfor %}
+                      </select>
+                      <input type="text" class="form-input form-input--xs" style="margin-top:4px;"
+                             :name="'positionen_bezeichnung[]'"
+                             x-model="row.bezeichnung"
+                             placeholder="Bezeichnung *" required>
+                    </td>
+                    <td><input type="text" class="form-input form-input--xs" :name="'positionen_artikel_nr[]'" x-model="row.artikel_nr" maxlength="100"></td>
+                    <td><input type="number" class="form-input form-input--xs" :name="'positionen_menge[]'" x-model="row.menge" min="1" style="width:60px;"></td>
+                    <td><button type="button" class="btn btn--danger btn--xs" @click="removeRow(idx)">x</button></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <button type="button" class="btn btn--ghost btn--xs" @click="addRow()" style="margin-top:6px;">+ Position</button>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" onclick="this.closest('dialog').close()" class="btn btn--ghost">Abbrechen</button>
+          <button type="submit" class="btn btn--primary">Änderungen speichern</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
   {% else %}
   <p style="color:var(--text-muted);">Noch keine Stücklisten angelegt.</p>
   {% endfor %}
@@ -117,16 +203,54 @@
 <script>
 function stuecklisteForm() {
   return {
-    rows: [{ bezeichnung: '', artikel_nr: '', menge: 1 }],
-    addRow() { this.rows.push({ bezeichnung: '', artikel_nr: '', menge: 1 }); },
+    rows: [{ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '' }],
+    addRow() { this.rows.push({ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '' }); },
     removeRow(i) { this.rows.splice(i, 1); if (!this.rows.length) this.addRow(); },
     onArtikelChange(idx, ev) {
       var opt = ev.target.selectedOptions[0];
       if (opt && opt.value) {
         this.rows[idx].bezeichnung = opt.dataset.bezeichnung || '';
         this.rows[idx].artikel_nr = opt.dataset.nr || '';
+        this.rows[idx].artikel_id = opt.value;
+      } else {
+        this.rows[idx].artikel_id = '';
       }
     },
+    submitForm(ev) { /* standard submit */ },
+  };
+}
+
+function stuecklisteEditForm(slId) {
+  return {
+    rows: [],
+    initRows(posData) {
+      var data = window['_slPos_' + slId] || [];
+      if (data.length) {
+        this.rows = data.map(function(p) {
+          return {
+            bezeichnung: p.bezeichnung || '',
+            artikel_nr: p.artikel_nr || '',
+            menge: p.menge || 1,
+            artikel_id: p.artikel_id ? String(p.artikel_id) : '',
+          };
+        });
+      } else {
+        this.rows = [{ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '' }];
+      }
+    },
+    addRow() { this.rows.push({ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '' }); },
+    removeRow(i) { this.rows.splice(i, 1); if (!this.rows.length) this.addRow(); },
+    onArtikelChange(idx, ev) {
+      var opt = ev.target.selectedOptions[0];
+      if (opt && opt.value) {
+        this.rows[idx].bezeichnung = opt.dataset.bezeichnung || '';
+        this.rows[idx].artikel_nr = opt.dataset.nr || '';
+        this.rows[idx].artikel_id = opt.value;
+      } else {
+        this.rows[idx].artikel_id = '';
+      }
+    },
+    submitEditForm(ev) { /* standard submit */ },
   };
 }
 </script>
