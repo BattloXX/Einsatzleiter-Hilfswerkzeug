@@ -772,14 +772,15 @@ async def incident_dashboard(
         qr_img_b64 = base64.b64encode(buf.getvalue()).decode()
 
     # Drohnen-Panel: immer anzeigen, sobald ein Drohneneinsatz mit diesem Einsatz
-    # verknüpft ist – unabhängig vom Modul-Flag oder Betrachter (z. B. System-Admin
-    # ohne Org-Kontext). Das Modul-Flag steuert nur das Anlegen/Verwalten; eine
-    # bereits laufende Drohne gehört immer auf das Einsatz-Dashboard.
+    # verknüpft ist – unabhängig vom Modul-Flag oder Betrachter.
+    # "Drohneneinsatz starten" nur wenn UAS-Modul für Einsatz-Org aktiv UND Rolle >= recorder.
     # Fail-safe gekapselt, damit fehlende UAS-Tabellen das Dashboard nie blockieren.
     uas_einsatz = None
     uas_flug_count = 0
+    can_start_uas = False
     try:
         from app.models.uas import UASEinsatz, UASFlug
+        from app.services.uas_service import uas_effective_enabled
         uas_einsatz = db.query(UASEinsatz).filter(
             UASEinsatz.incident_id == incident_id
         ).first()
@@ -791,9 +792,15 @@ async def incident_dashboard(
             uas_flug_count = db.query(UASFlug).filter(
                 UASFlug.uas_einsatz_id == uas_einsatz.id
             ).count()
+        # "Starten"-Panel: UAS-Modul für Einsatz-Org aktiv + Rolle recorder oder höher
+        uas_org_enabled = uas_effective_enabled(incident.primary_org_id, db)
+        can_start_uas = uas_org_enabled and has_role(
+            user, "recorder", "breathing_supervisor", "incident_leader"
+        )
     except Exception:
         uas_einsatz = None
         uas_flug_count = 0
+        can_start_uas = False
 
     return templates.TemplateResponse(
         request,
@@ -817,6 +824,7 @@ async def incident_dashboard(
             "qr_url": qr_url_str,
             "uas_einsatz": uas_einsatz,
             "uas_flug_count": uas_flug_count,
+            "can_start_uas": can_start_uas,
         },
     )
 

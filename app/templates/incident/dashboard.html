@@ -825,7 +825,7 @@
   {% endif %}
 
   <!-- ══ MAIN ══ -->
-  <div class="main"{% if uas_einsatz or request.state.uas_module_enabled %} style="grid-template-columns: 2.2fr 1.3fr 1.5fr 1.3fr;"{% endif %}>
+  <div class="main"{% if uas_einsatz or can_start_uas %} style="grid-template-columns: 2.2fr 1.3fr 1.5fr 1.3fr;"{% endif %}>
 
     <!-- ── FAHRZEUGE ── -->
     <div class="vehicles-col">
@@ -1138,7 +1138,7 @@
         </a>
       </div>
     </div>
-    {% elif request.state.uas_module_enabled %}
+    {% elif can_start_uas %}
     <div class="panel">
       <div class="panel-hd">
         <div class="panel-hd__top">
