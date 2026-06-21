@@ -44,6 +44,7 @@ from app.routers import (
     ui_stats,
     ui_sysadmin,
     ui_uas,
+    ui_verleih,
     ui_weather,
     ws,
 )
@@ -91,6 +92,10 @@ async def lifespan(app: FastAPI):
     from app.services.gsl_lagemeldung_reminder import gsl_lagemeldung_reminder_loop
     lagemeldung_task = asyncio.create_task(gsl_lagemeldung_reminder_loop())
 
+    # Background-Loop für automatische Geräteverleih-Erinnerungs-SMS
+    from app.services.verleih_erinnerung import verleih_erinnerung_loop
+    verleih_task = asyncio.create_task(verleih_erinnerung_loop())
+
     try:
         yield
     finally:
@@ -98,22 +103,12 @@ async def lifespan(app: FastAPI):
         watchdog_task.cancel()
         reminder_task.cancel()
         lagemeldung_task.cancel()
-        try:
-            await autoclose_task
-        except (asyncio.CancelledError, Exception):
-            pass
-        try:
-            await watchdog_task
-        except (asyncio.CancelledError, Exception):
-            pass
-        try:
-            await reminder_task
-        except (asyncio.CancelledError, Exception):
-            pass
-        try:
-            await lagemeldung_task
-        except (asyncio.CancelledError, Exception):
-            pass
+        verleih_task.cancel()
+        for t in (autoclose_task, watchdog_task, reminder_task, lagemeldung_task, verleih_task):
+            try:
+                await t
+            except (asyncio.CancelledError, Exception):
+                pass
 
 
 def _bootstrap_admin() -> None:
@@ -378,6 +373,7 @@ app.include_router(ui_ai_prompts.router)
 app.include_router(ui_profile.router)
 app.include_router(ui_weather.router)
 app.include_router(ui_uas.router)
+app.include_router(ui_verleih.router)
 
 
 @app.exception_handler(HTTPException)

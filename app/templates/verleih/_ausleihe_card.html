@@ -1,0 +1,26 @@
+<div class="ausleihe-card {% if a.status.value == 'zurueckgegeben' %}ausleihe-card--zurueck{% endif %}"
+     hx-get="/lage/{{ lage.id }}/verleih/{{ a.id }}"
+     hx-target="#verleih-detail-panel"
+     hx-swap="innerHTML"
+     onclick="openVerleihPanel()">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+    <div class="ausleihe-card__name">{{ a.name }}</div>
+    <span class="status-chip {% if a.status.value == 'ausgeliehen' %}status-chip--ausgeliehen{% else %}status-chip--zurueck{% endif %}">
+      {% if a.status.value == 'ausgeliehen' %}Ausgeliehen{% else %}Zurückgegeben{% endif %}
+    </span>
+  </div>
+  <div class="ausleihe-card__meta">
+    <span>{{ a.ausgeliehen_at.strftime('%d.%m. %H:%M') }}</span>
+    {% if a.telefon %}<span>{{ a.telefon }}</span>{% endif %}
+    {% if a.site_id %}<span>📍 Einsatzstelle</span>{% endif %}
+    {% if a.pin %}<span>PIN: {{ a.pin }}</span>{% endif %}
+  </div>
+  <div class="ausleihe-card__positionen">
+    {% for p in a.positionen %}
+    <div class="pos-chip {% if p.status.value == 'zurueckgegeben' %}pos-chip--zurueck{% endif %}">
+      <span>{% if p.artikel_nr %}<code style="font-size:.72rem;margin-right:6px;">{{ p.artikel_nr }}</code>{% endif %}{{ p.bezeichnung }}</span>
+      <span style="font-size:.72rem;color:var(--text-muted);">× {{ p.menge }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>

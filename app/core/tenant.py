@@ -81,6 +81,10 @@ _TENANT_TABLE_NAMES: frozenset[str] = frozenset({
     # Direkt org-gebunden
     "api_key",
     "sms_gateway_token",
+    # Geräteverleih-Modul (TenantScoped via Mixin)
+    "verleih_artikel",
+    "verleih_stueckliste",
+    "verleih_ausleihe",
 })
 
 

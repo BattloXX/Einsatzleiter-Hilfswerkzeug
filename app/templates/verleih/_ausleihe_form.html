@@ -1,0 +1,137 @@
+<div style="padding:0;" x-data="verleihForm()">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);">
+    <strong>Neue Ausleihe</strong>
+    <button type="button" class="btn btn--ghost btn--xs" onclick="closeVerleihPanel()">x</button>
+  </div>
+
+  <form hx-post="/lage/{{ lage.id }}/verleih/neu"
+        hx-target="#verleih-grid"
+        hx-swap="beforeend"
+        hx-on::after-request="closeVerleihPanel()"
+        style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
+    <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+
+    <!-- Personen-Daten -->
+    <div class="form-group">
+      <label class="form-label">Name * <span style="font-size:.72rem;color:var(--text-muted);">(Ausleiher)</span></label>
+      <input type="text" name="name" class="form-input" required maxlength="200" autofocus placeholder="Vor- und Nachname">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Adresse</label>
+      <input type="text" name="adresse" class="form-input" maxlength="300" placeholder="Straße, Ort">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Telefonnummer</label>
+      <input type="tel" name="telefon" class="form-input" maxlength="50" placeholder="+43 660 ...">
+    </div>
+
+    <!-- Einsatzstelle -->
+    {% if sites %}
+    <div class="form-group">
+      <label class="form-label">Einsatzstelle zuordnen <span style="font-size:.72rem;color:var(--text-muted);">(optional)</span></label>
+      <select name="site_id" class="form-select">
+        <option value="">— Keine Zuordnung —</option>
+        {% for s in sites %}
+        <option value="{{ s.id }}">{{ s.bezeichnung }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <!-- Stückliste Schnell-Auswahl -->
+    {% if stuecklisten %}
+    <div class="form-group">
+      <label class="form-label">Stückliste laden</label>
+      <select class="form-select" @change="loadStueckliste($event, {{ lage.id }})">
+        <option value="">— Stückliste auswählen —</option>
+        {% for sl in stuecklisten %}
+        <option value="{{ sl.id }}">{{ sl.bezeichnung }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <!-- Positionen -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <label class="form-label" style="margin:0;">Artikel * <span style="font-size:.72rem;color:var(--text-muted);">(mind. 1)</span></label>
+        <button type="button" class="btn btn--ghost btn--xs" @click="addRow()">+ Artikel</button>
+      </div>
+
+      <template x-for="(row, idx) in rows" :key="idx">
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:flex-start;border:1px solid var(--border);border-radius:8px;padding:8px;">
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+            <!-- Artikel-Autocomplete -->
+            <input type="text" class="form-input form-input--xs"
+                   placeholder="Bezeichnung *"
+                   :name="'pos_bezeichnung[]'"
+                   x-model="row.bezeichnung"
+                   required
+                   list="artikel-datalist">
+            <datalist id="artikel-datalist">
+              {% for a in artikel %}
+              <option value="{{ a.bezeichnung }}"{% if a.artikel_nr %} data-nr="{{ a.artikel_nr }}"{% endif %}>{{ a.artikel_nr or '' }}</option>
+              {% endfor %}
+            </datalist>
+            <div style="display:flex;gap:4px;">
+              <input type="text" class="form-input form-input--xs" style="flex:1;"
+                     placeholder="Artikelnr"
+                     :name="'pos_artikel_nr[]'"
+                     x-model="row.artikel_nr">
+              <input type="hidden" :name="'pos_artikel_id[]'" x-model="row.artikel_id">
+              <input type="number" class="form-input form-input--xs" style="width:60px;"
+                     :name="'pos_menge[]'"
+                     x-model="row.menge"
+                     min="1"
+                     :readonly="!row.ist_mengenartikel && row.artikel_id"
+                     :title="!row.ist_mengenartikel && row.artikel_id ? 'Eindeutiger Artikel: Menge = 1' : ''">
+            </div>
+          </div>
+          <button type="button" class="btn btn--danger btn--xs" style="flex-shrink:0;margin-top:2px;" @click="removeRow(idx)">x</button>
+        </div>
+      </template>
+      <button type="button" class="btn btn--ghost btn--xs" @click="addRow()" style="width:100%;">+ Artikel hinzufügen</button>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;">
+      <button type="button" class="btn btn--ghost" onclick="closeVerleihPanel()">Abbrechen</button>
+      <button type="submit" class="btn btn--primary">Ausleihe anlegen</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function verleihForm() {
+  return {
+    rows: [{ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '', ist_mengenartikel: true }],
+    addRow() {
+      this.rows.push({ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '', ist_mengenartikel: true });
+    },
+    removeRow(i) {
+      this.rows.splice(i, 1);
+      if (!this.rows.length) this.addRow();
+    },
+    async loadStueckliste(ev, lageId) {
+      var sl_id = ev.target.value;
+      if (!sl_id) return;
+      try {
+        var res = await fetch('/lage/' + lageId + '/verleih/stueckliste/' + sl_id);
+        var positionen = await res.json();
+        if (positionen.length) {
+          this.rows = positionen.map(function(p) {
+            return {
+              bezeichnung: p.bezeichnung || '',
+              artikel_nr: p.artikel_nr || '',
+              menge: p.menge || 1,
+              artikel_id: p.artikel_id || '',
+              ist_mengenartikel: p.ist_mengenartikel !== false,
+            };
+          });
+        }
+      } catch(e) { console.error('Stückliste laden fehlgeschlagen', e); }
+      ev.target.value = '';
+    },
+  };
+}
+</script>

@@ -318,6 +318,23 @@ class OrgSettings(Base):
     # "uas_module_enabled") ebenfalls "true" ist → effektiv = System AND Org.
     uas_module_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # GSL-Feature-Flags je Org (effektiv = SystemSettings-Globalschalter AND dieser Wert).
+    # Default True = Modul aktiv sofern global nicht deaktiviert.
+    mi_feature_stab:           Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mi_feature_funkjournal:    Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mi_feature_meldungen:      Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mi_feature_sektoren:       Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mi_feature_karte:          Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mi_feature_zeitreise:      Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mi_feature_ressourcen:     Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mi_feature_uebergreifend:  Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    mi_feature_geraeteverleih: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Geräteverleih-Konfiguration je Org
+    gsl_verleih_erinnerung_stunden:  Mapped[int | None] = mapped_column(Integer, nullable=True)
+    gsl_verleih_sms_ausleih_text:    Mapped[str | None] = mapped_column(Text, nullable=True)
+    gsl_verleih_sms_erinnerung_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     org: Mapped[FireDept] = relationship(back_populates="settings")
 
 

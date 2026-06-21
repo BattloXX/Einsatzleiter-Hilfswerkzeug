@@ -1,4 +1,12 @@
 from app.models.breathing import BreathingTroop, PressureLog, TroopMember
+from app.models.verleih import (
+    VerleihArtikel,
+    VerleihAusleihe,
+    VerleihPosition,
+    VerleihStatus,
+    VerleihStueckliste,
+    VerleihStuecklistePosition,
+)
 from app.models.incident import (
     Incident,
     IncidentChange,
@@ -79,4 +87,6 @@ __all__ = [
     "MajorIncident", "MajorIncidentStatus", "Sector", "StaffAssignment", "StaffFunction",
     "IncidentSite", "SitePhase", "SitePriority", "SiteResourceAssignment",
     "SiteLogEntry", "SiteMedia", "CommLogEntry", "CitizenReport",
+    "VerleihArtikel", "VerleihStueckliste", "VerleihStuecklistePosition",
+    "VerleihAusleihe", "VerleihPosition", "VerleihStatus",
 ]

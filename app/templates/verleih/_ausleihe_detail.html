@@ -1,0 +1,194 @@
+<div style="padding:0;" x-data="{ smsModalOpen: false, erinnerungModalOpen: false }">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);">
+    <div>
+      <strong style="font-size:1rem;">{{ a.name }}</strong>
+      <span class="status-chip {% if a.status.value == 'ausgeliehen' %}status-chip--ausgeliehen{% else %}status-chip--zurueck{% endif %}" style="margin-left:8px;">
+        {% if a.status.value == 'ausgeliehen' %}Ausgeliehen{% else %}Zurückgegeben{% endif %}
+      </span>
+    </div>
+    <button type="button" class="btn btn--ghost btn--xs" onclick="closeVerleihPanel()">x</button>
+  </div>
+
+  <div style="padding:14px 16px;display:flex;flex-direction:column;gap:14px;">
+
+    <!-- Stammdaten -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.83rem;">
+      {% if a.adresse %}
+      <div><span style="color:var(--text-muted);">Adresse</span><br><strong>{{ a.adresse }}</strong></div>
+      {% endif %}
+      {% if a.telefon %}
+      <div><span style="color:var(--text-muted);">Telefon</span><br><strong>{{ a.telefon }}</strong></div>
+      {% endif %}
+      <div><span style="color:var(--text-muted);">Ausgeliehen</span><br><strong>{{ a.ausgeliehen_at.strftime('%d.%m.%Y %H:%M') }}</strong></div>
+      {% if a.zurueckgegeben_at %}
+      <div><span style="color:var(--text-muted);">Zurückgegeben</span><br><strong>{{ a.zurueckgegeben_at.strftime('%d.%m.%Y %H:%M') }}</strong></div>
+      {% endif %}
+      {% if site %}
+      <div style="grid-column:1/-1;"><span style="color:var(--text-muted);">Einsatzstelle</span><br><strong>{{ site.bezeichnung }}</strong></div>
+      {% endif %}
+    </div>
+
+    <!-- PIN -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:2px;">PIN</div>
+          {% if a.pin %}
+          <span style="font-size:1.4rem;font-family:JetBrains Mono,monospace;font-weight:700;letter-spacing:.2em;">{{ a.pin }}</span>
+          {% else %}
+          <span style="color:var(--text-muted);font-size:.85rem;">Kein PIN</span>
+          {% endif %}
+        </div>
+        {% if can_edit and a.status.value == 'ausgeliehen' and a.telefon %}
+        <form hx-post="/lage/{{ lage.id }}/verleih/{{ a.id }}/pin-senden"
+              hx-target="#verleih-detail-panel"
+              hx-swap="innerHTML">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+          <button type="submit" class="btn btn--ghost btn--xs">
+            {% if a.pin %}PIN neu + SMS{% else %}PIN senden{% endif %}
+          </button>
+        </form>
+        {% elif can_edit and a.status.value == 'ausgeliehen' %}
+        <form hx-post="/lage/{{ lage.id }}/verleih/{{ a.id }}/pin-senden"
+              hx-target="#verleih-detail-panel"
+              hx-swap="innerHTML">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+          <button type="submit" class="btn btn--ghost btn--xs" title="Kein Telefon hinterlegt – PIN wird generiert aber nicht versendet">
+            PIN generieren
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% if pin_sms_ok is defined %}
+      <div style="font-size:.75rem;margin-top:6px;" class="{% if pin_sms_ok %}alert alert--success{% else %}alert alert--danger{% endif %}" style="padding:4px 8px;border-radius:4px;">
+        {% if pin_sms_ok %}PIN-SMS erfolgreich gesendet.{% else %}PIN-SMS konnte nicht gesendet werden (Gateway prüfen).{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Positionen -->
+    <div>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">Positionen</div>
+      {% for p in a.positionen %}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:5px;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          {% if p.artikel_nr %}<code style="font-size:.72rem;color:var(--text-muted);margin-right:6px;">{{ p.artikel_nr }}</code>{% endif %}
+          <span style="{% if p.status.value == 'zurueckgegeben' %}text-decoration:line-through;opacity:.5;{% endif %}">{{ p.bezeichnung }}</span>
+          <span style="font-size:.72rem;color:var(--text-muted);margin-left:6px;">× {{ p.menge }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <span class="status-chip {% if p.status.value == 'ausgeliehen' %}status-chip--ausgeliehen{% else %}status-chip--zurueck{% endif %}" style="font-size:.65rem;">
+            {% if p.status.value == 'ausgeliehen' %}Ausg.{% else %}Zurück{% endif %}
+          </span>
+          {% if can_edit and p.status.value == 'ausgeliehen' %}
+          <form hx-post="/lage/{{ lage.id }}/verleih/{{ a.id }}/position/{{ p.id }}/zurueck"
+                hx-target="#verleih-detail-panel"
+                hx-swap="innerHTML">
+            <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+            <button type="submit" class="btn btn--ghost btn--xs">Zurück</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+
+      {% if can_edit and a.status.value == 'ausgeliehen' %}
+      <form hx-post="/lage/{{ lage.id }}/verleih/{{ a.id }}/alle-zurueck"
+            hx-target="#verleih-detail-panel"
+            hx-swap="innerHTML"
+            style="margin-top:8px;">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        <button type="submit" class="btn btn--primary" style="width:100%;"
+                hx-confirm="Alle Positionen als zurückgegeben markieren?">
+          Alle zurückgegeben
+        </button>
+      </form>
+      {% endif %}
+    </div>
+
+    <!-- SMS -->
+    {% if can_edit and a.status.value == 'ausgeliehen' and a.telefon %}
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">SMS</div>
+
+      <!-- Ausleih-SMS -->
+      <div x-show="!smsModalOpen">
+        <button type="button" class="btn btn--ghost btn--sm" style="width:100%;" @click="smsModalOpen=true">
+          {% if a.sms_ausleih_gesendet %}SMS erneut senden{% else %}Ausleih-SMS senden{% endif %}
+        </button>
+        {% if a.sms_ausleih_gesendet %}<div style="font-size:.72rem;color:var(--text-muted);text-align:center;margin-top:2px;">SMS wurde bereits gesendet</div>{% endif %}
+      </div>
+      <div x-show="smsModalOpen" x-cloak>
+        <form hx-post="/lage/{{ lage.id }}/verleih/{{ a.id }}/sms-ausleih"
+              hx-target="#verleih-detail-panel"
+              hx-swap="innerHTML">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+          <label class="form-label" style="font-size:.78rem;">SMS-Text (bearbeitbar)</label>
+          <textarea name="sms_text" class="form-input" rows="4" style="font-size:.82rem;">{{ sms_text }}</textarea>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button type="button" class="btn btn--ghost btn--sm" @click="smsModalOpen=false">Abbrechen</button>
+            <button type="submit" class="btn btn--primary btn--sm" style="flex:1;">Senden</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Erinnerungs-SMS -->
+      <div x-show="!erinnerungModalOpen">
+        <button type="button" class="btn btn--ghost btn--sm" style="width:100%;" @click="erinnerungModalOpen=true">
+          Erinnerung senden
+          {% if a.erinnerung_gesendet_at %}<span style="font-size:.7rem;color:var(--text-muted);"> ({{ a.erinnerung_gesendet_at.strftime('%d.%m. %H:%M') }})</span>{% endif %}
+        </button>
+      </div>
+      <div x-show="erinnerungModalOpen" x-cloak>
+        <form hx-post="/lage/{{ lage.id }}/verleih/{{ a.id }}/erinnerung-manuell"
+              hx-target="#verleih-detail-panel"
+              hx-swap="innerHTML">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+          <label class="form-label" style="font-size:.78rem;">Erinnerungs-SMS (bearbeitbar)</label>
+          <textarea name="sms_text" class="form-input" rows="4" style="font-size:.82rem;">{{ erinnerung_text }}</textarea>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button type="button" class="btn btn--ghost btn--sm" @click="erinnerungModalOpen=false">Abbrechen</button>
+            <button type="submit" class="btn btn--primary btn--sm" style="flex:1;">Senden</button>
+          </div>
+        </form>
+      </div>
+
+      {% if sms_ausleih_ok is defined %}
+      <div class="{% if sms_ausleih_ok %}alert alert--success{% else %}alert alert--danger{% endif %}" style="font-size:.78rem;padding:6px 10px;">
+        {% if sms_ausleih_ok %}SMS gesendet.{% else %}SMS konnte nicht gesendet werden.{% endif %}
+      </div>
+      {% endif %}
+      {% if erinnerung_ok is defined %}
+      <div class="{% if erinnerung_ok %}alert alert--success{% else %}alert alert--danger{% endif %}" style="font-size:.78rem;padding:6px 10px;">
+        {% if erinnerung_ok %}Erinnerungs-SMS gesendet.{% else %}Erinnerungs-SMS konnte nicht gesendet werden.{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% elif can_edit and a.status.value == 'ausgeliehen' %}
+    <div style="font-size:.78rem;color:var(--text-muted);background:rgba(255,255,255,.04);border-radius:8px;padding:10px 12px;">
+      Keine Telefonnummer hinterlegt – SMS-Funktionen nicht verfügbar.
+    </div>
+    {% endif %}
+
+    <!-- Auto-Erinnerung Status -->
+    {% if a.erinnerung_geplant_at %}
+    <div style="font-size:.75rem;color:var(--text-muted);">
+      Auto-Erinnerung:
+      {% if a.erinnerung_gesendet_at %}
+      gesendet am {{ a.erinnerung_gesendet_at.strftime('%d.%m. %H:%M') }}
+      {% else %}
+      geplant für {{ a.erinnerung_geplant_at.strftime('%d.%m. %H:%M') }}
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<style>
+.status-chip { font-size:.7rem;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap;display:inline-block; }
+.status-chip--ausgeliehen { background:rgba(251,191,36,.2);color:#fbbf24; }
+.status-chip--zurueck     { background:rgba(34,197,94,.15);color:#4ade80; }
+</style>

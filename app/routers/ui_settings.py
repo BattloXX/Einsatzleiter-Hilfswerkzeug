@@ -3,7 +3,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.config import settings as app_settings
@@ -577,6 +577,94 @@ async def apply_system_update(
         "user": user,
         "version": get_current_version(),
         "update_result": result,
+    })
+
+
+def _org_flags_dict(org_settings) -> dict:
+    """Hilfsfunktion: OrgSettings-Feature-Flags als einfaches Dict für Templates."""
+    _MI_KEYS = [
+        "mi_feature_stab", "mi_feature_funkjournal", "mi_feature_meldungen",
+        "mi_feature_sektoren", "mi_feature_karte", "mi_feature_zeitreise",
+        "mi_feature_ressourcen", "mi_feature_uebergreifend", "mi_feature_geraeteverleih",
+    ]
+    return {k: bool(getattr(org_settings, k, True)) for k in _MI_KEYS}
+
+
+# ── GSL-Einstellungen ────────────────────────────────────────────────────────
+
+@router.get("/gsl-einstellungen", response_class=HTMLResponse)
+def gsl_einstellungen(
+    request: Request,
+    db=Depends(get_db),
+    user: User = Depends(require_role("org_admin", "admin")),
+):
+    org_id = user.org_id
+    if not org_id:
+        raise HTTPException(403)
+    org_settings = db.query(OrgSettings).filter_by(org_id=org_id).first()
+    return templates.TemplateResponse(request, "admin/gsl_einstellungen.html", {
+        "user": user,
+        "org_settings": org_settings,
+        "org_flags": _org_flags_dict(org_settings),
+    })
+
+
+@router.post("/gsl-einstellungen", response_class=HTMLResponse)
+async def gsl_einstellungen_save(
+    request: Request,
+    db=Depends(get_db),
+    user: User = Depends(require_role("org_admin", "admin")),
+):
+    org_id = user.org_id
+    if not org_id:
+        raise HTTPException(403)
+
+    form = await request.form()
+    org_settings = db.query(OrgSettings).filter_by(org_id=org_id).first()
+    if not org_settings:
+        raise HTTPException(404, "Org-Settings nicht gefunden")
+
+    def _bool(key: str) -> bool:
+        return form.get(key, "") in ("1", "on", "true", "yes")
+
+    def _int_or_none(key: str):
+        v = str(form.get(key, "")).strip()
+        return int(v) if v.isdigit() else None
+
+    # Feature-Flags
+    org_settings.mi_feature_stab           = _bool("mi_feature_stab")
+    org_settings.mi_feature_funkjournal    = _bool("mi_feature_funkjournal")
+    org_settings.mi_feature_meldungen      = _bool("mi_feature_meldungen")
+    org_settings.mi_feature_sektoren       = _bool("mi_feature_sektoren")
+    org_settings.mi_feature_karte          = _bool("mi_feature_karte")
+    org_settings.mi_feature_zeitreise      = _bool("mi_feature_zeitreise")
+    org_settings.mi_feature_ressourcen     = _bool("mi_feature_ressourcen")
+    org_settings.mi_feature_uebergreifend  = _bool("mi_feature_uebergreifend")
+    org_settings.mi_feature_geraeteverleih = _bool("mi_feature_geraeteverleih")
+
+    # Lagemeldungs-Regelkreis
+    lm_interval = _int_or_none("gsl_lagemeldung_interval_minutes")
+    org_settings.gsl_lagemeldung_interval_minutes = lm_interval
+    lm_sofort = _int_or_none("gsl_lagemeldung_interval_sofort_minutes")
+    org_settings.gsl_lagemeldung_interval_sofort_minutes = lm_sofort
+    org_settings.gsl_lagemeldung_auto_auftrag = _bool("gsl_lagemeldung_auto_auftrag")
+
+    # Geräteverleih-Konfiguration
+    erinnerung_h = _int_or_none("gsl_verleih_erinnerung_stunden")
+    org_settings.gsl_verleih_erinnerung_stunden = erinnerung_h
+    org_settings.gsl_verleih_sms_ausleih_text    = str(form.get("gsl_verleih_sms_ausleih_text", "")).strip() or None
+    org_settings.gsl_verleih_sms_erinnerung_text = str(form.get("gsl_verleih_sms_erinnerung_text", "")).strip() or None
+
+    # Allgemein
+    org_settings.mi_auto_adopt = _bool("mi_auto_adopt")
+
+    db.commit()
+
+    return templates.TemplateResponse(request, "admin/gsl_einstellungen.html", {
+        "user": user,
+        "org_settings": org_settings,
+        "org_flags": _org_flags_dict(org_settings),
+        "saved": True,
     })
 
 

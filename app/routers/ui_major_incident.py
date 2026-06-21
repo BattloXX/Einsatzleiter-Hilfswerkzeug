@@ -76,23 +76,45 @@ _pending_verifications: dict[str, dict] = {}
 _MI_FEATURE_KEYS: frozenset[str] = frozenset({
     "mi_feature_stab", "mi_feature_funkjournal", "mi_feature_meldungen",
     "mi_feature_sektoren", "mi_feature_karte", "mi_feature_zeitreise", "mi_feature_ressourcen",
-    "mi_feature_uebergreifend",
+    "mi_feature_uebergreifend", "mi_feature_geraeteverleih",
 })
 
 
-def _get_mi_features(db: Session) -> dict[str, bool]:
-    from app.models.master import SystemSettings as _SS
+def _get_mi_features(db: Session, org_id: int | None = None) -> dict[str, bool]:
+    """Liest MI-Feature-Flags: OrgSettings (per Org) AND SystemSettings (globaler Master).
+
+    Effektiv = SystemSettings[key] AND OrgSettings.mi_feature_*
+    Fehlen OrgSettings-Spalten (Altinstanz), gelten SystemSettings allein.
+    """
+    from app.models.master import OrgSettings as _OS, SystemSettings as _SS
+
+    # Globale Masterschalter (SystemSettings Key-Value)
     rows = db.query(_SS).filter(_SS.key.in_(_MI_FEATURE_KEYS)).all()
-    cfg = {r.key: r.value for r in rows}
+    global_cfg = {r.key: r.value != "false" for r in rows}
+
+    def _global(key: str) -> bool:
+        return global_cfg.get(key, True)
+
+    # Per-Org-Overrides aus OrgSettings
+    org_settings: _OS | None = None
+    if org_id is not None:
+        org_settings = db.query(_OS).filter_by(org_id=org_id).first()
+
+    def _org(attr: str) -> bool:
+        if org_settings is None:
+            return True
+        return bool(getattr(org_settings, attr, True))
+
     return {
-        "stab":           cfg.get("mi_feature_stab",           "true") != "false",
-        "funkjournal":    cfg.get("mi_feature_funkjournal",     "true") != "false",
-        "meldungen":      cfg.get("mi_feature_meldungen",       "true") != "false",
-        "sektoren":       cfg.get("mi_feature_sektoren",        "true") != "false",
-        "karte":          cfg.get("mi_feature_karte",           "true") != "false",
-        "zeitreise":      cfg.get("mi_feature_zeitreise",       "true") != "false",
-        "ressourcen":     cfg.get("mi_feature_ressourcen",      "true") != "false",
-        "uebergreifend":  cfg.get("mi_feature_uebergreifend",   "true") != "false",
+        "stab":            _global("mi_feature_stab")           and _org("mi_feature_stab"),
+        "funkjournal":     _global("mi_feature_funkjournal")    and _org("mi_feature_funkjournal"),
+        "meldungen":       _global("mi_feature_meldungen")      and _org("mi_feature_meldungen"),
+        "sektoren":        _global("mi_feature_sektoren")       and _org("mi_feature_sektoren"),
+        "karte":           _global("mi_feature_karte")          and _org("mi_feature_karte"),
+        "zeitreise":       _global("mi_feature_zeitreise")      and _org("mi_feature_zeitreise"),
+        "ressourcen":      _global("mi_feature_ressourcen")     and _org("mi_feature_ressourcen"),
+        "uebergreifend":   _global("mi_feature_uebergreifend")  and _org("mi_feature_uebergreifend"),
+        "geraeteverleih":  _global("mi_feature_geraeteverleih") and _org("mi_feature_geraeteverleih"),
     }
 
 
@@ -367,7 +389,7 @@ async def lage_board(
         "cross_marker_status_label": CROSS_MARKER_STATUS_LABEL,
         "cross_marker_status_color": CROSS_MARKER_STATUS_COLOR,
         "now": datetime.now(UTC),
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
         "weather_enabled": _weather_enabled,
         "org_lat": _org_lat,
         "org_lng": _org_lng,
@@ -1749,7 +1771,7 @@ async def lage_dashboard(
         "journal_categories": JOURNAL_CATEGORIES,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
     })
 
 
@@ -1792,7 +1814,7 @@ async def lage_stab(
         "journal_templates_json": __import__("json").dumps(JOURNAL_TEMPLATES),
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
         **_nav_counts(lage_id, lage, db),
     })
 
@@ -2436,7 +2458,7 @@ async def lage_funkjournal(
         "lage": lage,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
         **ctx,
         **_nav_counts(lage_id, lage, db),
     })
@@ -2843,7 +2865,7 @@ async def meldungen_list(
         "can_manage": _can_manage(user),
         "portal_url": str(request.base_url).rstrip("/") + f"/melden/{lage.public_token}"
                       if lage.public_token else None,
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
     })
 
 
@@ -3227,7 +3249,7 @@ async def lage_zeitreise(
         "journal_category_color": JOURNAL_CATEGORY_COLOR,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
         **_nav_counts(lage_id, lage, db),
     })
 
@@ -3485,7 +3507,7 @@ async def sektoren_view(
         "prio_color": SITE_PRIORITY_COLOR,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
         **_nav_counts(lage_id, lage, db),
     })
 
@@ -3925,7 +3947,7 @@ async def lage_karte(
         "cross_markers_json": cross_markers_json,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
         **_nav_counts(lage_id, lage, db),
     })
 
@@ -4153,7 +4175,7 @@ async def lage_ressourcen(
         "resource_service": resource_service,
         "can_edit": _can_edit(user),
         "can_manage": _can_manage(user),
-        "mi_features": _get_mi_features(db),
+        "mi_features": _get_mi_features(db, lage.org_id),
         **_nav_counts(lage_id, lage, db),
     })
 

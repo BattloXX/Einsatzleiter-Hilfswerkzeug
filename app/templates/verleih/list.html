@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}{{ lage.name }} – Geräteverleih{% endblock %}
+
+{% block head_extra %}
+<style>
+.verleih-topbar {
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface);
+}
+.verleih-topbar__title { font-weight:700;font-size:1.05rem;flex:1;min-width:0; }
+.lage-status { font-size:.75rem;padding:2px 8px;border-radius:10px;white-space:nowrap; }
+.lage-status--active  { background:rgba(34,197,94,.15);color:#4ade80; }
+.lage-status--closed  { background:rgba(107,114,128,.2);color:#9ca3af; }
+.lage-status--standby { background:rgba(245,158,11,.15);color:#fbbf24; }
+.lage-subnav { display:flex;gap:4px;flex-wrap:wrap; }
+.lage-subnav a { font-size:.78rem;padding:3px 9px;border-radius:4px;color:var(--text-muted);text-decoration:none; }
+.lage-subnav a:hover { background:rgba(255,255,255,.07);color:var(--text); }
+.lage-subnav a.active { background:rgba(255,255,255,.1);color:var(--text);font-weight:600; }
+@media(max-width:900px){ .lage-subnav { display:none; } }
+
+.verleih-filter { display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border); }
+.verleih-filter a { font-size:.82rem;padding:4px 12px;border-radius:20px;text-decoration:none;
+  color:var(--text-muted);background:rgba(255,255,255,.05); }
+.verleih-filter a:hover { background:rgba(255,255,255,.1);color:var(--text); }
+.verleih-filter a.active { background:var(--red);color:#fff;font-weight:600; }
+
+.verleih-grid {
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:12px;padding:14px 16px;
+}
+.ausleihe-card {
+  background:var(--surface-elevated,#1e2130);border:1px solid var(--border);
+  border-radius:10px;padding:14px;cursor:pointer;transition:border-color .15s;
+}
+.ausleihe-card:hover { border-color:rgba(255,255,255,.2); }
+.ausleihe-card--zurueck { opacity:.7; }
+.ausleihe-card__name { font-weight:700;font-size:1rem;margin-bottom:4px; }
+.ausleihe-card__meta { font-size:.78rem;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap; }
+.ausleihe-card__positionen { margin-top:10px;display:flex;flex-direction:column;gap:4px; }
+.pos-chip {
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:.8rem;padding:3px 8px;border-radius:6px;
+  background:rgba(255,255,255,.05);
+}
+.pos-chip--zurueck { opacity:.5;text-decoration:line-through; }
+.status-chip { font-size:.7rem;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap; }
+.status-chip--ausgeliehen { background:rgba(251,191,36,.2);color:#fbbf24; }
+.status-chip--zurueck     { background:rgba(34,197,94,.15);color:#4ade80; }
+
+/* Detail-Panel */
+.verleih-detail-panel {
+  position:fixed;right:0;top:var(--topnav-h,56px);bottom:0;width:420px;
+  background:var(--surface);border-left:1px solid var(--border);
+  overflow-y:auto;z-index:200;transform:translateX(100%);transition:transform .2s ease;
+}
+.verleih-detail-panel.is-open { transform:translateX(0); }
+@media(max-width:760px){ .verleih-detail-panel { width:100%; } }
+</style>
+{% endblock %}
+
+{% block mobile_extra %}
+<div class="mobile-menu" id="mobileMenu" style="display:none;">
+  <a href="/lage/{{ lage.id }}" class="mobile-menu__link">📋 Board{% if open_count %} ({{ open_count }}){% endif %}</a>
+  <a href="/lage/{{ lage.id }}/dashboard" class="mobile-menu__link">📊 Dashboard</a>
+  {% if mi_features.stab %}<a href="/lage/{{ lage.id }}/stab" class="mobile-menu__link">👥 Stab</a>{% endif %}
+  {% if mi_features.funkjournal %}<a href="/lage/{{ lage.id }}/funkjournal" class="mobile-menu__link">📻 Funkjournal</a>{% endif %}
+  {% if mi_features.meldungen %}<a href="/lage/{{ lage.id }}/meldungen" class="mobile-menu__link">📥 Meldungen{% if new_meldungen_count %} ({{ new_meldungen_count }}){% endif %}</a>{% endif %}
+  {% if mi_features.zeitreise %}<a href="/lage/{{ lage.id }}/zeitreise" class="mobile-menu__link">🕐 Zeitreise</a>{% endif %}
+  {% if mi_features.sektoren %}<a href="/lage/{{ lage.id }}/sektoren" class="mobile-menu__link">🗂 Abschnitte</a>{% endif %}
+  {% if mi_features.karte %}<a href="/lage/{{ lage.id }}/karte" class="mobile-menu__link">🗺 Karte</a>{% endif %}
+  {% if mi_features.ressourcen %}<a href="/lage/{{ lage.id }}/ressourcen" class="mobile-menu__link">🚒 Ressourcen</a>{% endif %}
+  {% if mi_features.geraeteverleih %}<a href="/lage/{{ lage.id }}/verleih" class="mobile-menu__link active">📦 Geräteverleih</a>{% endif %}
+  <a href="/lage/{{ lage.id }}/druck" class="mobile-menu__link" target="_blank">🖨 Drucken</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Topbar -->
+<div class="verleih-topbar">
+  <a href="/lage/{{ lage.id }}" class="btn btn--ghost btn--sm">←</a>
+  <div class="verleih-topbar__title">{{ lage.name }}</div>
+  <span class="lage-status lage-status--{{ lage.status.value }}">{{ lage.status.value }}</span>
+  <nav class="lage-subnav">
+    <a href="/lage/{{ lage.id }}">📋 Board{% if open_count %} ({{ open_count }}){% endif %}</a>
+    <a href="/lage/{{ lage.id }}/dashboard">📊 Dashboard</a>
+    {% if mi_features.stab %}<a href="/lage/{{ lage.id }}/stab">👥 Stab</a>{% endif %}
+    {% if mi_features.funkjournal %}<a href="/lage/{{ lage.id }}/funkjournal">📻 Funkjournal</a>{% endif %}
+    {% if mi_features.meldungen %}<a href="/lage/{{ lage.id }}/meldungen">📥 Meldungen{% if new_meldungen_count %} ({{ new_meldungen_count }}){% endif %}</a>{% endif %}
+    {% if mi_features.zeitreise %}<a href="/lage/{{ lage.id }}/zeitreise">🕐 Zeitreise</a>{% endif %}
+    {% if mi_features.sektoren %}<a href="/lage/{{ lage.id }}/sektoren">🗂 Abschnitte</a>{% endif %}
+    {% if mi_features.karte %}<a href="/lage/{{ lage.id }}/karte">🗺 Karte</a>{% endif %}
+    {% if mi_features.ressourcen %}<a href="/lage/{{ lage.id }}/ressourcen">🚒 Ressourcen</a>{% endif %}
+    <a href="/lage/{{ lage.id }}/verleih" class="active">📦 Geräteverleih</a>
+    <a href="/lage/{{ lage.id }}/druck" target="_blank">🖨 Drucken</a>
+  </nav>
+  {% if can_edit %}
+  <button class="btn btn--primary btn--sm"
+          hx-get="/lage/{{ lage.id }}/verleih/neu"
+          hx-target="#verleih-detail-panel"
+          hx-swap="innerHTML"
+          onclick="document.getElementById('verleih-detail-panel').classList.add('is-open')">
+    + Ausleihe
+  </button>
+  {% endif %}
+</div>
+
+<!-- Filter -->
+<div class="verleih-filter">
+  <a href="/lage/{{ lage.id }}/verleih?filter=alle" class="{% if filter == 'alle' %}active{% endif %}">
+    Alle ({{ ausleihen|length }})
+  </a>
+  <a href="/lage/{{ lage.id }}/verleih?filter=ausgeliehen" class="{% if filter == 'ausgeliehen' %}active{% endif %}">
+    Ausgeliehen
+  </a>
+  <a href="/lage/{{ lage.id }}/verleih?filter=zurueck" class="{% if filter == 'zurueck' %}active{% endif %}">
+    Zurückgegeben
+  </a>
+</div>
+
+<!-- Karten-Grid -->
+<div class="verleih-grid" id="verleih-grid">
+  {% for a in ausleihen %}
+  {% include "verleih/_ausleihe_card.html" %}
+  {% else %}
+  <p style="color:var(--text-muted);padding:24px 16px;grid-column:1/-1;">
+    Noch keine Ausleihen in dieser Lage.
+    {% if can_edit %}Klicke „+ Ausleihe" um einen neuen Verleihvorgang anzulegen.{% endif %}
+  </p>
+  {% endfor %}
+</div>
+
+<!-- Detail-Panel (Slide-In) -->
+<div class="verleih-detail-panel" id="verleih-detail-panel">
+  <div style="padding:16px;color:var(--text-muted);font-size:.85rem;">
+    Ausleihe auswählen oder neue anlegen.
+  </div>
+</div>
+<div id="verleih-overlay"
+     style="display:none;position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.3);"
+     onclick="closeVerleihPanel()"></div>
+
+<script>
+function openVerleihPanel() {
+  document.getElementById('verleih-detail-panel').classList.add('is-open');
+  document.getElementById('verleih-overlay').style.display = 'block';
+}
+function closeVerleihPanel() {
+  document.getElementById('verleih-detail-panel').classList.remove('is-open');
+  document.getElementById('verleih-overlay').style.display = 'none';
+}
+document.addEventListener('htmx:afterRequest', function(ev) {
+  if (ev.detail.target && ev.detail.target.id === 'verleih-detail-panel') {
+    openVerleihPanel();
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+<tr id="artikel-row-{{ a.id }}">
+  <td><code>{{ a.artikel_nr or '–' }}</code></td>
+  <td><strong>{{ a.bezeichnung }}</strong></td>
+  <td>
+    {% if a.ist_mengenartikel %}
+    <span class="badge-pill badge-pill--blue">Menge</span>
+    {% else %}
+    <span class="badge-pill badge-pill--green">Eindeutig</span>
+    {% endif %}
+  </td>
+  <td>{{ a.lagerbestand if a.lagerbestand is not none else '–' }}</td>
+  <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ a.notizen or '–' }}</td>
+  <td>
+    <button class="btn btn--ghost btn--xs" onclick="document.getElementById('editArtikelModal-{{ a.id }}').showModal()">Bearbeiten</button>
+    <button class="btn btn--danger btn--xs"
+            hx-post="/admin/verleih-artikel/{{ a.id }}/loeschen"
+            hx-target="#artikel-row-{{ a.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="Artikel '{{ a.bezeichnung }}' deaktivieren?">
+      Deaktivieren
+    </button>
+  </td>
+</tr>

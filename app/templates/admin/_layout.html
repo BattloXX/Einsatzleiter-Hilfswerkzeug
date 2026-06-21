@@ -11,7 +11,7 @@
   {% set active_group = 'verwaltung' %}
 {% elif '/admin/settings' in _p or '/admin/ki-prompts' in _p or '/admin/system' in _p
        or '/admin/seiten' in _p or '/admin/backup' in _p or '/admin/organisations' in _p
-       or '/admin/konfig' in _p or '/admin/sso' in _p %}
+       or '/admin/konfig' in _p or '/admin/sso' in _p or '/admin/gsl-einstellungen' in _p %}
   {% set active_group = 'einstellungen' %}
 {% else %}
   {% set active_group = 'stammdaten' %}
@@ -209,6 +209,11 @@
                {{ tip('Automatische Erinnerungen pro Stichwort') }}>
               <span class="admin-nav__icon">🔔</span>Default-Meldungen
             </a>
+            <a href="/admin/verleih-artikel"
+               class="admin-nav__item {% if '/admin/verleih' in request.url.path %}is-active{% endif %}"
+               {{ tip('Geräteverleih Artikelstammdaten und Stücklisten') }}>
+              <span class="admin-nav__icon">📦</span>Geräteverleih
+            </a>
           </div>
         </div>
 
@@ -268,6 +273,11 @@
                class="admin-nav__item {% if '/admin/settings' in request.url.path %}is-active{% endif %}"
                {{ tip('Organisations-Stammdaten, Logo, Farbe') }}>
               <span class="admin-nav__icon">🏛️</span>Organisation
+            </a>
+            <a href="/admin/gsl-einstellungen"
+               class="admin-nav__item {% if '/admin/gsl-einstellungen' in request.url.path %}is-active{% endif %}"
+               {{ tip('GSL: Module, Lagemeldung, Geräteverleih je Org konfigurieren') }}>
+              <span class="admin-nav__icon">🚨</span>GSL-Einstellungen
             </a>
             <a href="/admin/sso"
                class="admin-nav__item {% if '/admin/sso' in request.url.path %}is-active{% endif %}"
