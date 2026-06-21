@@ -5,8 +5,8 @@ import json
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.permissions import has_role, require_role, same_org_or_system_admin
@@ -16,6 +16,7 @@ from app.models.major_incident import IncidentSite, MajorIncident, MajorIncident
 from app.models.verleih import (
     VerleihArtikel,
     VerleihAusleihe,
+    VerleihFoto,
     VerleihPosition,
     VerleihStatus,
     VerleihStueckliste,
@@ -44,7 +45,8 @@ def _check_org(user, lage: MajorIncident) -> None:
 
 def _ausleihe_or_404(ausleihe_id: int, db: Session) -> VerleihAusleihe:
     a = db.query(VerleihAusleihe).options(
-        selectinload(VerleihAusleihe.positionen)
+        selectinload(VerleihAusleihe.positionen),
+        selectinload(VerleihAusleihe.fotos),
     ).filter_by(id=ausleihe_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="Ausleihe nicht gefunden")
@@ -329,6 +331,7 @@ async def verleih_neu(
     name = str(form.get("name", "")).strip()
     adresse = str(form.get("adresse", "")).strip()
     telefon = str(form.get("telefon", "")).strip()
+    pin_raw = str(form.get("pin", "")).strip()
     site_id_raw = str(form.get("site_id", "")).strip()
     site_id = int(site_id_raw) if site_id_raw.isdigit() else None
 
@@ -363,7 +366,25 @@ async def verleih_neu(
         site_id=site_id,
         positionen=positionen,
         user_id=user.id,
+        pin=pin_raw or None,
     )
+
+    # Journal-Eintrag
+    try:
+        from app.models.major_incident import LageJournalEntry
+        from app.routers.ui_major_incident import get_author_name
+        artikel_text = ausleihe.artikel_bezeichnungen or "Material"
+        journal = LageJournalEntry(
+            major_incident_id=lage_id,
+            category="sonstiges",
+            text=f"Geraeteverleih: {artikel_text} an {name} ausgeliehen",
+            author_name=get_author_name(request),
+            user_id=getattr(user, "id", None),
+        )
+        db.add(journal)
+        db.commit()
+    except Exception:
+        logger.warning("Journal-Eintrag fuer Verleih fehlgeschlagen", exc_info=True)
 
     await broadcast_lage(lage_id, {"type": "verleih:changed", "lage_id": lage_id})
 
@@ -406,6 +427,25 @@ async def verleih_detail(
 
 # ── GSL: Rückgabe ─────────────────────────────────────────────────────────────
 
+@router.get("/lage/{lage_id}/verleih/{ausleihe_id}/card", response_class=HTMLResponse)
+async def verleih_card(
+    request: Request,
+    lage_id: int,
+    ausleihe_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org(user, lage)
+    ausleihe = _ausleihe_or_404(ausleihe_id, db)
+    return templates.TemplateResponse(request, "verleih/_ausleihe_card.html", {
+        "a": ausleihe,
+        "lage": lage,
+        "can_edit": _can_edit(user),
+    })
+
+
 @router.post("/lage/{lage_id}/verleih/{ausleihe_id}/position/{position_id}/zurueck", response_class=HTMLResponse)
 async def position_zurueck(
     request: Request,
@@ -433,7 +473,7 @@ async def position_zurueck(
         "can_edit": _can_edit(user),
         "sms_text": sms_text,
         "erinnerung_text": erinnerung_text,
-    })
+    }, headers={"HX-Trigger": json.dumps({"verleihKarteAktualisieren": str(ausleihe.id)})})
 
 
 @router.post("/lage/{lage_id}/verleih/{ausleihe_id}/alle-zurueck", response_class=HTMLResponse)
@@ -462,7 +502,7 @@ async def alle_zurueck(
         "can_edit": _can_edit(user),
         "sms_text": sms_text,
         "erinnerung_text": erinnerung_text,
-    })
+    }, headers={"HX-Trigger": json.dumps({"verleihKarteAktualisieren": str(ausleihe.id)})})
 
 
 # ── GSL: Stückliste laden (HTMX-JSON) ────────────────────────────────────────
@@ -573,6 +613,84 @@ async def sms_ausleih_senden(
         "sms_ausleih_ok": sms_ok,
         "sms_ausleih_no_phone": not ausleihe.telefon,
     })
+
+
+@router.post("/lage/{lage_id}/verleih/schnell-einsatzstelle")
+async def schnell_einsatzstelle(
+    request: Request,
+    lage_id: int,
+    bezeichnung: str = Form(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    """Erzeugt eine Einsatzstelle direkt aus dem Verleih-Formular und gibt {id, bezeichnung} zurueck."""
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org(user, lage)
+    if lage.status != MajorIncidentStatus.active:
+        raise HTTPException(400, "Lage nicht aktiv")
+    bezeichnung = bezeichnung.strip()
+    if not bezeichnung:
+        raise HTTPException(400, "Bezeichnung fehlt")
+    from app.services.major_incident_service import create_site
+    site = create_site(db, lage, bezeichnung=bezeichnung, created_by=user.id)
+    db.commit()
+    await broadcast_lage(lage_id, {"type": "site_created", "reload_board": True})
+    return JSONResponse({"id": site.id, "bezeichnung": site.bezeichnung})
+
+
+@router.post("/lage/{lage_id}/verleih/{ausleihe_id}/foto", response_class=HTMLResponse)
+async def verleih_foto_upload(
+    request: Request,
+    lage_id: int,
+    ausleihe_id: int,
+    foto: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org(user, lage)
+    ausleihe = _ausleihe_or_404(ausleihe_id, db)
+
+    await svc.save_verleih_foto(foto, ausleihe_id, lage.org_id, user.id, db)
+    ausleihe = _ausleihe_or_404(ausleihe_id, db)
+
+    site = db.get(IncidentSite, ausleihe.site_id) if ausleihe.site_id else None
+    sms_text = svc.get_sms_ausleih_text(db, lage.org_id, ausleihe)
+    erinnerung_text = svc.get_sms_erinnerung_text(db, lage.org_id, ausleihe)
+    return templates.TemplateResponse(request, "verleih/_ausleihe_detail.html", {
+        "user": user,
+        "lage": lage,
+        "a": ausleihe,
+        "site": site,
+        "can_edit": _can_edit(user),
+        "sms_text": sms_text,
+        "erinnerung_text": erinnerung_text,
+        "foto_ok": True,
+    })
+
+
+@router.get("/lage/{lage_id}/verleih/{ausleihe_id}/foto/{foto_id}/bild")
+async def verleih_foto_bild(
+    request: Request,
+    lage_id: int,
+    ausleihe_id: int,
+    foto_id: int,
+    thumb: bool = False,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org(user, lage)
+    foto = db.get(VerleihFoto, foto_id)
+    if not foto or foto.ausleihe_id != ausleihe_id:
+        raise HTTPException(404)
+    p = svc.foto_thumb_path(foto) if thumb else svc.foto_path(foto)
+    if not p.exists():
+        raise HTTPException(404)
+    return FileResponse(str(p), media_type="image/jpeg")
 
 
 @router.post("/lage/{lage_id}/verleih/{ausleihe_id}/erinnerung-manuell", response_class=HTMLResponse)

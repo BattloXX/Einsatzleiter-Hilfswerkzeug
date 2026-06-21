@@ -1,4 +1,4 @@
-<div style="padding:0;" x-data="verleihForm()">
+<div style="padding:0;" x-data="verleihForm({{ sites|tojson }}, {{ lage.id }})">
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);">
     <strong>Neue Ausleihe</strong>
@@ -19,32 +19,50 @@
     </div>
     <div class="form-group">
       <label class="form-label">Adresse</label>
-      <input type="text" name="adresse" class="form-input" maxlength="300" placeholder="Straße, Ort">
+      <input type="text" name="adresse" class="form-input" maxlength="300" placeholder="Strasse, Ort">
     </div>
     <div class="form-group">
       <label class="form-label">Telefonnummer</label>
       <input type="tel" name="telefon" class="form-input" maxlength="50" placeholder="+43 660 ...">
     </div>
 
+    <!-- PIN -->
+    <div class="form-group">
+      <label class="form-label">
+        PIN <span style="font-size:.72rem;color:var(--text-muted);">(optional – fuer Rueckgabe-Abgleich)</span>
+      </label>
+      <input type="text" name="pin" class="form-input" maxlength="6" pattern="[0-9]*" inputmode="numeric"
+             placeholder="z.B. 123456" style="max-width:140px;font-family:JetBrains Mono,monospace;letter-spacing:.2em;">
+    </div>
+
     <!-- Einsatzstelle -->
-    {% if sites %}
     <div class="form-group">
       <label class="form-label">Einsatzstelle zuordnen <span style="font-size:.72rem;color:var(--text-muted);">(optional)</span></label>
-      <select name="site_id" class="form-select">
-        <option value="">— Keine Zuordnung —</option>
-        {% for s in sites %}
-        <option value="{{ s.id }}">{{ s.bezeichnung }}</option>
-        {% endfor %}
-      </select>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <select name="site_id" class="form-select" style="flex:1;" x-ref="siteSelect">
+          <option value="">- Keine Zuordnung -</option>
+          <template x-for="s in siteList" :key="s.id">
+            <option :value="s.id" x-text="s.bezeichnung"></option>
+          </template>
+        </select>
+        <button type="button" class="btn btn--ghost btn--xs" @click="newSiteOpen=true" x-show="!newSiteOpen">+ Neu</button>
+      </div>
+      <div x-show="newSiteOpen" x-cloak style="margin-top:6px;display:flex;gap:6px;align-items:center;">
+        <input type="text" class="form-input form-input--xs" style="flex:1;" x-model="newSiteName"
+               placeholder="Bezeichnung der Einsatzstelle" @keydown.enter.prevent="createSite()">
+        <button type="button" class="btn btn--primary btn--xs" @click="createSite()"
+                :disabled="!newSiteName.trim()">Anlegen</button>
+        <button type="button" class="btn btn--ghost btn--xs" @click="newSiteOpen=false;newSiteName=''">x</button>
+      </div>
+      <div x-show="newSiteError" x-cloak style="font-size:.75rem;color:#f87171;margin-top:4px;" x-text="newSiteError"></div>
     </div>
-    {% endif %}
 
-    <!-- Stückliste Schnell-Auswahl -->
+    <!-- Stuckliste Schnell-Auswahl -->
     {% if stuecklisten %}
     <div class="form-group">
-      <label class="form-label">Stückliste laden</label>
+      <label class="form-label">Stuckliste laden</label>
       <select class="form-select" @change="loadStueckliste($event, {{ lage.id }})">
-        <option value="">— Stückliste auswählen —</option>
+        <option value="">- Stuckliste auswahlen -</option>
         {% for sl in stuecklisten %}
         <option value="{{ sl.id }}">{{ sl.bezeichnung }}</option>
         {% endfor %}
@@ -74,11 +92,19 @@
               <option value="{{ a.bezeichnung }}"{% if a.artikel_nr %} data-nr="{{ a.artikel_nr }}"{% endif %}>{{ a.artikel_nr or '' }}</option>
               {% endfor %}
             </datalist>
-            <div style="display:flex;gap:4px;">
+            <div style="display:flex;gap:4px;align-items:center;">
               <input type="text" class="form-input form-input--xs" style="flex:1;"
                      placeholder="Artikelnr"
                      :name="'pos_artikel_nr[]'"
                      x-model="row.artikel_nr">
+              <!-- Barcode-Scan-Button -->
+              <button type="button" class="btn btn--ghost btn--xs" style="padding:3px 7px;font-size:.8rem;"
+                      :title="barcodeApiAvailable ? 'Barcode scannen' : 'Barcode-Scanner nicht unterstuetzt'"
+                      @click="triggerScan(idx)">
+                &#128247;
+              </button>
+              <input type="file" accept="image/*" capture="environment" style="display:none;"
+                     @change="onScanFile($event, idx)">
               <input type="hidden" :name="'pos_artikel_id[]'" x-model="row.artikel_id">
               <input type="number" class="form-input form-input--xs" style="width:60px;"
                      :name="'pos_menge[]'"
@@ -91,7 +117,7 @@
           <button type="button" class="btn btn--danger btn--xs" style="flex-shrink:0;margin-top:2px;" @click="removeRow(idx)">x</button>
         </div>
       </template>
-      <button type="button" class="btn btn--ghost btn--xs" @click="addRow()" style="width:100%;">+ Artikel hinzufügen</button>
+      <button type="button" class="btn btn--ghost btn--xs" @click="addRow()" style="width:100%;">+ Artikel hinzufuegen</button>
     </div>
 
     <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;">
@@ -102,8 +128,14 @@
 </div>
 
 <script>
-function verleihForm() {
+function verleihForm(initialSites, lageId) {
   return {
+    lageId: lageId,
+    siteList: initialSites || [],
+    newSiteOpen: false,
+    newSiteName: '',
+    newSiteError: '',
+    barcodeApiAvailable: ('BarcodeDetector' in window),
     rows: [{ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '', ist_mengenartikel: true }],
     addRow() {
       this.rows.push({ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '', ist_mengenartikel: true });
@@ -129,7 +161,57 @@ function verleihForm() {
             };
           });
         }
-      } catch(e) { console.error('Stückliste laden fehlgeschlagen', e); }
+      } catch(e) { console.error('Stuckliste laden fehlgeschlagen', e); }
+      ev.target.value = '';
+    },
+    async createSite() {
+      var name = this.newSiteName.trim();
+      if (!name) return;
+      this.newSiteError = '';
+      try {
+        var fd = new FormData();
+        fd.append('bezeichnung', name);
+        fd.append('_csrf', document.querySelector('[name="_csrf"]').value);
+        var res = await fetch('/lage/' + this.lageId + '/verleih/schnell-einsatzstelle', {
+          method: 'POST', body: fd
+        });
+        if (!res.ok) { this.newSiteError = 'Fehler beim Anlegen'; return; }
+        var data = await res.json();
+        this.siteList.push({ id: data.id, bezeichnung: data.bezeichnung });
+        this.$nextTick(function() {
+          var sel = this.$refs.siteSelect;
+          if (sel) sel.value = String(data.id);
+        }.bind(this));
+        this.newSiteOpen = false;
+        this.newSiteName = '';
+      } catch(e) {
+        this.newSiteError = 'Verbindungsfehler';
+      }
+    },
+    triggerScan(idx) {
+      var input = this.$el.querySelectorAll('input[type=file][capture]')[idx];
+      if (input) input.click();
+    },
+    async onScanFile(ev, idx) {
+      var file = ev.target.files[0];
+      if (!file) return;
+      if (!('BarcodeDetector' in window)) {
+        alert('Barcode-Scanner wird von diesem Geraet nicht unterstuetzt. Bitte manuell eingeben.');
+        ev.target.value = '';
+        return;
+      }
+      try {
+        var bitmap = await createImageBitmap(file);
+        var detector = new BarcodeDetector({ formats: ['ean_13','ean_8','code_128','code_39','qr_code','data_matrix'] });
+        var codes = await detector.detect(bitmap);
+        if (codes.length > 0) {
+          this.rows[idx].artikel_nr = codes[0].rawValue;
+        } else {
+          alert('Kein Barcode erkannt – bitte Artikelnummer manuell eingeben.');
+        }
+      } catch(e) {
+        alert('Scan fehlgeschlagen: ' + e.message);
+      }
       ev.target.value = '';
     },
   };

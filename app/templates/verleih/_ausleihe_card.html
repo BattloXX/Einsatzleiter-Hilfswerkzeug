@@ -1,4 +1,5 @@
 <div class="ausleihe-card {% if a.status.value == 'zurueckgegeben' %}ausleihe-card--zurueck{% endif %}"
+     id="ausleihe-card-{{ a.id }}"
      hx-get="/lage/{{ lage.id }}/verleih/{{ a.id }}"
      hx-target="#verleih-detail-panel"
      hx-swap="innerHTML"

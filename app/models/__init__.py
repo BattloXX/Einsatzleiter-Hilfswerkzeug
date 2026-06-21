@@ -2,6 +2,7 @@ from app.models.breathing import BreathingTroop, PressureLog, TroopMember
 from app.models.verleih import (
     VerleihArtikel,
     VerleihAusleihe,
+    VerleihFoto,
     VerleihPosition,
     VerleihStatus,
     VerleihStueckliste,
@@ -88,5 +89,5 @@ __all__ = [
     "IncidentSite", "SitePhase", "SitePriority", "SiteResourceAssignment",
     "SiteLogEntry", "SiteMedia", "CommLogEntry", "CitizenReport",
     "VerleihArtikel", "VerleihStueckliste", "VerleihStuecklistePosition",
-    "VerleihAusleihe", "VerleihPosition", "VerleihStatus",
+    "VerleihAusleihe", "VerleihPosition", "VerleihStatus", "VerleihFoto",
 ]

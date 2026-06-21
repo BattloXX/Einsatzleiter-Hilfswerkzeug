@@ -139,6 +139,14 @@
      style="display:none;position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.3);"
      onclick="closeVerleihPanel()"></div>
 
+<!-- Site-Detail Modal (fuer Klick auf Einsatzstelle) -->
+<dialog class="modal" id="siteDetailModal">
+  <div class="modal__content" id="siteDetailContent"
+       style="min-width:min(540px,95vw);max-height:90vh;overflow-y:auto;"
+       hx-on::after-swap="var _d=document.getElementById('siteDetailModal');if(_d&&!_d.open)_d.showModal()">
+  </div>
+</dialog>
+
 <script>
 function openVerleihPanel() {
   document.getElementById('verleih-detail-panel').classList.add('is-open');
@@ -151,6 +159,18 @@ function closeVerleihPanel() {
 document.addEventListener('htmx:afterRequest', function(ev) {
   if (ev.detail.target && ev.detail.target.id === 'verleih-detail-panel') {
     openVerleihPanel();
+  }
+});
+// Karten-Aktualisierung nach Rueckgabe
+document.body.addEventListener('verleihKarteAktualisieren', function(ev) {
+  var aid = ev.detail && ev.detail.value;
+  if (!aid) return;
+  var card = document.getElementById('ausleihe-card-' + aid);
+  if (card) {
+    htmx.ajax('GET', '/lage/{{ lage.id }}/verleih/' + aid + '/card', {
+      target: card,
+      swap: 'outerHTML'
+    });
   }
 });
 </script>

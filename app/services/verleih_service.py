@@ -1,8 +1,11 @@
 """Geräteverleih – Geschäftslogik."""
 from __future__ import annotations
 
+import io
 import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy.orm import Session, selectinload
 
@@ -11,10 +14,35 @@ from app.models.master import OrgSettings
 from app.models.verleih import (
     VerleihArtikel,
     VerleihAusleihe,
+    VerleihFoto,
     VerleihPosition,
     VerleihStatus,
     VerleihStueckliste,
 )
+
+_VERLEIH_FOTO_DIR = "app_storage/verleih_fotos"
+
+
+def _foto_dir(ausleihe_id: int, org_id: int | None = None) -> Path:
+    if org_id:
+        d = Path(_VERLEIH_FOTO_DIR) / str(org_id) / str(ausleihe_id)
+    else:
+        d = Path(_VERLEIH_FOTO_DIR) / str(ausleihe_id)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def foto_path(foto: VerleihFoto) -> Path:
+    if foto.org_id:
+        return Path(_VERLEIH_FOTO_DIR) / str(foto.org_id) / str(foto.ausleihe_id) / foto.stored_filename
+    return Path(_VERLEIH_FOTO_DIR) / str(foto.ausleihe_id) / foto.stored_filename
+
+
+def foto_thumb_path(foto: VerleihFoto) -> Path:
+    fname = foto.stored_filename.replace(".jpg", "_thumb.jpg")
+    if foto.org_id:
+        return Path(_VERLEIH_FOTO_DIR) / str(foto.org_id) / str(foto.ausleihe_id) / fname
+    return Path(_VERLEIH_FOTO_DIR) / str(foto.ausleihe_id) / fname
 
 
 def get_org_settings(db: Session, org_id: int) -> OrgSettings | None:
@@ -57,6 +85,7 @@ def create_ausleihe(
     site_id: int | None,
     positionen: list[dict],
     user_id: int | None,
+    pin: str | None = None,
 ) -> VerleihAusleihe:
     org = get_org_settings(db, org_id)
     erinnerung_stunden = org.gsl_verleih_erinnerung_stunden if org else None
@@ -68,6 +97,7 @@ def create_ausleihe(
         name=name,
         adresse=adresse or None,
         telefon=telefon or None,
+        pin=pin or None,
         created_by_user_id=user_id,
     )
     if erinnerung_stunden:
@@ -92,40 +122,47 @@ def create_ausleihe(
     return ausleihe
 
 
+def _fetch_ausleihe(db: Session, ausleihe_id: int) -> VerleihAusleihe:
+    return db.query(VerleihAusleihe).options(
+        selectinload(VerleihAusleihe.positionen),
+        selectinload(VerleihAusleihe.fotos),
+    ).filter_by(id=ausleihe_id).first()
+
+
 def return_position(db: Session, position_id: int) -> VerleihAusleihe:
     pos = db.get(VerleihPosition, position_id)
     if not pos:
         raise ValueError("Position nicht gefunden")
+    ausleihe_id = pos.ausleihe_id
     pos.status = VerleihStatus.zurueckgegeben
     pos.zurueckgegeben_at = datetime.now(UTC)
+    db.flush()
 
-    ausleihe = db.get(VerleihAusleihe, pos.ausleihe_id)
-    _update_ausleihe_status(db, ausleihe)
-    db.commit()
-    return ausleihe
-
-
-def return_all(db: Session, ausleihe_id: int) -> VerleihAusleihe:
-    ausleihe = db.get(VerleihAusleihe, ausleihe_id)
-    if not ausleihe:
-        raise ValueError("Ausleihe nicht gefunden")
-    now = datetime.now(UTC)
-    for pos in ausleihe.positionen:
-        if pos.status == VerleihStatus.ausgeliehen:
-            pos.status = VerleihStatus.zurueckgegeben
-            pos.zurueckgegeben_at = now
-    _update_ausleihe_status(db, ausleihe)
-    db.commit()
-    return ausleihe
-
-
-def _update_ausleihe_status(db: Session, ausleihe: VerleihAusleihe) -> None:
-    # Force refresh positionen
-    db.refresh(ausleihe)
+    ausleihe = _fetch_ausleihe(db, ausleihe_id)
     alle_zurueck = all(p.status == VerleihStatus.zurueckgegeben for p in ausleihe.positionen)
     if alle_zurueck and ausleihe.status != VerleihStatus.zurueckgegeben:
         ausleihe.status = VerleihStatus.zurueckgegeben
         ausleihe.zurueckgegeben_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(ausleihe)
+    return ausleihe
+
+
+def return_all(db: Session, ausleihe_id: int) -> VerleihAusleihe:
+    now = datetime.now(UTC)
+    ausleihe = _fetch_ausleihe(db, ausleihe_id)
+    if not ausleihe:
+        raise ValueError("Ausleihe nicht gefunden")
+    for pos in ausleihe.positionen:
+        if pos.status == VerleihStatus.ausgeliehen:
+            pos.status = VerleihStatus.zurueckgegeben
+            pos.zurueckgegeben_at = now
+    if ausleihe.status != VerleihStatus.zurueckgegeben:
+        ausleihe.status = VerleihStatus.zurueckgegeben
+        ausleihe.zurueckgegeben_at = now
+    db.commit()
+    db.refresh(ausleihe)
+    return ausleihe
 
 
 def generate_pin() -> str:
@@ -148,6 +185,60 @@ def get_sms_ausleih_text(db: Session, org_id: int, ausleihe: VerleihAusleihe) ->
         "Bitte bringen Sie es schnellstmoeglich zurueck. - {org}"
     )
     return template.replace("{artikel}", artikel).replace("{org}", org_name).replace("{name}", ausleihe.name)
+
+
+async def save_verleih_foto(
+    file,
+    ausleihe_id: int,
+    org_id: int | None,
+    user_id: int | None,
+    db: Session,
+) -> VerleihFoto:
+    from app.config import settings
+    data = await file.read()
+    if not data:
+        from fastapi import HTTPException
+        raise HTTPException(400, "Leere Datei")
+    max_bytes = settings.MAX_UPLOAD_BYTES_IMAGE
+    if len(data) > max_bytes:
+        from fastapi import HTTPException
+        raise HTTPException(413, f"Datei zu groß (max {max_bytes // (1024*1024)} MB)")
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        from fastapi import HTTPException
+        raise HTTPException(500, "Pillow nicht verfügbar")
+
+    img = Image.open(io.BytesIO(data))
+    img = ImageOps.exif_transpose(img)
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    img.thumbnail(
+        (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
+        Image.Resampling.LANCZOS,
+    )
+    dest = _foto_dir(ausleihe_id, org_id)
+    uid = uuid.uuid4().hex
+    main_fn = f"{uid}.jpg"
+    thumb_fn = f"{uid}_thumb.jpg"
+    img.save(dest / main_fn, "JPEG", quality=85, optimize=True)
+    thumb = img.copy()
+    thumb.thumbnail((settings.MEDIA_THUMB_SIZE, settings.MEDIA_THUMB_SIZE), Image.Resampling.LANCZOS)
+    thumb.save(dest / thumb_fn, "JPEG", quality=80, optimize=True)
+    stored_bytes = (dest / main_fn).stat().st_size
+
+    foto = VerleihFoto(
+        ausleihe_id=ausleihe_id,
+        org_id=org_id,
+        stored_filename=main_fn,
+        original_filename=(file.filename or "foto.jpg")[:255],
+        bytes=stored_bytes,
+        uploaded_by=user_id,
+    )
+    db.add(foto)
+    db.commit()
+    db.refresh(foto)
+    return foto
 
 
 def get_sms_erinnerung_text(db: Session, org_id: int, ausleihe: VerleihAusleihe) -> str:

@@ -18,14 +18,30 @@
       <div><span style="color:var(--text-muted);">Adresse</span><br><strong>{{ a.adresse }}</strong></div>
       {% endif %}
       {% if a.telefon %}
-      <div><span style="color:var(--text-muted);">Telefon</span><br><strong>{{ a.telefon }}</strong></div>
+      <div>
+        <span style="color:var(--text-muted);">Telefon</span><br>
+        <a href="tel:{{ a.telefon }}" style="font-weight:700;color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+          {{ a.telefon }}
+          <span style="font-size:.8rem;background:rgba(34,197,94,.15);color:#4ade80;padding:1px 7px;border-radius:8px;">📞 anrufen</span>
+        </a>
+      </div>
       {% endif %}
       <div><span style="color:var(--text-muted);">Ausgeliehen</span><br><strong>{{ a.ausgeliehen_at.strftime('%d.%m.%Y %H:%M') }}</strong></div>
       {% if a.zurueckgegeben_at %}
       <div><span style="color:var(--text-muted);">Zurückgegeben</span><br><strong>{{ a.zurueckgegeben_at.strftime('%d.%m.%Y %H:%M') }}</strong></div>
       {% endif %}
       {% if site %}
-      <div style="grid-column:1/-1;"><span style="color:var(--text-muted);">Einsatzstelle</span><br><strong>{{ site.bezeichnung }}</strong></div>
+      <div style="grid-column:1/-1;">
+        <span style="color:var(--text-muted);">Einsatzstelle</span><br>
+        <button type="button"
+                class="btn btn--ghost btn--xs"
+                style="font-weight:700;padding:2px 8px;"
+                hx-get="/lage/{{ lage.id }}/stellen/{{ site.id }}"
+                hx-target="#siteDetailContent"
+                hx-swap="innerHTML">
+          📍 {{ site.bezeichnung }}
+        </button>
+      </div>
       {% endif %}
     </div>
 
@@ -183,6 +199,38 @@
       {% endif %}
     </div>
     {% endif %}
+
+    <!-- Fotos -->
+    <div>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">Fotos (Beweis)</div>
+      {% if a.fotos %}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        {% for foto in a.fotos %}
+        <a href="/lage/{{ lage.id }}/verleih/{{ a.id }}/foto/{{ foto.id }}/bild"
+           target="_blank"
+           style="display:block;width:72px;height:72px;border-radius:6px;overflow:hidden;border:1px solid var(--border);">
+          <img src="/lage/{{ lage.id }}/verleih/{{ a.id }}/foto/{{ foto.id }}/bild?thumb=1"
+               alt="Foto" style="width:100%;height:100%;object-fit:cover;">
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if foto_ok is defined %}<div class="alert alert--success" style="font-size:.78rem;padding:4px 8px;margin-bottom:6px;">Foto gespeichert.</div>{% endif %}
+      {% if can_edit %}
+      <form hx-post="/lage/{{ lage.id }}/verleih/{{ a.id }}/foto"
+            hx-target="#verleih-detail-panel"
+            hx-swap="innerHTML"
+            hx-encoding="multipart/form-data">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:7px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.82rem;color:var(--text-muted);">
+          <input type="file" name="foto" accept="image/*" capture="environment"
+                 style="display:none;"
+                 onchange="htmx.trigger(this.closest('form'),'submit')">
+          📷 Foto aufnehmen / auswählen
+        </label>
+      </form>
+      {% endif %}
+    </div>
 
   </div>
 </div>

@@ -134,6 +134,9 @@ class VerleihAusleihe(TenantScoped, Base):
     positionen: Mapped[list[VerleihPosition]] = relationship(
         back_populates="ausleihe", cascade="all, delete-orphan", order_by="VerleihPosition.id"
     )
+    fotos: Mapped[list["VerleihFoto"]] = relationship(
+        back_populates="ausleihe", cascade="all, delete-orphan", order_by="VerleihFoto.id"
+    )
 
     __table_args__ = (
         Index("ix_verleih_ausleihe_lage", "lage_id"),
@@ -175,4 +178,28 @@ class VerleihPosition(Base):
 
     __table_args__ = (
         Index("ix_verleih_position_ausleihe", "ausleihe_id"),
+    )
+
+
+class VerleihFoto(Base):
+    """Beweis-Foto einer Ausleihe – dokumentiert was ausgegeben wurde."""
+    __tablename__ = "verleih_foto"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ausleihe_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("verleih_ausleihe.id", ondelete="CASCADE"), nullable=False
+    )
+    org_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    stored_filename: Mapped[str] = mapped_column(String(64), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    uploaded_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )
+
+    ausleihe: Mapped[VerleihAusleihe] = relationship(back_populates="fotos")
+
+    __table_args__ = (
+        Index("ix_verleih_foto_ausleihe", "ausleihe_id"),
     )
