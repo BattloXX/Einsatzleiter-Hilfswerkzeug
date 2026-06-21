@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verleihschein – {{ a.name }}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #111; background: #fff; }
+
+  .topbar {
+    background: #1f2937; color: #fff; padding: 10px 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .topbar__title { font-size: 13pt; font-weight: 700; flex: 1; }
+  .topbar__btn {
+    background: none; border: 1px solid rgba(255,255,255,.4); color: #fff;
+    padding: 5px 14px; border-radius: 5px; cursor: pointer; font-size: 9.5pt;
+  }
+  .topbar__btn:hover { background: rgba(255,255,255,.1); }
+
+  .container { max-width: 720px; margin: 0 auto; padding: 24px 20px 48px; }
+
+  .header-block {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 20px;
+  }
+  .header-block__org { font-size: 14pt; font-weight: 700; }
+  .header-block__doc { font-size: 9pt; color: #555; text-align: right; }
+  .header-block__doc strong { font-size: 11pt; color: #111; display: block; }
+
+  h1 { font-size: 16pt; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .05em; margin-bottom: 18px; }
+
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px;
+    margin-bottom: 20px;
+  }
+  .info-row { display: flex; flex-direction: column; gap: 2px; }
+  .info-row__label { font-size: 7.5pt; font-weight: 700; color: #6b7280;
+                      text-transform: uppercase; letter-spacing: .05em; }
+  .info-row__value { font-size: 10.5pt; font-weight: 600; }
+  .info-row--wide { grid-column: 1 / -1; }
+
+  .section-title {
+    font-size: 8pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #374151;
+    border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-bottom: 8px;
+  }
+
+  .material-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10pt; }
+  .material-table th {
+    text-align: left; font-size: 7.5pt; text-transform: uppercase;
+    letter-spacing: .05em; color: #6b7280; font-weight: 700;
+    border-bottom: 1px solid #9ca3af; padding: 3px 6px 5px;
+  }
+  .material-table td { padding: 6px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  .material-table tr:last-child td { border-bottom: none; }
+  .material-table .nr { color: #6b7280; font-size: 8.5pt; }
+  .material-table .menge { text-align: center; font-weight: 700; }
+  .material-table .status { font-size: 8.5pt; color: #6b7280; }
+
+  .hinweis {
+    border: 2px solid #111; border-radius: 4px;
+    padding: 12px 16px; margin-bottom: 24px;
+    background: #fef9c3;
+  }
+  .hinweis__title { font-size: 9pt; font-weight: 700; text-transform: uppercase;
+                    letter-spacing: .05em; margin-bottom: 6px; }
+  .hinweis__text { font-size: 10.5pt; line-height: 1.55; }
+
+  .pin-box {
+    display: inline-block; border: 2px solid #111; border-radius: 4px;
+    padding: 8px 18px; margin-bottom: 24px;
+  }
+  .pin-box__label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em;
+                     color: #6b7280; margin-bottom: 2px; }
+  .pin-box__value { font-family: "Courier New", monospace; font-size: 22pt;
+                    font-weight: 700; letter-spacing: .3em; }
+
+  .sig-area {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    margin-top: 8px;
+  }
+  .sig-field { border-top: 1px solid #374151; padding-top: 4px; margin-top: 48px; }
+  .sig-field__label { font-size: 8pt; color: #6b7280; }
+
+  @media print {
+    .topbar { display: none; }
+    @page { margin: 15mm 15mm 20mm; }
+    .hinweis { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar__title">&#128438; Verleihschein</div>
+  <button class="topbar__btn" onclick="window.print()">Drucken</button>
+  <button class="topbar__btn" onclick="window.close()">Schliessen</button>
+</div>
+
+<div class="container">
+
+  <!-- Kopf -->
+  <div class="header-block">
+    <div>
+      <div class="header-block__org">{{ org_name }}</div>
+      <div style="font-size:9pt;color:#555;">Grossschadenslage: {{ lage.name }}</div>
+    </div>
+    <div class="header-block__doc">
+      <span>Verleihschein Nr.</span>
+      <strong>VL-{{ a.id }}</strong>
+      <span style="display:block;margin-top:2px;">{{ a.ausgeliehen_at.strftime('%d.%m.%Y %H:%M') }} Uhr</span>
+    </div>
+  </div>
+
+  <h1>Geraeteverleih-Schein</h1>
+
+  <!-- Personendaten -->
+  <div class="section-title">Ausleiher / Empfaenger</div>
+  <div class="info-grid" style="margin-bottom:20px;">
+    <div class="info-row info-row--wide">
+      <span class="info-row__label">Name</span>
+      <span class="info-row__value">{{ a.name }}</span>
+    </div>
+    {% if a.adresse %}
+    <div class="info-row info-row--wide">
+      <span class="info-row__label">Adresse</span>
+      <span class="info-row__value">{{ a.adresse }}</span>
+    </div>
+    {% endif %}
+    {% if a.telefon %}
+    <div class="info-row">
+      <span class="info-row__label">Telefon</span>
+      <span class="info-row__value">{{ a.telefon }}</span>
+    </div>
+    {% endif %}
+    {% if site %}
+    <div class="info-row">
+      <span class="info-row__label">Einsatzstelle</span>
+      <span class="info-row__value">{{ site.bezeichnung }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Material -->
+  <div class="section-title">Ausgeliehenes Material</div>
+  <table class="material-table">
+    <thead>
+      <tr>
+        <th style="width:90px;">Artikel-Nr.</th>
+        <th>Bezeichnung</th>
+        <th style="width:60px;text-align:center;">Menge</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in a.positionen %}
+      <tr>
+        <td class="nr">{{ p.artikel_nr or '–' }}</td>
+        <td>{{ p.bezeichnung }}</td>
+        <td class="menge">{{ p.menge }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Rueckgabe-Hinweis -->
+  <div class="hinweis">
+    <div class="hinweis__title">&#9888; Wichtiger Hinweis zur Rueckgabe</div>
+    <div class="hinweis__text">
+      Das ausgeliehene Material ist nach Abschluss der Arbeiten
+      <strong>unverzueglich und vollstaendig</strong> an die Feuerwehr
+      {{ org_name }} zurueckzubringen. Die Geraete werden fuer den laufenden
+      Einsatzbetrieb benoetigt und stehen anderen Einsatzstellen nicht zur
+      Verfuegung, solange sie nicht zurueckgegeben wurden. Bei Verlust oder
+      Beschaedigung ist dies sofort dem Einsatzleiter zu melden.
+    </div>
+  </div>
+
+  <!-- PIN -->
+  {% if a.pin %}
+  <div>
+    <div class="section-title">Rueckgabe-PIN</div>
+    <div class="pin-box">
+      <div class="pin-box__label">PIN fuer Rueckgabe-Bestaetigung</div>
+      <div class="pin-box__value">{{ a.pin }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Unterschriften -->
+  <div class="section-title" style="margin-top:4px;">Unterschriften</div>
+  <div class="sig-area">
+    <div>
+      <div class="sig-field">
+        <div class="sig-field__label">Ausgegeben von (Feuerwehr {{ org_name }})</div>
+      </div>
+    </div>
+    <div>
+      <div class="sig-field">
+        <div class="sig-field__label">Empfangen von ({{ a.name }})</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Automatisch Druckdialog oeffnen beim Laden
+  window.addEventListener('load', function() {
+    setTimeout(function() { window.print(); }, 400);
+  });
+</script>
+</body>
+</html>

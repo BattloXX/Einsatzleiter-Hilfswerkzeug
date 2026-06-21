@@ -304,11 +304,13 @@ async def verleih_neu_form(
     sites = db.query(IncidentSite).filter_by(major_incident_id=lage_id).order_by(IncidentSite.bezeichnung).all()
     stuecklisten = svc.get_stuecklisten_aktiv(db)
     artikel = svc.get_artikel_aktiv(db)
+    sites_data = [{"id": s.id, "bezeichnung": s.bezeichnung} for s in sites]
 
     return templates.TemplateResponse(request, "verleih/_ausleihe_form.html", {
         "user": user,
         "lage": lage,
         "sites": sites,
+        "sites_data": sites_data,
         "stuecklisten": stuecklisten,
         "artikel": artikel,
     })
@@ -691,6 +693,48 @@ async def verleih_foto_bild(
     if not p.exists():
         raise HTTPException(404)
     return FileResponse(str(p), media_type="image/jpeg")
+
+
+@router.get("/lage/{lage_id}/verleih/{ausleihe_id}/drucken", response_class=HTMLResponse)
+async def verleih_drucken(
+    request: Request,
+    lage_id: int,
+    ausleihe_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    lage = _lage_or_404(lage_id, db)
+    _check_org(user, lage)
+    ausleihe = _ausleihe_or_404(ausleihe_id, db)
+    site = db.get(IncidentSite, ausleihe.site_id) if ausleihe.site_id else None
+
+    try:
+        from app.models.major_incident import LageJournalEntry
+        from app.routers.ui_major_incident import get_author_name
+        journal = LageJournalEntry(
+            major_incident_id=lage_id,
+            category="sonstiges",
+            text=f"Verleihschein gedruckt: {ausleihe.artikel_bezeichnungen or 'Material'} an {ausleihe.name}",
+            author_name=get_author_name(request),
+            user_id=getattr(user, "id", None),
+        )
+        db.add(journal)
+        db.commit()
+    except Exception:
+        logger.warning("Journal-Eintrag fuer Druckvorgang fehlgeschlagen", exc_info=True)
+
+    from app.models.master import FireDept
+    dept = db.get(FireDept, lage.org_id)
+    org_name = dept.name if dept else "Feuerwehr"
+
+    return templates.TemplateResponse(request, "verleih/druck.html", {
+        "user": user,
+        "lage": lage,
+        "a": ausleihe,
+        "site": site,
+        "org_name": org_name,
+    })
 
 
 @router.post("/lage/{lage_id}/verleih/{ausleihe_id}/erinnerung-manuell", response_class=HTMLResponse)

@@ -7,7 +7,11 @@
         {% if a.status.value == 'ausgeliehen' %}Ausgeliehen{% else %}Zurückgegeben{% endif %}
       </span>
     </div>
-    <button type="button" class="btn btn--ghost btn--xs" onclick="closeVerleihPanel()">x</button>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <a href="/lage/{{ lage.id }}/verleih/{{ a.id }}/drucken" target="_blank"
+         class="btn btn--ghost btn--xs" title="Verleihschein drucken">&#128438;</a>
+      <button type="button" class="btn btn--ghost btn--xs" onclick="closeVerleihPanel()">x</button>
+    </div>
   </div>
 
   <div style="padding:14px 16px;display:flex;flex-direction:column;gap:14px;">
