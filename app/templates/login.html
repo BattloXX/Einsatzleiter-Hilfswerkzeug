@@ -108,19 +108,19 @@
           }
           // E-Mail → Discovery
           try {
+            var hint = '?login_hint=' + encodeURIComponent(val);
             var resp = await fetch('/sso/discover?email=' + encodeURIComponent(val));
             var data = await resp.json();
             if (data.found && data.redirect) {
-              window.location.href = data.redirect;
+              window.location.href = data.redirect + hint;
             } else if (data.found && data.multiple) {
               var orgs = data.orgs;
               var choice = orgs.length === 1 ? orgs[0] : null;
               if (!choice) {
-                var names = orgs.map(function(o) { return o.name; }).join(', ');
                 // Fallback: ersten nehmen – in Produktion Dialog zeigen
                 choice = orgs[0];
               }
-              window.location.href = choice.login_url;
+              window.location.href = choice.login_url + hint;
             } else {
               var errEl = document.querySelector('[x-data] p[x-show]');
               if (errEl) errEl.textContent = 'Keine Organisation für diese E-Mail gefunden.';

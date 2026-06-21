@@ -102,7 +102,7 @@ def _load_sso_config(db: Session, slug: str) -> tuple[FireDept, OrgSsoConfig] | 
 
 @router.get("/sso/{slug}/login")
 @(_limiter.limit(settings.LOGIN_RATELIMIT) if _limiter else lambda f: f)
-async def sso_login(request: Request, slug: str, next: str | None = None, db: Session = Depends(get_db)):
+async def sso_login(request: Request, slug: str, next: str | None = None, login_hint: str | None = None, db: Session = Depends(get_db)):
     if not settings.SSO_ENABLED:
         return RedirectResponse("/login?error=sso_disabled", status_code=302)
 
@@ -126,6 +126,7 @@ async def sso_login(request: Request, slug: str, next: str | None = None, db: Se
         nonce=nonce,
         code_challenge=challenge,
         authority_base=config.authority_base,
+        login_hint=login_hint,
     )
 
     response = RedirectResponse(url, status_code=302)
