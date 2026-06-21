@@ -825,7 +825,7 @@
   {% endif %}
 
   <!-- ══ MAIN ══ -->
-  <div class="main"{% if uas_einsatz %} style="grid-template-columns: 2.2fr 1.3fr 1.5fr 1.3fr;"{% endif %}>
+  <div class="main"{% if uas_einsatz or request.state.uas_module_enabled %} style="grid-template-columns: 2.2fr 1.3fr 1.5fr 1.3fr;"{% endif %}>
 
     <!-- ── FAHRZEUGE ── -->
     <div class="vehicles-col">
@@ -1135,6 +1135,25 @@
         {% endif %}
         <a href="/uas/einsatz/{{ uas_einsatz.id }}" class="uas-link" target="_blank" rel="noopener">
           <span>🔗</span> Drohneneinsatz öffnen
+        </a>
+      </div>
+    </div>
+    {% elif request.state.uas_module_enabled %}
+    <div class="panel">
+      <div class="panel-hd">
+        <div class="panel-hd__top">
+          <div class="panel-hd__title">
+            <span class="panel-hd__icon">🚁</span> Drohne
+          </div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="empty-panel" style="min-height:60px;">
+          <div class="empty-icon" style="font-size:1.4rem;">🚁</div>
+          Kein Drohneneinsatz verknüpft
+        </div>
+        <a href="/uas/incidents/{{ incident.id }}/einsatz/starten" class="uas-link" style="margin-top:.5rem;">
+          <span>➕</span> Drohneneinsatz starten
         </a>
       </div>
     </div>

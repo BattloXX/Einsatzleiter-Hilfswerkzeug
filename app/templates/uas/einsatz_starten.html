@@ -16,7 +16,8 @@
     <div class="form-grid">
       <div class="form-group">
         <label>Alarmierungszeitpunkt</label>
-        <input type="datetime-local" name="alarmierung_at" class="form-control" style="max-width:220px">
+        <input type="datetime-local" name="alarmierung_at" class="form-control" style="max-width:220px"
+               value="{{ incident.started_at.strftime('%Y-%m-%dT%H:%M') if incident.started_at else '' }}">
       </div>
       <div class="form-group">
         <label>TETRA-Rufname Drohnenteam</label>
@@ -30,14 +31,15 @@
       </div>
       <div class="form-group">
         <label>Gesamteinsatzleiter</label>
-        <input type="text" name="gesamteinsatzleiter" class="form-control" maxlength="150">
+        <input type="text" name="gesamteinsatzleiter" class="form-control" maxlength="150"
+               value="{{ incident.leader_member.full_name if incident.leader_member else '' }}">
       </div>
     </div>
 
     <div class="form-group">
       <label>Einsatzgrund / Auftrag</label>
       <textarea name="einsatzgrund" class="form-control" rows="3" maxlength="1000"
-                placeholder="Aufgabe des Drohnenteams im Einsatz"></textarea>
+                placeholder="Aufgabe des Drohnenteams im Einsatz">{{ incident.reason or (incident.report_text[:500] if incident.report_text else '') }}</textarea>
     </div>
 
     <div class="form-group">

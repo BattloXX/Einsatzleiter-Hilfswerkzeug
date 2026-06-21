@@ -752,7 +752,7 @@ def einsatz_starten_form(
 
     existing = db.query(UASEinsatz).filter(UASEinsatz.incident_id == incident_id).first()
     if existing:
-        return RedirectResponse(f"/uas/einsatz/{existing.id}", status_code=303)
+        return RedirectResponse(f"/einsatz/{incident_id}/dashboard", status_code=303)
 
     return templates.TemplateResponse(request, "uas/einsatz_starten.html", {
         "user": user,
@@ -801,7 +801,7 @@ async def einsatz_starten_save(
     )
     db.add(einsatz)
     db.commit()
-    return RedirectResponse(f"/uas/einsatz/{einsatz.id}", status_code=303)
+    return RedirectResponse(f"/einsatz/{incident_id}/dashboard", status_code=303)
 
 
 @router.get("/einsatz/{einsatz_id}", response_class=HTMLResponse)
