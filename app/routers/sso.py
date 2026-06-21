@@ -189,7 +189,7 @@ async def sso_callback(
         groups = await get_groups(claims, access_token)
     except SsoError as exc:
         write_audit(db, "auth.sso.denied", org_id=org.id, ip=ip,
-                    payload={"code": exc.code, "slug": slug})
+                    payload={"code": exc.code, "message": exc.message, "slug": slug})
         db.commit()
         return RedirectResponse(f"/login?error={exc.code}", status_code=302)
 

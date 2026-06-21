@@ -1,12 +1,15 @@
 """OIDC/Entra-ID-Service: PKCE, Discovery, Token-Tausch, id_token-Validierung, Gruppen."""
 from __future__ import annotations
 
+import logging
 import secrets
 import time
 from base64 import urlsafe_b64encode
 from hashlib import sha256
 from typing import Any
 from urllib.parse import urlencode
+
+logger = logging.getLogger(__name__)
 
 import httpx
 from jose import ExpiredSignatureError, JWTError, jwt
@@ -156,8 +159,14 @@ async def exchange_code(
             "scope": settings.SSO_SCOPES,
         })
     if resp.status_code != 200:
+        try:
+            err_body = resp.json()
+            err_desc = err_body.get("error_description") or err_body.get("error") or resp.text[:400]
+        except Exception:
+            err_desc = resp.text[:400]
+        logger.error("SSO token exchange failed: HTTP %s | %s", resp.status_code, err_desc)
         raise SsoError("token_exchange_failed",
-                        f"Token-Tausch fehlgeschlagen: HTTP {resp.status_code}")
+                        f"HTTP {resp.status_code}: {err_desc}")
     return resp.json()
 
 
