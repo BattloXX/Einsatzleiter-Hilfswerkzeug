@@ -190,6 +190,7 @@
       <a href="/archiv" class="mobile-menu__link {% if '/archiv' in request.url.path %}active{% endif %}">📚 Archiv</a>
       <a href="/statistik" class="mobile-menu__link {% if '/statistik' in request.url.path %}active{% endif %}">📊 Statistik</a>
       <a href="/medien" class="mobile-menu__link {% if request.url.path.startswith('/medien') %}active{% endif %}">🖼️ Medien</a>
+      {% if request.state.uas_module_enabled %}<a href="/uas" class="mobile-menu__link {% if request.url.path.startswith('/uas') %}active{% endif %}">🚁 Drohne / UAS</a>{% endif %}
 
       {% if is_admin %}
       <div class="mobile-menu__section">
@@ -207,6 +208,7 @@
         <a href="/admin/meldungsvorlagen" class="mobile-menu__link">💬 Meldungsvorlagen</a>
         <a href="/admin/lage-hinweise" class="mobile-menu__link">💡 Lage-Hinweise</a>
         <a href="/admin/default-meldungen" class="mobile-menu__link">🔔 Default-Meldungen</a>
+        <a href="/admin/verleih-artikel" class="mobile-menu__link">📦 Geräteverleih</a>
       </div>
       <div class="mobile-menu__section">
         <div class="mobile-menu__section-title">Verwaltung</div>
@@ -220,6 +222,7 @@
       <div class="mobile-menu__section">
         <div class="mobile-menu__section-title">Einstellungen</div>
         <a href="/admin/settings" class="mobile-menu__link">🏛️ Organisation</a>
+        <a href="/admin/gsl-einstellungen" class="mobile-menu__link">🚨 GSL-Einstellungen</a>
         {% if 'system_admin' in user_roles %}
         <a href="/admin/ki-prompts" class="mobile-menu__link">✨ KI-Prompts</a>
         <a href="/admin/system-einstellungen" class="mobile-menu__link">⚙️ System</a>
