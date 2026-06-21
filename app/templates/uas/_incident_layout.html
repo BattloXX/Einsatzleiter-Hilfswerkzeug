@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block head_extra %}
+<style>
+/* ── UAS Incident Context Bar ─────────────────────────────────────────── */
+.uas-inc-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 14px;
+  background: var(--surface-low);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: var(--topnav-h);
+  z-index: 40;
+  min-height: 44px;
+}
+.uas-inc-bar__info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.uas-inc-bar__grund {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.uas-inc-bar__addr {
+  font-size: .78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.uas-inc-bar__nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.uas-inc-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: .82rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.uas-inc-tab:hover {
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+}
+.uas-inc-tab--active {
+  background: rgba(120,80,220,.15);
+  color: #c4b5fd;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* ── UAS Incident Content ─────────────────────────────────────────────── */
+.uas-inc-main {
+  padding: 16px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* ── UAS Team-Rollen ─────────────────────────────────────────────────── */
+.role-list { padding: 0; }
+.role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.role-row:last-child { border-bottom: none; }
+.role-row__left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.role-chip {
+  font-size: .68rem; font-weight: 700;
+  padding: 2px 7px; border-radius: 3px;
+  background: rgba(100,116,139,.15);
+  color: var(--text-muted);
+  white-space: nowrap; flex-shrink: 0;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.role-chip--lead {
+  background: rgba(245,158,11,.13);
+  color: #fbbf24;
+  border: 1px solid rgba(245,158,11,.25);
+}
+.role-chip--pilot {
+  background: rgba(99,102,241,.12);
+  color: #a5b4fc;
+  border: 1px solid rgba(99,102,241,.2);
+}
+.role-row__person {
+  font-size: .9rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.role-del-btn {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; border: none; background: none; cursor: pointer;
+  color: rgba(239,68,68,.55); font-size: 1rem; line-height: 1;
+  transition: background .12s, color .12s;
+}
+.role-del-btn:hover { background: rgba(239,68,68,.1); color: #ef4444; }
+
+.role-add-wrap {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.role-add-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.role-add-row .form-control { flex: 1 1 140px; min-width: 0; }
+.role-add-row .btn { flex-shrink: 0; }
+
+/* ── 2-Spalten-Grid responsive ───────────────────────────────────────── */
+.uas-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Status-Bar ──────────────────────────────────────────────────────── */
+.uas-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--surface-elevated, #1e2130);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+.uas-status-bar__actions { display: flex; gap: .5rem; margin-left: auto; flex-wrap: wrap; }
+
+/* ── Mobile ──────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .uas-inc-bar { padding: 6px 10px; gap: 6px; }
+  .uas-inc-bar__addr { display: none; }
+  .uas-inc-tab { padding: 4px 8px; font-size: .76rem; }
+  .uas-inc-main { padding: 10px; }
+  .uas-detail-grid { grid-template-columns: 1fr; }
+  .role-add-row .form-control { flex: 1 1 100%; }
+  .uas-status-bar { gap: .6rem; padding: 10px 12px; }
+  .uas-status-bar__actions { margin-left: 0; width: 100%; }
+  .uas-status-bar__actions .btn { flex: 1; justify-content: center; }
+}
+</style>
+{% block uas_head_extra %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+{% if incident and incident.is_exercise %}
+<div class="exercise-topbar">&#x26A0; &Uuml;BUNG / SIMULATION &#x26A0;</div>
+{% endif %}
+
+<div class="uas-inc-bar">
+  <div class="uas-inc-bar__info">
+    {% if incident %}
+    <span class="alarm-badge alarm-badge--{{ incident.alarm_type_code[:1]|lower if incident.alarm_type_code else 'b' }}">
+      {{ incident.alarm_type_code or '#' + incident.id|string }}
+    </span>
+    {% set _grund = (incident.reason or incident.report_text or '') %}
+    {% if _grund %}
+    <span class="uas-inc-bar__grund">{{ _grund[:60] }}</span>
+    {% endif %}
+    {% if incident.address_street %}
+    <span class="uas-inc-bar__addr">
+      {{ incident.address_street }} {{ incident.address_no or '' }}{% if incident.address_city %}, {{ incident.address_city }}{% endif %}
+    </span>
+    {% endif %}
+    {% else %}
+    <span class="uas-inc-bar__grund">Drohneneinsatz</span>
+    {% endif %}
+  </div>
+  <nav class="uas-inc-bar__nav">
+    {% if incident %}
+    <a href="/einsatz/{{ incident.id }}" class="uas-inc-tab" title="Zur&uuml;ck zum Board">&#x1F4CB; Board</a>
+    <a href="/einsatz/{{ incident.id }}/dashboard" class="uas-inc-tab" target="_blank" rel="noopener">&#x1F4CA; Dashboard</a>
+    <a href="/einsatz/{{ incident.id }}/funkjournal" class="uas-inc-tab">&#x1F4FB; Funk</a>
+    {% endif %}
+    <span class="uas-inc-tab uas-inc-tab--active">&#x1F681; Drohne</span>
+  </nav>
+</div>
+
+<div class="uas-inc-main">
+  {% block uas_content %}{% endblock %}
+</div>
+{% endblock %}

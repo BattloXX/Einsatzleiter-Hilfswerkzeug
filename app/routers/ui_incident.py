@@ -2668,12 +2668,21 @@ async def funkjournal_page(
         .all()
     )
     open_requests = sum(1 for c in comms if c.is_request and not c.handled)
+    fj_uas_einsatz_id = None
+    try:
+        from app.models.uas import UASEinsatz as _UASEinsatz
+        _fj_ue = db.query(_UASEinsatz).filter(_UASEinsatz.incident_id == incident_id).first()
+        if _fj_ue:
+            fj_uas_einsatz_id = _fj_ue.id
+    except Exception:
+        pass
     return templates.TemplateResponse(request, "incident/funkjournal.html", {
         "user": user,
         "incident": incident,
         "comms": comms,
         "open_requests": open_requests,
         "can_edit": has_role(user, "incident_leader", "admin", "org_admin", "recorder"),
+        "uas_einsatz_id": fj_uas_einsatz_id,
     })
 
 

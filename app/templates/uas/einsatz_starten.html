@@ -1,13 +1,8 @@
-﻿{% extends "uas/_layout.html" %}
-{% block title %}Drohneneinsatz starten – {{ incident.id }}{% endblock %}
+{% extends "uas/_incident_layout.html" %}
+{% block title %}Drohneneinsatz starten – Einsatz #{{ incident.id }}{% endblock %}
 
 {% block uas_content %}
-<div class="page-header">
-  <div>
-    <h1>&#x1F681; Drohneneinsatz starten</h1>
-    <p class="page-header__sub">Einsatz #{{ incident.id }}{% if incident.address_street %} &ndash; {{ incident.address_street }} {{ incident.address_no or "" }}, {{ incident.address_city or "" }}{% endif %}</p>
-  </div>
-</div>
+<h2 style="margin:0 0 1rem;font-size:1.15rem;font-weight:700;">&#x1F4E1; Drohneneinsatz anlegen</h2>
 
 <form method="post" class="card" style="max-width:700px">
   <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
@@ -16,7 +11,7 @@
     <div class="form-grid">
       <div class="form-group">
         <label>Alarmierungszeitpunkt</label>
-        <input type="datetime-local" name="alarmierung_at" class="form-control" style="max-width:220px"
+        <input type="datetime-local" name="alarmierung_at" class="form-control"
                value="{{ incident.started_at.strftime('%Y-%m-%dT%H:%M') if incident.started_at else '' }}">
       </div>
       <div class="form-group">
@@ -27,7 +22,7 @@
       <div class="form-group">
         <label>Betreibernummer</label>
         <input type="text" name="betreibernummer" class="form-control" maxlength="100"
-               placeholder="Registriernummer des Betreibers (A-UAS-...">
+               placeholder="A-UAS-…">
       </div>
       <div class="form-group">
         <label>Gesamteinsatzleiter</label>
@@ -43,18 +38,18 @@
     </div>
 
     <div class="form-group">
-      <label style="display:flex;align-items:center;gap:.5rem">
-        <input type="checkbox" name="datenschutz_bestaetigt" value="1">
-        Datenschutz-Belehrung (RL 4.9/7.7) wurde erteilt &ndash; Aufnahmen nur im Einsatzgebiet,
+      <label style="display:flex;align-items:flex-start;gap:.5rem;cursor:pointer">
+        <input type="checkbox" name="datenschutz_bestaetigt" value="1" style="margin-top:3px;flex-shrink:0">
+        <span>Datenschutz-Belehrung (RL&nbsp;4.9/7.7) wurde erteilt &ndash; Aufnahmen nur im Einsatzgebiet,
         Personen soweit m&ouml;glich nicht erfasst
-        <span style="color:var(--color-error,#e53e3e)">*</span>
+        <span style="color:var(--color-error,#ef4444)">*</span></span>
       </label>
     </div>
 
   </div>
-  <div class="card-footer" style="display:flex;gap:.75rem;padding:1rem 1.25rem">
+  <div class="card-footer" style="display:flex;gap:.75rem;padding:1rem 1.25rem;flex-wrap:wrap">
     <button type="submit" class="btn btn--primary">&#x1F4E1; Drohneneinsatz anlegen</button>
-    <a href="javascript:history.back()" class="btn btn--ghost">Abbrechen</a>
+    <a href="/einsatz/{{ incident.id }}" class="btn btn--ghost">Abbrechen</a>
   </div>
 </form>
 {% endblock %}
