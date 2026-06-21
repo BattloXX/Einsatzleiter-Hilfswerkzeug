@@ -52,9 +52,6 @@
       {% if WEATHER_ENABLED %}
       <a href="/wetter" class="nav-link {% if request.url.path.startswith('/wetter') %}active{% endif %}">🌦 Wetter</a>
       {% endif %}
-      {% if request.state.uas_module_enabled %}
-      <a href="/uas" class="nav-link {% if request.url.path.startswith('/uas') %}active{% endif %}">&#x1F681; Drohne</a>
-      {% endif %}
       {% if is_admin %}
       <div class="nav-dropdown" x-data="{open:false}" @click.outside="open=false">
         <button class="nav-link nav-link--dropdown {% if '/admin' in request.url.path %}active{% endif %}"
@@ -84,6 +81,10 @@
           <div class="nav-dropdown__group">
             <span class="nav-dropdown__label">Einstellungen</span>
             <a href="/admin/settings" class="nav-dropdown__item">🏛️ Organisation</a>
+            <a href="/admin/sso" class="nav-dropdown__item">🔑 SSO / Microsoft 365</a>
+            {% if request.state.uas_module_enabled %}
+            <a href="/uas" class="nav-dropdown__item">&#x1F681; Drohne / UAS</a>
+            {% endif %}
             {% if 'system_admin' in user_roles %}
             <a href="/admin/ki-prompts" class="nav-dropdown__item">✨ KI-Prompts</a>
             <a href="/admin/system-einstellungen" class="nav-dropdown__item">⚙️ System</a>

@@ -54,6 +54,7 @@ Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-
 | [Lagekarte.info](Anwender-Lagekarte) | Adresse & Koordinaten, Live-Fahrzeuge auf lagekarte.info |
 | [Großschadenslage](Anwender-Grosschadenslage) | Phasen-Kanban, Einsatzstellen, Abschnitte, Stab-Journal, KI-Priorisierung |
 | [Lagekarte der Großschadenslage](Anwender-Grosschadenslage-Karte) | Interaktive Karte, Abschnitt-Polygone zeichnen, Pin-Modus, Fahrzeuge |
+| [Drohne / UAS](Anwender-Drohne-UAS) | BOS-Drohneneinsatz: starten, Flugbuch, Checklisten, Notfall, Medien, PDF |
 
 ### Administration
 | Seite | Beschreibung |
@@ -65,6 +66,8 @@ Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-
 | [API-Keys verwalten](Administration-API-Keys-verwalten) | Anlegen, Rotieren, Sperren |
 | [Audit-Log und Zeitreise](Administration-Audit-Log-und-Zeitreise) | Historie nachvollziehen, Stand rekonstruieren |
 | [Statistik-Dashboard](Administration-Statistik-Dashboard) | Kennzahlen interpretieren |
+| [Drohne / UAS](Administration-Drohne-UAS) | Modul aktivieren, Geräteregister, Wartungsbuch, Pilotenregister, Compliance |
+| [Single Sign-On (Entra ID)](Administration-Single-Sign-On) | Microsoft-365-Login einrichten, Gruppen-Mapping, JIT-Provisioning |
 
 ### Entwickler
 | Seite | Beschreibung |
