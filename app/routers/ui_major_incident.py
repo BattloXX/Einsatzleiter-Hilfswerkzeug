@@ -2743,7 +2743,7 @@ async def buerger_submit(
             "lage_id": lage.id,
             "source_ip": source_ip,
         }
-        sms_ok = await send_sms(lage.org_id, phone, f"Feuerwehr {org_name_str}: Ihr Bestätigungscode lautet {pin}")
+        sms_ok = await send_sms(lage.org_id, phone, f"{org_name_str}: Ihr Bestätigungscode lautet {pin}")
         logger.info("Bürger-Portal SMS-Ergebnis: ok=%s phone=%s", sms_ok, _mask_phone(phone))
         if sms_ok:
             return templates.TemplateResponse(request, "incident_major/public_verify.html", {
