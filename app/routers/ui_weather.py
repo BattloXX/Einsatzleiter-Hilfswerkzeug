@@ -527,6 +527,7 @@ async def wetter_index(
         raise HTTPException(status_code=404)
 
     user = request.state.user
+    abfluss_views = await _build_abfluss_views(getattr(user, "org_id", None), db)
     lat, lng, focus_label = _resolve_menu_standort(user, db)
 
     if lat is None or lng is None:
@@ -541,6 +542,7 @@ async def wetter_index(
                 "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
                 "user": user,
                 "scenarios": [],
+                "abfluss_views": abfluss_views,
             },
         )
 
@@ -595,6 +597,7 @@ async def wetter_index(
             "attribution": _build_attribution(current, forecast, nowcast, warnings),
             "user": user,
             "windy_enabled": settings.WEATHER_WINDY_ENABLED,
+            "abfluss_views": abfluss_views,
         },
     )
 
