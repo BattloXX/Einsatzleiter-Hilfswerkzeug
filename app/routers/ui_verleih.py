@@ -66,6 +66,7 @@ def _detail_ctx(db: Session, user, lage, ausleihe, **extra) -> dict:
             "artikel_nr": a.artikel_nr or "",
             "bezeichnung": a.bezeichnung,
             "ist_mengenartikel": a.ist_mengenartikel,
+            "verfuegbarkeit": a.verfuegbarkeit or "verfuegbar",
         }
         for a in artikel if a.artikel_nr
     ]
@@ -188,6 +189,7 @@ async def verleih_artikel_autocomplete(
             "bezeichnung": a.bezeichnung,
             "ist_mengenartikel": a.ist_mengenartikel,
             "lagerbestand": a.lagerbestand,
+            "verfuegbarkeit": a.verfuegbarkeit or "verfuegbar",
         }
         for a in artikel
         if not q or q in a.bezeichnung.lower() or (a.artikel_nr and q in a.artikel_nr.lower())
@@ -425,6 +427,7 @@ async def verleih_neu_form(
             "artikel_nr": a.artikel_nr or "",
             "bezeichnung": a.bezeichnung,
             "ist_mengenartikel": a.ist_mengenartikel,
+            "verfuegbarkeit": a.verfuegbarkeit or "verfuegbar",
         }
         for a in artikel
         if a.artikel_nr
@@ -962,6 +965,59 @@ async def positionen_hinzufuegen(
     return templates.TemplateResponse(request, "verleih/_ausleihe_detail.html",
         _detail_ctx(db, user, lage, ausleihe, add_ok=True),
         headers={"HX-Trigger": json.dumps({"verleihKarteAktualisieren": str(ausleihe.id)})})
+
+
+# ── Admin: Artikel-Status toggle ─────────────────────────────────────────────
+
+@router.post("/admin/verleih-artikel/{artikel_id}/status-toggle", response_class=HTMLResponse)
+async def artikel_status_toggle(
+    request: Request,
+    artikel_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin", "org_admin")),
+):
+    try:
+        a = svc.toggle_artikel_verfuegbarkeit(db, artikel_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return templates.TemplateResponse(request, "verleih/_artikel_row.html", {"a": a})
+
+
+# ── Admin: Etiketten drucken ──────────────────────────────────────────────────
+
+@router.get("/admin/verleih-artikel/etiketten", response_class=HTMLResponse)
+async def etiketten_drucken(
+    request: Request,
+    ids: str = "",
+    vorlage: str = "standard",
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin", "org_admin")),
+):
+    user = request.state.user
+    id_list: list[int] = []
+    for raw in ids.split(","):
+        raw = raw.strip()
+        if raw.isdigit():
+            id_list.append(int(raw))
+
+    if id_list:
+        artikel = db.query(VerleihArtikel).filter(
+            VerleihArtikel.id.in_(id_list),
+            VerleihArtikel.aktiv == True,  # noqa: E712
+        ).order_by(VerleihArtikel.bezeichnung).all()
+    else:
+        artikel = svc.get_artikel_aktiv(db)
+
+    from app.models.master import FireDept
+    dept = db.get(FireDept, user.org_id)
+    org_name = dept.name if dept else "Feuerwehr"
+
+    return templates.TemplateResponse(request, "verleih/etiketten_druck.html", {
+        "user": user,
+        "artikel": artikel,
+        "org_name": org_name,
+        "vorlage": vorlage,
+    })
 
 
 @router.post("/lage/{lage_id}/verleih/{ausleihe_id}/notizen", response_class=HTMLResponse)

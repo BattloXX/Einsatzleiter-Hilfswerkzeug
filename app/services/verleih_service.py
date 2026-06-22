@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.models.major_incident import IncidentSite
 from app.models.master import OrgSettings
 from app.models.verleih import (
+    ArtikelVerfuegbarkeit,
     VerleihArtikel,
     VerleihAusleihe,
     VerleihFoto,
@@ -51,6 +52,37 @@ def get_org_settings(db: Session, org_id: int) -> OrgSettings | None:
 
 def get_artikel_aktiv(db: Session) -> list[VerleihArtikel]:
     return db.query(VerleihArtikel).filter_by(aktiv=True).order_by(VerleihArtikel.bezeichnung).all()
+
+
+def _mark_artikel_ausgeliehen(db: Session, artikel_id: int | None) -> None:
+    if not artikel_id:
+        return
+    a = db.get(VerleihArtikel, artikel_id)
+    if a and not a.ist_mengenartikel:
+        a.verfuegbarkeit = ArtikelVerfuegbarkeit.ausgeliehen
+
+
+def _mark_artikel_verfuegbar(db: Session, artikel_id: int | None) -> None:
+    if not artikel_id:
+        return
+    a = db.get(VerleihArtikel, artikel_id)
+    if a and not a.ist_mengenartikel:
+        a.verfuegbarkeit = ArtikelVerfuegbarkeit.verfuegbar
+
+
+def toggle_artikel_verfuegbarkeit(db: Session, artikel_id: int) -> VerleihArtikel:
+    a = db.get(VerleihArtikel, artikel_id)
+    if not a:
+        raise ValueError("Artikel nicht gefunden")
+    if a.ist_mengenartikel:
+        raise ValueError("Status nur fuer eindeutige Artikel")
+    if a.verfuegbarkeit == ArtikelVerfuegbarkeit.ausgeliehen:
+        a.verfuegbarkeit = ArtikelVerfuegbarkeit.verfuegbar
+    else:
+        a.verfuegbarkeit = ArtikelVerfuegbarkeit.ausgeliehen
+    db.commit()
+    db.refresh(a)
+    return a
 
 
 def get_stuecklisten_aktiv(db: Session) -> list[VerleihStueckliste]:
@@ -109,15 +141,17 @@ def create_ausleihe(
     db.flush()
 
     for p in positionen:
+        aid = p.get("artikel_id")
         pos = VerleihPosition(
             ausleihe_id=ausleihe.id,
             org_id=org_id,
-            artikel_id=p.get("artikel_id"),
+            artikel_id=aid,
             bezeichnung=p["bezeichnung"],
             artikel_nr=p.get("artikel_nr"),
             menge=int(p.get("menge", 1)),
         )
         db.add(pos)
+        _mark_artikel_ausgeliehen(db, aid)
 
     db.commit()
     db.refresh(ausleihe)
@@ -138,6 +172,7 @@ def return_position(db: Session, position_id: int) -> VerleihAusleihe:
     ausleihe_id = pos.ausleihe_id
     pos.status = VerleihStatus.zurueckgegeben
     pos.zurueckgegeben_at = datetime.now(UTC)
+    _mark_artikel_verfuegbar(db, pos.artikel_id)
     db.flush()
 
     ausleihe = _fetch_ausleihe(db, ausleihe_id)
@@ -157,15 +192,17 @@ def add_positionen(
     positionen: list[dict],
 ) -> VerleihAusleihe:
     for p in positionen:
+        aid = p.get("artikel_id")
         pos = VerleihPosition(
             ausleihe_id=ausleihe_id,
             org_id=org_id,
-            artikel_id=p.get("artikel_id"),
+            artikel_id=aid,
             bezeichnung=p["bezeichnung"],
             artikel_nr=p.get("artikel_nr") or None,
             menge=int(p.get("menge", 1)),
         )
         db.add(pos)
+        _mark_artikel_ausgeliehen(db, aid)
     ausleihe = _fetch_ausleihe(db, ausleihe_id)
     if ausleihe.status == VerleihStatus.zurueckgegeben:
         ausleihe.status = VerleihStatus.ausgeliehen
@@ -184,6 +221,7 @@ def return_all(db: Session, ausleihe_id: int) -> VerleihAusleihe:
         if pos.status == VerleihStatus.ausgeliehen:
             pos.status = VerleihStatus.zurueckgegeben
             pos.zurueckgegeben_at = now
+            _mark_artikel_verfuegbar(db, pos.artikel_id)
     if ausleihe.status != VerleihStatus.zurueckgegeben:
         ausleihe.status = VerleihStatus.zurueckgegeben
         ausleihe.zurueckgegeben_at = now

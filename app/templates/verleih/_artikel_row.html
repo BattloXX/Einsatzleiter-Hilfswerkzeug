@@ -1,5 +1,12 @@
 <tr id="artikel-row-{{ a.id }}">
-  <td><code>{{ a.artikel_nr or '–' }}</code></td>
+  <td>
+    <input type="checkbox" style="width:15px;height:15px;"
+           :checked="selected.has({{ a.id }})"
+           @change="toggleArtikel({{ a.id }}, $event.target.checked)">
+  </td>
+  <td>
+    <code>{{ a.artikel_nr or '–' }}</code>
+  </td>
   <td><strong>{{ a.bezeichnung }}</strong></td>
   <td>
     {% if a.ist_mengenartikel %}
@@ -8,10 +15,30 @@
     <span class="badge-pill badge-pill--green">Eindeutig</span>
     {% endif %}
   </td>
-  <td>{{ a.lagerbestand if a.lagerbestand is not none else '–' }}</td>
-  <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ a.notizen or '–' }}</td>
   <td>
+    {% if not a.ist_mengenartikel %}
+      {% if a.verfuegbarkeit == 'ausgeliehen' %}
+      <span class="badge-pill" style="background:rgba(239,68,68,.15);color:#f87171;">ausgeliehen</span>
+      {% else %}
+      <span class="badge-pill" style="background:rgba(34,197,94,.12);color:#4ade80;">verfuegbar</span>
+      {% endif %}
+    {% else %}
+    <span style="color:var(--text-muted);font-size:.8rem;">–</span>
+    {% endif %}
+  </td>
+  <td>{{ a.lagerbestand if a.lagerbestand is not none else '–' }}</td>
+  <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ a.notizen or '–' }}</td>
+  <td style="white-space:nowrap;">
     <button class="btn btn--ghost btn--xs" onclick="document.getElementById('editArtikelModal-{{ a.id }}').showModal()">Bearbeiten</button>
+    {% if not a.ist_mengenartikel %}
+    <button class="btn btn--ghost btn--xs"
+            hx-post="/admin/verleih-artikel/{{ a.id }}/status-toggle"
+            hx-target="#artikel-row-{{ a.id }}"
+            hx-swap="outerHTML"
+            title="Status manuell umschalten">
+      {% if a.verfuegbarkeit == 'ausgeliehen' %}Freigeben{% else %}Sperren{% endif %}
+    </button>
+    {% endif %}
     <button class="btn btn--danger btn--xs"
             hx-post="/admin/verleih-artikel/{{ a.id }}/loeschen"
             hx-target="#artikel-row-{{ a.id }}"

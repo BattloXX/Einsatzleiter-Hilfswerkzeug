@@ -29,6 +29,11 @@ class VerleihStatus(str, enum.Enum):
     zurueckgegeben = "zurueckgegeben"
 
 
+class ArtikelVerfuegbarkeit(str, enum.Enum):
+    verfuegbar  = "verfuegbar"
+    ausgeliehen = "ausgeliehen"
+
+
 class VerleihArtikel(TenantScoped, Base):
     """Artikelstammdaten – org-weit, zwei Typen: eindeutig vs. Menge."""
     __tablename__ = "verleih_artikel"
@@ -40,6 +45,8 @@ class VerleihArtikel(TenantScoped, Base):
     # False = eindeutiger Artikel (z.B. "Pumpe 2"), Menge immer 1
     # True  = Mengenartikel (z.B. "C-Schlauch"),   Menge frei wählbar
     ist_mengenartikel: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Nur fuer eindeutige Artikel relevant (ist_mengenartikel=False)
+    verfuegbarkeit: Mapped[str | None] = mapped_column(String(20), nullable=True)
     lagerbestand: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notizen: Mapped[str | None] = mapped_column(Text, nullable=True)
     aktiv: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

@@ -108,7 +108,8 @@
               <input type="text" class="form-input form-input--xs" style="flex:1;"
                      placeholder="Artikelnr"
                      :name="'pos_artikel_nr[]'"
-                     x-model="row.artikel_nr">
+                     x-model="row.artikel_nr"
+                     @input="onArtikelNrInput(idx, $event.target.value)">
               <button type="button" class="btn btn--ghost btn--xs" style="padding:3px 7px;font-size:.8rem;"
                       :title="barcodeApiAvailable ? 'Barcode/QR-Code scannen' : 'Kamera-Scan nicht unterstuetzt'"
                       :disabled="!barcodeApiAvailable"
@@ -116,6 +117,12 @@
                 &#128247;
               </button>
               <input type="hidden" :name="'pos_artikel_id[]'" x-model="row.artikel_id">
+            </div>
+            <!-- Verfuegbarkeitswarnung fuer eindeutige ausgeliehene Artikel -->
+            <div x-show="row.artikel_id && row.verfuegbarkeit === 'ausgeliehen' && !row.ist_mengenartikel"
+                 x-cloak
+                 style="font-size:.72rem;color:#fbbf24;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:5px;padding:3px 8px;margin-top:2px;">
+              &#9888; Dieser Artikel ist bereits als ausgeliehen markiert
             </div>
             <div style="display:flex;gap:4px;align-items:center;">
               <span style="font-size:.75rem;color:var(--text-muted);flex:1;">Menge</span>
@@ -188,13 +195,28 @@ function verleihForm(initialSites, lageId, initialArtikel) {
     telefon: '',
     adresse: '',
     fotoCount: 0,
-    rows: [{ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '', ist_mengenartikel: true }],
+    rows: [{ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '', ist_mengenartikel: true, verfuegbarkeit: 'verfuegbar' }],
     addRow() {
-      this.rows.push({ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '', ist_mengenartikel: true });
+      this.rows.push({ bezeichnung: '', artikel_nr: '', menge: 1, artikel_id: '', ist_mengenartikel: true, verfuegbarkeit: 'verfuegbar' });
     },
     removeRow(i) {
       this.rows.splice(i, 1);
       if (!this.rows.length) this.addRow();
+    },
+    onArtikelNrInput(idx, val) {
+      var match = this.artikelList.find(function(a) { return a.artikel_nr === val; });
+      if (match) {
+        if (!this.rows[idx].bezeichnung) {
+          this.rows[idx].bezeichnung = match.bezeichnung;
+        }
+        this.rows[idx].artikel_id = String(match.id);
+        this.rows[idx].ist_mengenartikel = match.ist_mengenartikel;
+        this.rows[idx].verfuegbarkeit = match.verfuegbarkeit || 'verfuegbar';
+        if (!match.ist_mengenartikel) this.rows[idx].menge = 1;
+      } else {
+        this.rows[idx].artikel_id = '';
+        this.rows[idx].verfuegbarkeit = 'verfuegbar';
+      }
     },
     async loadStueckliste(ev, lageId) {
       var sl_id = ev.target.value;
@@ -203,13 +225,16 @@ function verleihForm(initialSites, lageId, initialArtikel) {
         var res = await fetch('/lage/' + lageId + '/verleih/stueckliste/' + sl_id);
         var positionen = await res.json();
         if (positionen.length) {
+          var self = this;
           this.rows = positionen.map(function(p) {
+            var match = self.artikelList.find(function(a) { return String(a.id) === String(p.artikel_id); });
             return {
               bezeichnung: p.bezeichnung || '',
               artikel_nr: p.artikel_nr || '',
               menge: p.menge || 1,
               artikel_id: p.artikel_id || '',
               ist_mengenartikel: p.ist_mengenartikel !== false,
+              verfuegbarkeit: match ? (match.verfuegbarkeit || 'verfuegbar') : 'verfuegbar',
             };
           });
         }
@@ -282,6 +307,7 @@ function verleihForm(initialSites, lageId, initialArtikel) {
               this.rows[idx].bezeichnung = match.bezeichnung;
               this.rows[idx].artikel_id = String(match.id);
               this.rows[idx].ist_mengenartikel = match.ist_mengenartikel;
+              this.rows[idx].verfuegbarkeit = match.verfuegbarkeit || 'verfuegbar';
               if (!match.ist_mengenartikel) this.rows[idx].menge = 1;
             }
           }
