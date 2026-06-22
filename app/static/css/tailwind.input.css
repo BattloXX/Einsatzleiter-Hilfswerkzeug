@@ -1244,3 +1244,78 @@ body.dnd-active .board-tabs { box-shadow: 0 0 0 2px var(--primary, #2563eb); }
   /* Scrollbarer Lage-Body muss Bottom-Nav freilassen */
   .lage-page__body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* ── Lage Mobile Burger-Navigation ───────────────────────────────── */
+/* Lage-ctx-bar als Containing-Block für das absolute Dropdown */
+.lage-ctx-bar { position: relative; }
+
+/* Burger-Button: nur auf Mobile sichtbar */
+.lage-burger-btn {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: .82rem;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.lage-burger-btn:hover { background: rgba(255,255,255,.12); }
+.lage-burger-label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lage-burger-chevron {
+  font-size: .7rem;
+  opacity: .7;
+  transition: transform .15s;
+}
+.lage-burger-chevron--open { transform: rotate(180deg); }
+
+/* Aufklapp-Menü: absolut unter der Kontextleiste */
+.lage-mobile-nav {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 150;
+  background: var(--surface-low);
+  border-bottom: 2px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+.lage-mobile-nav__item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: .92rem;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  transition: background .1s, color .1s;
+}
+.lage-mobile-nav__item:last-child { border-bottom: none; }
+.lage-mobile-nav__item:hover { background: rgba(255,255,255,.06); color: var(--text); text-decoration: none; }
+.lage-mobile-nav__item--active {
+  color: var(--red-light, #f87171);
+  background: rgba(212,34,37,.08);
+  font-weight: 600;
+}
+
+/* Burger zeigen, Tab-Leiste verbergen */
+@media (max-width: 900px) {
+  .lage-burger-btn { display: flex; }
+  .lage-ctx-bar__tabs-row { display: none; }
+}
+/* Desktop: Burger und Mobile-Nav immer ausblenden */
+@media (min-width: 901px) {
+  .lage-burger-btn { display: none !important; }
+  .lage-mobile-nav { display: none !important; }
+}
