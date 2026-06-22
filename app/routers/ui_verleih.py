@@ -500,19 +500,30 @@ async def verleih_neu(
         notizen=notizen or None,
     )
 
-    # Journal-Eintrag
+    # Journal-Eintrag: bei zugewiesener Einsatzstelle → SiteLogEntry, sonst → Stabsjournal
     try:
         from app.core.security import get_author_name
-        from app.models.major_incident import LageJournalEntry
         artikel_text = ", ".join(p["bezeichnung"] for p in positionen) or "Material"
-        journal = LageJournalEntry(
-            major_incident_id=lage_id,
-            category="sonstiges",
-            text=f"Geräteverleih: {artikel_text} an {name} ausgeliehen",
-            body_html=f'<a href="/lage/{lage_id}/verleih" style="color:inherit;opacity:.75;font-size:.9em;">→ Geräteverleih öffnen</a>',
-            author_name=get_author_name(request),
-            user_id=getattr(user, "id", None),
-        )
+        eintrag_text = f"Geräteverleih: {artikel_text} an {name} ausgeliehen"
+        if site_id:
+            from app.models.major_incident import SiteLogEntry
+            journal = SiteLogEntry(
+                incident_site_id=site_id,
+                kind="note",
+                text=eintrag_text,
+                author_name=get_author_name(request),
+                user_id=getattr(user, "id", None),
+            )
+        else:
+            from app.models.major_incident import LageJournalEntry
+            journal = LageJournalEntry(
+                major_incident_id=lage_id,
+                category="sonstiges",
+                text=eintrag_text,
+                body_html=f'<a href="/lage/{lage_id}/verleih" style="color:inherit;opacity:.75;font-size:.9em;">→ Geräteverleih öffnen</a>',
+                author_name=get_author_name(request),
+                user_id=getattr(user, "id", None),
+            )
         db.add(journal)
         db.commit()
     except Exception:
@@ -813,14 +824,25 @@ async def verleih_drucken(
 
     try:
         from app.core.security import get_author_name
-        from app.models.major_incident import LageJournalEntry
-        journal = LageJournalEntry(
-            major_incident_id=lage_id,
-            category="sonstiges",
-            text=f"Verleihschein gedruckt: {ausleihe.artikel_bezeichnungen or 'Material'} an {ausleihe.name}",
-            author_name=get_author_name(request),
-            user_id=getattr(user, "id", None),
-        )
+        eintrag_text = f"Verleihschein gedruckt: {ausleihe.artikel_bezeichnungen or 'Material'} an {ausleihe.name}"
+        if ausleihe.site_id:
+            from app.models.major_incident import SiteLogEntry
+            journal = SiteLogEntry(
+                incident_site_id=ausleihe.site_id,
+                kind="note",
+                text=eintrag_text,
+                author_name=get_author_name(request),
+                user_id=getattr(user, "id", None),
+            )
+        else:
+            from app.models.major_incident import LageJournalEntry
+            journal = LageJournalEntry(
+                major_incident_id=lage_id,
+                category="sonstiges",
+                text=eintrag_text,
+                author_name=get_author_name(request),
+                user_id=getattr(user, "id", None),
+            )
         db.add(journal)
         db.commit()
     except Exception:
@@ -909,16 +931,27 @@ async def positionen_hinzufuegen(
 
     try:
         from app.core.security import get_author_name
-        from app.models.major_incident import LageJournalEntry
         artikel_text = ", ".join(p["bezeichnung"] for p in positionen)
-        journal = LageJournalEntry(
-            major_incident_id=lage_id,
-            category="sonstiges",
-            text=f"Geräteverleih Nachtrag: {artikel_text} an {ausleihe.name} hinzugefügt",
-            body_html=f'<a href="/lage/{lage_id}/verleih" style="color:inherit;opacity:.75;font-size:.9em;">→ Geräteverleih öffnen</a>',
-            author_name=get_author_name(request),
-            user_id=getattr(user, "id", None),
-        )
+        eintrag_text = f"Geräteverleih Nachtrag: {artikel_text} an {ausleihe.name} hinzugefügt"
+        if ausleihe.site_id:
+            from app.models.major_incident import SiteLogEntry
+            journal = SiteLogEntry(
+                incident_site_id=ausleihe.site_id,
+                kind="note",
+                text=eintrag_text,
+                author_name=get_author_name(request),
+                user_id=getattr(user, "id", None),
+            )
+        else:
+            from app.models.major_incident import LageJournalEntry
+            journal = LageJournalEntry(
+                major_incident_id=lage_id,
+                category="sonstiges",
+                text=eintrag_text,
+                body_html=f'<a href="/lage/{lage_id}/verleih" style="color:inherit;opacity:.75;font-size:.9em;">→ Geräteverleih öffnen</a>',
+                author_name=get_author_name(request),
+                user_id=getattr(user, "id", None),
+            )
         db.add(journal)
         db.commit()
     except Exception:
