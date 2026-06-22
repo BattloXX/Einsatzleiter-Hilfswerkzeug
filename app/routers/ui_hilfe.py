@@ -7,9 +7,9 @@ from app.core.templating import templates
 router = APIRouter()
 
 
-@router.get("/hilfe", response_class=HTMLResponse)
+@router.get("/admin/hilfe", response_class=HTMLResponse)
 async def hilfe_index(request: Request):
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
-    return templates.TemplateResponse(request, "hilfe.html", {"user": user})
+    return templates.TemplateResponse(request, "admin/hilfe.html", {"user": user})

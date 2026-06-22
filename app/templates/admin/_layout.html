@@ -15,6 +15,8 @@
   {% set active_group = 'einstellungen' %}
 {% elif _p.startswith('/uas/') %}
   {% set active_group = 'uas' %}
+{% elif _p == '/admin/hilfe' %}
+  {% set active_group = 'hilfe' %}
 {% else %}
   {% set active_group = 'stammdaten' %}
 {% endif %}
@@ -160,6 +162,12 @@
         <a href="/admin"
            class="admin-nav__item {% if request.url.path == '/admin' or request.url.path == '/admin/' %}is-active{% endif %}">
           <span class="admin-nav__icon">🏠</span>Dashboard
+        </a>
+
+        <!-- Dokumentation -->
+        <a href="/admin/hilfe"
+           class="admin-nav__item {% if request.url.path == '/admin/hilfe' %}is-active{% endif %}">
+          <span class="admin-nav__icon">📖</span>Dokumentation
         </a>
 
         <!-- ── Stammdaten ────────────────────────────────────────────── -->
