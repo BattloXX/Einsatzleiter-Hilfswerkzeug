@@ -75,18 +75,19 @@ def alarm_stufe(wert: float, hq: HQWerte) -> tuple[int, str, str]:
 
 def _parse_html(html: str) -> tuple[float | None, datetime | None, HQWerte | None]:
     """Parse Abfluss-Wert, Zeitstempel und HQ-Referenzwerte aus der vowis HTML-Seite."""
-    # Aktueller Wert: "Abfluss: 6,96 m³/s" oder "Abfluss: 6.96 m³/s"
+    # Aktueller Wert: "Abfluss: 6,96 m³/s" oder "Abfluss:\n</td><td>7,11 m³/s"
+    # HTML-Tags zwischen Label und Wert werden übersprungen.
     wert: float | None = None
-    m = re.search(r"Abfluss:\s*([\d,\.]+)\s*m", html, re.IGNORECASE)
+    m = re.search(r"Abfluss:\s*(?:<[^>]+>\s*)*([\d,\.]+)\s*m", html, re.IGNORECASE)
     if m:
         try:
             wert = float(m.group(1).replace(",", "."))
         except ValueError:
             pass
 
-    # Zeitstempel: "22.06.2026 14:15" oder "22.06. 14:15"
+    # Zeitstempel: "22.06.2026 14:15" oder "22.06. 14:15" (HTML-Tags möglich dazwischen)
     zeitstempel: datetime | None = None
-    m = re.search(r"(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})", html)
+    m = re.search(r"(\d{2})\.(\d{2})\.(\d{4})\s*(?:<[^>]+>\s*)*(\d{2}):(\d{2})", html)
     if m:
         try:
             zeitstempel = datetime(
@@ -96,7 +97,7 @@ def _parse_html(html: str) -> tuple[float | None, datetime | None, HQWerte | Non
         except ValueError:
             pass
     if not zeitstempel:
-        m = re.search(r"(\d{2})\.(\d{2})\.\s+(\d{2}):(\d{2})", html)
+        m = re.search(r"(\d{2})\.(\d{2})\.\s*(?:<[^>]+>\s*)*(\d{2}):(\d{2})", html)
         if m:
             now = datetime.now(UTC)
             try:
@@ -107,7 +108,7 @@ def _parse_html(html: str) -> tuple[float | None, datetime | None, HQWerte | Non
             except ValueError:
                 pass
 
-    # HQ-Referenzwerte: "HQ1: 480 m³/s", "HQ100: 1450 m³/s" etc.
+    # HQ-Referenzwerte: "HQ1: 480 m³/s" — HTML-Tags zwischen Label und Wert möglich
     hq = HQWerte()
     for key, attr in [
         ("HQ1:",    "hq1"),
@@ -118,7 +119,7 @@ def _parse_html(html: str) -> tuple[float | None, datetime | None, HQWerte | Non
         ("HQ300:",  "hq300"),
         ("HQ1000:", "hq1000"),
     ]:
-        mm = re.search(re.escape(key) + r"\s*([\d,\.]+)", html, re.IGNORECASE)
+        mm = re.search(re.escape(key) + r"\s*(?:<[^>]+>\s*)*([\d,\.]+)", html, re.IGNORECASE)
         if mm:
             try:
                 setattr(hq, attr, float(mm.group(1).replace(",", ".")))
