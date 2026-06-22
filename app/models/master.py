@@ -335,7 +335,20 @@ class OrgSettings(Base):
     gsl_verleih_sms_ausleih_text:    Mapped[str | None] = mapped_column(Text, nullable=True)
     gsl_verleih_sms_erinnerung_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Pegel-/Abflusskonfiguration: JSON-Array [{hzbnr, name, beschreibung}]
+    abfluss_stationen: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     org: Mapped[FireDept] = relationship(back_populates="settings")
+
+    @property
+    def abfluss_stationen_list(self) -> list[dict]:
+        import json as _json
+        if not self.abfluss_stationen:
+            return []
+        try:
+            return _json.loads(self.abfluss_stationen)
+        except (ValueError, TypeError):
+            return []
 
 
 class OrgStorageUsage(Base):

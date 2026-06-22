@@ -1,4 +1,5 @@
 """Settings-Router: Organisations-Einstellungen, Logo-Upload, System-Update (system_admin)."""
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -318,6 +319,71 @@ async def reset_org_logo(
         org_s.logo_path = None
     db.commit()
     return RedirectResponse("/admin/settings?saved=1&logo=reset", status_code=303)
+
+
+# ── Pegelmessstationen ───────────────────────────────────────────────────────
+
+@router.post("/settings/abfluss/add")
+async def abfluss_station_add(
+    request: Request,
+    db=Depends(get_db),
+    user: User = Depends(require_role("org_admin", "admin")),
+    hzbnr: str = Form(...),
+    name: str = Form(...),
+    beschreibung: str = Form(""),
+    target_org_id: int | None = Form(None),
+):
+    import json
+    effective_org_id = target_org_id if has_role(user, "system_admin") and target_org_id else user.org_id
+    if not effective_org_id:
+        return RedirectResponse("/admin/settings", status_code=303)
+
+    hzbnr = re.sub(r"\D", "", hzbnr.strip())[:10]
+    name = name.strip()[:80]
+    beschreibung = beschreibung.strip()[:200]
+    if not hzbnr or not name:
+        org_suffix = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
+        return RedirectResponse(f"/admin/settings?abfluss_error=ungueltig{org_suffix}", status_code=303)
+
+    org_s = db.query(OrgSettings).filter(OrgSettings.org_id == effective_org_id).first()
+    if not org_s:
+        org_s = OrgSettings(org_id=effective_org_id)
+        db.add(org_s)
+
+    stationen: list[dict] = org_s.abfluss_stationen_list
+    if not any(s["hzbnr"] == hzbnr for s in stationen):
+        stationen.append({"hzbnr": hzbnr, "name": name, "beschreibung": beschreibung})
+    org_s.abfluss_stationen = json.dumps(stationen, ensure_ascii=False)
+    db.commit()
+
+    org_suffix = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
+    return RedirectResponse(f"/admin/settings?saved=1{org_suffix}#pegel", status_code=303)
+
+
+@router.post("/settings/abfluss/remove")
+async def abfluss_station_remove(
+    request: Request,
+    db=Depends(get_db),
+    user: User = Depends(require_role("org_admin", "admin")),
+    hzbnr: str = Form(...),
+    target_org_id: int | None = Form(None),
+):
+    import json
+    effective_org_id = target_org_id if has_role(user, "system_admin") and target_org_id else user.org_id
+    if not effective_org_id:
+        return RedirectResponse("/admin/settings", status_code=303)
+
+    org_s = db.query(OrgSettings).filter(OrgSettings.org_id == effective_org_id).first()
+    if org_s:
+        stationen = [s for s in org_s.abfluss_stationen_list if s["hzbnr"] != hzbnr.strip()]
+        org_s.abfluss_stationen = json.dumps(stationen, ensure_ascii=False) if stationen else None
+        db.commit()
+
+        from app.services import abfluss_service
+        abfluss_service.remove_station(effective_org_id, hzbnr.strip())
+
+    org_suffix = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
+    return RedirectResponse(f"/admin/settings?saved=1{org_suffix}#pegel", status_code=303)
 
 
 # ── Organisations-Verwaltung (system_admin) ──────────────────────────────────

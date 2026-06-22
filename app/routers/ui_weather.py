@@ -154,12 +154,69 @@ def _peak_label(now: "weather_service.NowcastResult") -> str | None:
     return f"in ca. {delta_min} min"
 
 
+def _next_hq_label(wert: float | None, hq) -> str | None:
+    """Naechstes HQ-Schwellenwert-Label ueber dem aktuellen Wert."""
+    if wert is None:
+        return None
+    for val, name in [
+        (hq.hq1, "HQ1"), (hq.hq5, "HQ5"), (hq.hq10, "HQ10"),
+        (hq.hq30, "HQ30"), (hq.hq100, "HQ100"), (hq.hq300, "HQ300"), (hq.hq1000, "HQ1000"),
+    ]:
+        if val is not None and val > wert:
+            return f"{name}: {val:,.0f} m³/s".replace(",", ".")
+    return None
+
+
+async def _build_abfluss_views(org_id: int | None, db: Session) -> list[dict]:
+    """Pegel-Stationen der Org laden, Daten aktualisieren und template-ready Views bauen."""
+    if not org_id:
+        return []
+    from app.models.master import OrgSettings as _OS
+    from app.services import abfluss_service
+    from zoneinfo import ZoneInfo
+
+    org_s = db.query(_OS).filter(_OS.org_id == org_id).first()
+    if not org_s:
+        return []
+    stationen = org_s.abfluss_stationen_list
+    if not stationen:
+        return []
+
+    states = await abfluss_service.refresh_all_for_org(org_id, stationen)
+    _vt = ZoneInfo("Europe/Vienna")
+    views: list[dict] = []
+    for st in states:
+        if st.aktuell:
+            stufe, label, farbe = abfluss_service.alarm_stufe(st.aktuell.wert_m3s, st.hq_werte)
+            wert = st.aktuell.wert_m3s
+            ts_str = st.aktuell.zeitstempel.astimezone(_vt).strftime("%d.%m. %H:%M")
+        else:
+            stufe, label, farbe = 0, "–", "var(--text-muted)"
+            wert = None
+            ts_str = None
+        views.append({
+            "hzbnr":             st.hzbnr,
+            "name":              st.name,
+            "beschreibung":      st.beschreibung,
+            "wert":              wert,
+            "stufe":             stufe,
+            "stufe_label":       label,
+            "stufe_farbe":       farbe,
+            "sparkline":         abfluss_service.sparkline_data(st),
+            "naechste_hq":       _next_hq_label(wert, st.hq_werte),
+            "zeitstempel_label": ts_str,
+            "fehler":            st.letzter_fehler,
+        })
+    return views
+
+
 async def _render_weather_panel(
     request: Request,
     lat: float,
     lng: float,
     focus_label: str,
     extra_ctx: dict,
+    abfluss_views: list[dict] | None = None,
 ) -> HTMLResponse:
     """Shared rendering logic for all weather panel endpoints."""
     nowcast, current, forecast, warnings = await asyncio.gather(
@@ -209,6 +266,7 @@ async def _render_weather_panel(
         "warn_color": warn_color,
         "scenarios": scenarios,
         "attribution": _build_attribution(current, forecast, nowcast, warnings),
+        "abfluss_views": abfluss_views or [],
     }
     ctx.update(extra_ctx)
     return templates.TemplateResponse(request, "incident_major/_weather_panel.html", ctx)
@@ -235,6 +293,8 @@ async def gsl_wetter_panel(
     if not _org_weather_enabled(lage.org_id, db):
         return HTMLResponse("")
 
+    abfluss_views = await _build_abfluss_views(lage.org_id, db)
+
     focus = resolve_weather_focus(lage)
     lat: float | None = None
     lng: float | None = None
@@ -257,11 +317,13 @@ async def gsl_wetter_panel(
             {
                 "no_location": True,
                 "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
+                "abfluss_views": abfluss_views,
             },
         )
 
     return await _render_weather_panel(
-        request, lat, lng, focus_label, {"lage_id": lage_id}
+        request, lat, lng, focus_label, {"lage_id": lage_id},
+        abfluss_views=abfluss_views,
     )
 
 
@@ -397,6 +459,8 @@ async def einsatz_wetter_panel(
     if not _org_weather_enabled(org_id, db):
         return HTMLResponse("")
 
+    abfluss_views = await _build_abfluss_views(org_id, db)
+
     lat: float | None = incident.lat
     lng: float | None = incident.lng
     focus_label = "Einsatzort"
@@ -420,11 +484,13 @@ async def einsatz_wetter_panel(
             {
                 "no_location": True,
                 "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
+                "abfluss_views": abfluss_views,
             },
         )
 
     return await _render_weather_panel(
-        request, lat, lng, focus_label, {"incident_id": incident_id}
+        request, lat, lng, focus_label, {"incident_id": incident_id},
+        abfluss_views=abfluss_views,
     )
 
 
@@ -548,6 +614,7 @@ async def wetter_panel(
         return HTMLResponse("")
 
     user = request.state.user
+    abfluss_views = await _build_abfluss_views(getattr(user, "org_id", None), db)
     lat, lng, focus_label = _resolve_menu_standort(user, db)
 
     if lat is None or lng is None:
@@ -557,7 +624,9 @@ async def wetter_panel(
             {
                 "no_location": True,
                 "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
+                "abfluss_views": abfluss_views,
             },
         )
 
-    return await _render_weather_panel(request, lat, lng, focus_label, {})
+    return await _render_weather_panel(request, lat, lng, focus_label, {},
+                                       abfluss_views=abfluss_views)
