@@ -108,7 +108,7 @@
     background: var(--surface-low);
     border-bottom: 1px solid var(--border);
     overflow-y: auto;
-    max-height: 55vh;
+    max-height: 50vh;
   }
 
   /* 2-column item grid */
@@ -376,19 +376,28 @@ function adminNav(activeGroup) {
   var s = {};
   try { s = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch(e) {}
   var labels = { stammdaten: 'Stammdaten', verwaltung: 'Verwaltung', einstellungen: 'Einstellungen', uas: 'Drohne / UAS' };
+  var mobile = window.matchMedia('(max-width: 1100px)').matches;
+
+  function grpInit(g, desktopDefault) {
+    if (mobile) return g === activeGroup;
+    return s[g] !== undefined ? s[g] : desktopDefault;
+  }
+
   return {
     navOpen: false,
     sectionLabel: labels[activeGroup] || 'Administration',
     groups: {
-      stammdaten: activeGroup === 'stammdaten' ? true : (s.stammdaten !== undefined ? s.stammdaten : true),
-      verwaltung: activeGroup === 'verwaltung' ? true : (s.verwaltung !== undefined ? s.verwaltung : true),
-      einstellungen: activeGroup === 'einstellungen' ? true : (s.einstellungen !== undefined ? s.einstellungen : false),
-      uas: activeGroup === 'uas' ? true : (s.uas !== undefined ? s.uas : false),
+      stammdaten:   grpInit('stammdaten',   true),
+      verwaltung:   grpInit('verwaltung',   true),
+      einstellungen:grpInit('einstellungen',false),
+      uas:          grpInit('uas',          false),
     },
     isMobile: function() { return window.matchMedia('(max-width: 1100px)').matches; },
     toggle: function(group) {
       this.groups[group] = !this.groups[group];
-      try { localStorage.setItem(STORE, JSON.stringify(this.groups)); } catch(e) {}
+      if (!this.isMobile()) {
+        try { localStorage.setItem(STORE, JSON.stringify(this.groups)); } catch(e) {}
+      }
     },
   };
 }
