@@ -180,6 +180,14 @@ templates.env.globals["lagekarte_url"] = resolve_lagekarte_url
 
 # Globale Konfigurationswerte für Templates
 from app.config import settings as _settings  # noqa: E402
+import os as _os  # noqa: E402
 
 templates.env.globals["WEATHER_ENABLED"] = _settings.WEATHER_ENABLED
 templates.env.globals["TEST_SYSTEM"] = _settings.TEST_SYSTEM
+
+# Cache-Busting: Versionsnummer aus mtime der app.css
+_css_path = _os.path.join(_os.path.dirname(__file__), "..", "static", "css", "app.css")
+try:
+    templates.env.globals["CSS_VERSION"] = str(int(_os.path.getmtime(_css_path)))
+except OSError:
+    templates.env.globals["CSS_VERSION"] = "1"
