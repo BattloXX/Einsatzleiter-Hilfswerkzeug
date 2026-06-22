@@ -6,7 +6,11 @@
 [![CI](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions/workflows/ci.yml/badge.svg)](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green)
-![Version](https://img.shields.io/badge/version-2.5.0-orange)
+![Version](https://img.shields.io/badge/version-2.7.0-orange)
+
+---
+
+**Wiki & Dokumentation:** [github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/wiki](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/wiki)
 
 ---
 
@@ -14,7 +18,7 @@
 
 Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, die Einsatzleitern und Schriftführern eine strukturierte, Echtzeit-fähige Arbeitsumgebung bietet.
 
-**Zielgruppe:** Einsatzleiter, Schriftführer und Atemschutz-Überwacher österreichischer Feuerwehren.
+**Zielgruppe:** Einsatzleiter, Schriftführer, Atemschutz-Überwacher und UAS-Teams österreichischer Feuerwehren.
 
 **Kern-Prinzipien:**
 - Mehrere Geräte (Tablet, PC, Mobilgerät) arbeiten gleichzeitig am selben Einsatz
@@ -54,6 +58,9 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 | **System-Admin-Konsole** | Per-Org KPI-Übersicht mit Schnellzugriff für Systemadministratoren |
 | **Auto-Schließen** | Inaktive Einsätze werden nach konfigurierbarer Zeit automatisch geschlossen (systemweit und pro Org) |
 | **Wetterdaten-Integration** | Echtzeit-Nowcast (15-min), Ist-Werte, +6/+12/+24h-Vorhersage und Unwetterwarnungen; Kachelmann Plus-API als Primärquelle mit GeoSphere Austria/ZAMG-Ergänzung und Open-Meteo-Fallback; Sturm- und Waldbrand-Szenario-Indikatoren; Radar-Overlay (RainViewer) auf der Lagekarte; globale `/wetter`-Seite; opt-out je Org |
+| **UAS / Drohnen-Modul** | Vollständige BOS-Drohnendokumentation gemäß RL-UAS LFV Vorarlberg 2024: Geräteregister, Wartungsbuch, Pilotenregister, Flugbuch, Vor-/Nachflug-Checklisten (4-Augen), Notfall-/Unfall-Workflow, ACG-Meldung, Lagekarte, DSGVO-Medien, PDF-Anhänge 8.1–8.6; zweistufiger Feature-Flag |
+| **Single Sign-On (Entra ID)** | Microsoft-365-Login pro Org: BYO App-Registrierung, OAuth2/PKCE/OIDC, JIT-Provisioning, Gruppen→Rollen-Mapping, enforce_sso; Client Secret Fernet-verschlüsselt |
+| **Geräteverleih** | Artikel- und Stücklisten-Stammdaten; Ausgabe & Rücknahme von Material im GSL-Kontext; Barcode/QR-Scan im Browser; SMS-Erinnerungen; Foto-Dokumentation; Druckschein |
 | **Benutzer-Profil** | Eigener Name, E-Mail, Passwort und Avatar; Profilbild erscheint in Log-Einträgen und Stab |
 
 ---
@@ -338,6 +345,16 @@ WEATHER_CACHE_TTL_WARN=300       # Sekunden; Unwetterwarnungen
 WEATHER_HTTP_TIMEOUT=8           # Sekunden; externe API-Anfragen
 WEATHER_RADIUS_KM=15             # Fokus-Radius für Radarkarte
 WEATHER_FALLBACK_OPENMETEO=true  # Open-Meteo als Fallback wenn Primärquelle nicht erreichbar
+
+# ── SSO / Microsoft Entra ID ───────────────────────────────────────
+# Voraussetzung: SSO-Konfiguration in der Org-Verwaltung (Admin → SSO)
+# Wird im Tool pro Org eingerichtet (BYO App-Registrierung)
+SSO_ENABLED=true
+MS_LOGIN_BASE_URL=https://login.microsoftonline.com
+SSO_HTTP_TIMEOUT=10
+SSO_FLOW_MAX_AGE=600      # Sekunden: Gültigkeit des PKCE-Flow-Cookies
+SSO_JWKS_CACHE_TTL=3600   # Sekunden: JWKS-Public-Key-Cache
+SSO_SCOPES=openid profile email User.Read
 ```
 
 ---
@@ -381,6 +398,15 @@ alembic downgrade -1
 | `0077_gsl_lagemeldung_regelkreis.py` | SKKM-Lagemeldungs-Regelkreis (Timer-Felder, `auto_kind`) |
 | `0078_external_resources.py` | Fremdorganisations-Ressourcen |
 | `0079_multi_site_dispatch.py` | Mehrfach-Disposition von Einheiten an Einsatzstellen |
+| `0080_uas_pr0_feature_flags.py` | UAS-Modul Feature-Flags (SystemSettings + OrgSettings) |
+| `0081–0086_uas_pr*` | UAS-Modul: Stammdaten, Einsatz/Rollen, Flugbuch, Ereignis, Karte, Medien |
+| `0087_sso_entra.py` | SSO Entra ID: OrgSsoConfig, OrgSsoGroupMap; User.entra_oid/tid/auth_provider |
+| `0088_sso_security_fixes.py` | SSO Sicherheits-Fixes (password_hash nullable) |
+| `0089_geraeteverleih_tabellen.py` | Geräteverleih: VerleihArtikel, Stückliste, Ausleihe, Position |
+| `0090_orgsettings_gsl_erweiterung.py` | OrgSettings: GSL-Einstellungen, Geräteverleih-Flag |
+| `0091_verleih_foto.py` | Geräteverleih: Foto-Anhänge |
+| `0092_verleih_ausleihe_notizen.py` | Geräteverleih: Notizfeld für Ausleihen |
+| `0093_uas_medien_upload.py` | UAS-Medien: echter Datei-Upload mit Bild/Video-Konvertierung |
 
 Vollständiger Migrationsleitfaden: [`docs/MIGRATION_RUNBOOK.md`](docs/MIGRATION_RUNBOOK.md)
 
@@ -551,6 +577,7 @@ tests/
 │    ui_archive       – Archiv, PDF-Export                │
 │    ui_admin         – Stammdaten, Benutzer, Audit       │
 │    ui_settings      – Org-Einstellungen, ZIP-Update     │
+│    ui_sso           – SSO-Self-Service, Gruppen-Mapping │
 │    ui_backup        – Konfig-Export/Import              │
 │    ui_sysadmin      – System-Admin-Konsole              │
 │    ui_invitation    – Einladungslinks                   │
@@ -558,6 +585,9 @@ tests/
 │    ui_profile       – Benutzer-Profil (Name/Avatar)     │
 │    ui_stats         – Statistik                         │
 │    ui_push          – Web-Push-Verwaltung               │
+│    ui_uas           – UAS/Drohnen-Modul                 │
+│    ui_verleih       – Geräteverleih                     │
+│    sso              – SSO OAuth2/PKCE Callback          │
 │    public           – Bürger-Meldeportal (öffentlich)   │
 │    api_v1           – REST-API (Alarmierung, Lage)      │
 │    device_api       – SMS-Gateway-/Geräte-Anbindung     │
@@ -581,6 +611,11 @@ tests/
 │    lagemeldung_service   – SKKM-Regelkreis-Timer         │
 │    gsl_lagemeldung_remind– Auto-Auftrag bei Überfäll.    │
 │    gsl_staff_service     – Stab/Einsatzjournal           │
+│    sso_service           – OIDC/PKCE, JIT-Provisioning  │
+│    uas_compliance_service– UAS Pilot-Freigabe, Ampel     │
+│    uas_pdf_service       – UAS PDF-Anhänge 8.1–8.6      │
+│    verleih_service       – Geräteverleih Logik           │
+│    verleih_erinnerung    – SMS-Erinnerungen Ausleihen    │
 │    weather_service       – Wetter-Aggregation            │
 │    kachelmann_service    – Kachelmann Plus-API           │
 │    weather_focus         – Sturm-/Waldbrand-Szenario     │
@@ -843,12 +878,12 @@ app/
     ├── media/               gallery.html
     ├── admin/               sysadmin_orgs.html, konfig.html, ...
     └── ...
-alembic/versions/            Migrationen 0001–0079
+alembic/versions/            Migrationen 0001–0093
 docs/
 ├── MIGRATION_RUNBOOK.md     Vollständiger Migrationsleitfaden
 ├── multi-tenancy-konzept.md Technisches Konzeptdokument
-└── wiki/                    GitHub-Wiki-Quelldateien
-tests/                       pytest-Suite (26 Testmodule, 335+ Tests)
+└── wiki/                    GitHub-Wiki-Quelldateien (Home, Anwender, Admin, Entwickler)
+tests/                       pytest-Suite (26+ Testmodule, 335+ Tests)
 app_storage/incident_media/  Medien-Dateien (Auth-geschützt, nicht im Repo)
 ```
 
@@ -867,7 +902,9 @@ app_storage/incident_media/  Medien-Dateien (Auth-geschützt, nicht im Repo)
 
 | Version | Datum | Highlights |
 |---------|-------|------------|
-| **2.5.0** | 2026-06-19 | Großschadenslage-Ressourcenverwaltung (Einheiten anlegen/disponieren, Mehrfach-Disposition, Fremdorganisations-Ressourcen, Ressourcen-Journal); Taktische Lagekarte nach ÖBFV E-27 (ÖNORM-Symbole, Magnetfarben, Legende); Lagekarte-Druck A4/A3 mit Druckvorschau, Fußzeile & Print-Center; SKKM-Lagemeldungs-Regelkreis (Lage→Auftrag→Kontrolle); übergreifende Meldungen mit Status-Workflow, Medien & Druck; Einsatzkarte mit Live-Updates & Foto-Upload; Kachelmann-Wetter-Primärquelle; Bürgermeldungs-Foto-Übertragung; Testsystem-Modus (`TEST_SYSTEM=true`: Badge im Header + Hinweis auf allen Ausdrucken) |
+| **2.7.0** | 2026-06-22 | Geräteverleih-Modul (Artikel, Stücklisten, Barcode-Scan, SMS-Erinnerungen, Foto, Druckschein); Mobil-Navigation GSL (Burger-Menü, Bottom-Tab-Bar); UAS: echter Medien-Upload (Bild/Video), Abschluss-Banner, Flugbuch-Sperre; Drohneneinsatz direkt vom Einsatz-Board startbar; SSO: login_hint, Security-Fixes; Admin-Sidebar Mobiloptimierung |
+| **2.6.0** | 2026-06-20 | UAS/Drohnen-Modul vollständig (PR 0–8): Geräteregister, Wartungsbuch, Pilotenregister (Lizenzen/Qualifikationen), UAS-Einsatz (Status-Workflow, Mindestbesetzung), Flugbuch mit Vor-/Nachflug-Checklisten (4-Augen), Notfall-/Unfall-Workflow (ACG-Meldung, Meldekette), Karte (GeoJSON, Landebefehl-Banner), PDF-Anhänge 8.1–8.6, DSGVO-Medien-Workflow, Compliance-Dashboard; SSO Microsoft Entra ID (PR 1–6): PKCE/OIDC, JIT-Provisioning, Gruppen→Rollen-Mapping, enforce_sso, Fernet-verschlüsseltes Secret |
+| **2.5.0** | 2026-06-19 | GSL-Ressourcenverwaltung (Einheiten anlegen/disponieren, Mehrfach-Disposition, Fremdorganisations-Ressourcen, Ressourcen-Journal); Taktische Lagekarte nach ÖBFV E-27 (ÖNORM-Symbole, Magnetfarben, Legende); Lagekarte-Druck A4/A3 mit Druckvorschau, Fußzeile & Print-Center; SKKM-Lagemeldungs-Regelkreis (Lage→Auftrag→Kontrolle); übergreifende Meldungen mit Status-Workflow, Medien & Druck; Einsatzkarte mit Live-Updates & Foto-Upload; Kachelmann-Wetter-Primärquelle; Bürgermeldungs-Foto-Übertragung; Testsystem-Modus |
 | **2.4.0** | 2026-06-13 | Wetterdaten-Integration: Nowcast (15-min), Ist-Werte, +6/+12/+24h-Vorhersage, Unwetterwarnungen (GeoSphere Austria CC BY 4.0); Sturm- und Waldbrand-Szenario-Alerts; Radar-Layer (RainViewer) auf Lagekarte; Wetter-Panel in GSL-Board und Einzeleinsatz; globale `/wetter`-Seite; org-spezifisches Opt-out |
 | **2.3.0** | 2026-06-13 | Großschadenslage-Karte: Abschnitte live ohne Reload, Pin-Modus mit Reverse Geocoding, Geoman-Toolbar auf Deutsch; Stab: BMI SKKM-Einsatzjournal als erstes Tab; Dashboard: Abschnitt-Polygone auf Mini-Karte |
 | **2.2.0** | 2026-06-11 | Multi-Tenancy vollständig (12 PRs): Row-Level-Isolation, Org-Onboarding, KI je Org, Speicher-Quotas, Einladungsmodell, Auto-Schließen, Rate-Limiting, API-Härtung, System-Konsole, Migration-Runbook |

@@ -38,6 +38,49 @@
   </div>
 </div>
 
+<div class="chart-box" style="margin-bottom:24px; padding:20px 24px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+    <h3 style="margin:0;">Dokumentation & Hilfe</h3>
+    <a href="https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/wiki"
+       target="_blank" rel="noopener"
+       class="btn btn-sm"
+       style="font-size:.8rem;">Vollständiges Wiki ↗</a>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px;">
+    {% set wiki_links = [
+      ('📖', 'Erste Schritte', 'Anwender-Erste-Schritte'),
+      ('🚨', 'Einsatz starten', 'Anwender-Einsatz-starten'),
+      ('🗂️', 'Kanban-Board', 'Anwender-Kanban-Board-bedienen'),
+      ('🔴', 'Atemschutz', 'Anwender-Atemschutzueberwachung'),
+      ('🏚️', 'Großschadenslage', 'Anwender-Grosschadenslage'),
+      ('🗺️', 'Lagekarte GSL', 'Anwender-Grosschadenslage-Karte'),
+      ('🎯', 'Taktische Karte', 'Anwender-Taktische-Lagekarte'),
+      ('⛅', 'Wetter', 'Anwender-Wetter'),
+      ('📢', 'Übergreifende Meldungen', 'Anwender-Uebergreifende-Meldungen'),
+      ('👥', 'GSL-Ressourcen', 'Anwender-GSL-Ressourcenverwaltung'),
+      ('📦', 'Geräteverleih', 'Anwender-Geraeteverleih'),
+      ('🚁', 'Drohne / UAS', 'Anwender-Drohne-UAS'),
+      ('🔑', 'Single Sign-On', 'Administration-Single-Sign-On'),
+      ('🛠️', 'Installation', 'Installation-App-Installation'),
+      ('💬', 'Fehler & Wünsche', 'Feedback-und-Support'),
+    ] %}
+    {% for icon, label, slug in wiki_links %}
+    <a href="https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/wiki/{{ slug }}"
+       target="_blank" rel="noopener"
+       style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;
+              background:var(--surface-high);border:1px solid var(--border);
+              color:var(--on-surface);text-decoration:none;font-size:.88rem;
+              transition:background .12s,border-color .12s;"
+       onmouseover="this.style.background='var(--surface-highest)';this.style.borderColor='var(--border-focus,#4a6fa5)'"
+       onmouseout="this.style.background='var(--surface-high)';this.style.borderColor='var(--border)'">
+      <span style="font-size:1rem;flex-shrink:0;">{{ icon }}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ label }}</span>
+      <span style="margin-left:auto;font-size:.72rem;color:var(--text-muted);flex-shrink:0;">↗</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
 <div class="charts-grid" style="padding:0; grid-template-columns: 1fr 1fr;">
   <div class="chart-box">
     <h3>Letzte Einsätze</h3>

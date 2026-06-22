@@ -157,6 +157,65 @@ Einsatzstellen ohne bekannte Koordinaten erscheinen nicht auf der Karte, werden 
 
 ---
 
+## Taktischer Modus (ÖBFV E-27)
+
+Die Lagekarte kann in einen **taktischen Anzeigemodus** nach ÖBFV-Richtlinie E-27 umgeschaltet werden:
+
+- Einsatzstellen erhalten **normierte taktische Symbole** (Quadrat, Dreieck, Kreis je Einsatzart)
+- Einheiten werden mit **Magnetfarben** dargestellt (Rot = Feuerwehr, Blau/Weiß = Sanitäts, ...)
+- Eine **taktische Legende** kann ein-/ausgeblendet werden
+- Der Modus ist für Druckausdrucke geeignet (Legende erscheint automatisch)
+
+**Umschalten:** Karten-Steuerung oben rechts → **„Taktisch"**-Schalter.
+
+→ Vollständige Dokumentation: [Taktische Lagekarte (ÖBFV E-27)](Anwender-Taktische-Lagekarte)
+
+---
+
+## Radar-Overlay (Niederschlag)
+
+Das **Niederschlagsradar-Overlay** (via RainViewer) kann über die Karten-Steuerung ein-/ausgeblendet werden:
+
+- Letzte 2 Stunden (animiert rückwärts)
+- Aktueller Nowcast
+- Farbskala: blau (leicht) → rot (stark)
+
+Das Overlay benötigt Internetverbindung und ist nicht für Offline-Betrieb verfügbar.
+
+→ Mehr zur Wetter-Integration: [Wetter](Anwender-Wetter)
+
+---
+
+## Druck & Print-Center {#druck--print-center}
+
+Die Lagekarte kann als **PDF / Druckvorschau** ausgegeben werden.
+
+### Einfacher Druck
+
+Über **Drucken** (oben rechts in der Karten-Toolbar):
+- Druckformat: **A4** oder **A3**
+- Kartenausschnitt: aktueller Zoom/Pan-Stand
+- Inhalt: **Lagekarte** (nur Karte) oder **Lagebericht** (Karte + Einsatzstellen-Tabelle)
+
+### Print-Center (Sammeldruck)
+
+Das Print-Center ermöglicht das **Mehrfach-Drucken** mehrerer Konfigurationen in einem Schritt:
+
+1. **Print-Center** öffnen (Button in der Toolbar)
+2. Gewünschte Kombinationen wählen (Karte A4, Lagebericht A3, Taktisch A4, ...)
+3. **Sammeldruck** → alle gewählten Konfigurationen als separate PDFs oder in einem Multi-Page-PDF
+
+### Druckfußzeile
+
+Jeder Ausdruck enthält automatisch eine Fußzeile mit:
+- Org-Logo
+- Name der Großschadenslage
+- Zeitstempel des Drucks
+- Einsatzstellen-Statistik (Anzahl nach Phase/Priorität)
+- Ressourcen-Übersicht (aktive Einheiten)
+
+---
+
 ## Berechtigungen
 
 | Funktion | Rolle |
@@ -164,3 +223,6 @@ Einsatzstellen ohne bekannte Koordinaten erscheinen nicht auf der Karte, werden 
 | Karte ansehen | `readonly` und höher |
 | Abschnitt-Polygon zeichnen / bearbeiten | `recorder`, `incident_leader`, `admin`, `org_admin` |
 | Einsatzstelle per Pin-Modus anlegen | `recorder`, `incident_leader`, `admin`, `org_admin` |
+| Taktischer Modus anzeigen | alle |
+| Radar-Overlay anzeigen | alle |
+| Drucken / Print-Center | `recorder`, `incident_leader`, `admin`, `org_admin` |

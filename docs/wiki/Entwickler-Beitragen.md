@@ -88,6 +88,20 @@ alembic revision --autogenerate -m "beschreibung"
 
 Die generierte Datei in `alembic/versions/` überprüfen (autogenerate erkennt nicht alles korrekt) und committen.
 
+## Feature-Flag-Pattern (Opt-in-Module)
+
+Neue optionale Module (wie UAS oder Geräteverleih) werden zweistufig gesichert:
+
+1. **System-Flag** (`SystemSettings`-Key, z.B. `uas_module_enabled`): System-Admin schaltet das Modul systemweit frei.
+2. **Org-Flag** (`OrgSettings`-Spalte, z.B. `uas_module_enabled`): Org-Admin aktiviert das Modul für die eigene Org.
+3. **Guard**: FastAPI-Dependency `require_xxx_enabled` prüft `request.state.xxx_module_enabled` → HTTP 404 wenn deaktiviert.
+4. **State-Propagation**: `request.state.xxx_module_enabled` wird in `_resolve_current_org()` (Global-Dependency) gesetzt.
+5. **Navigation**: `{% if request.state.xxx_module_enabled %}...{% endif %}` in `base.html`.
+
+Vorbild: `app/routers/ui_uas.py` (`require_uas_enabled`).
+
+---
+
 ## Design-Prinzipien
 
 - **Einfachheit vor Cleverness**: Das Tool wird im Stress-Szenario bedient. Lieber eine Funktion weniger als eine unverständliche.

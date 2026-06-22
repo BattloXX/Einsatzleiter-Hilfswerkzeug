@@ -19,21 +19,30 @@ Browser (HTMX + Alpine.js + WebSocket)
     │   └── SlowAPI             – Rate-Limiting (IP + API-Key)
     ├── Routers (HTTP-Endpunkte)
     │   ├── auth.py             – Login / Logout / QR-Login / Geräte-Login
+    │   ├── sso.py              – SSO OAuth2/PKCE Callback, /sso/discover
     │   ├── ui_incident.py      – Einsatz-Board (HTMX-Partials)
+    │   ├── ui_major_incident.py– Großschadenslage, Einsatzkarte, Disposition
+    │   ├── ui_gsl_staff.py     – Stab, SKKM-Einsatzjournal, Funkjournal
     │   ├── ui_breathing.py     – Atemschutzüberwachung
     │   ├── ui_media.py         – Galerie, Auth-geschützte Datei-Auslieferung
     │   ├── ui_archive.py       – Archiv & PDF-Export
     │   ├── ui_admin.py         – Stammdaten, Benutzer, API-Keys, Audit
     │   ├── ui_settings.py      – Org-Einstellungen, ZIP-Update
+    │   ├── ui_sso.py           – SSO-Self-Service, Gruppen-Mapping CRUD
     │   ├── ui_backup.py        – Konfig-Export/Import (JSON, Dry-Run)
     │   ├── ui_sysadmin.py      – System-Admin-Konsole (per-Org KPIs)
     │   ├── ui_invitation.py    – Einladungslinks für neue Org-Admins
     │   ├── ui_ai_prompts.py    – KI-Prompt-Verwaltung (Versionierung)
     │   ├── ui_stats.py         – Statistik-Dashboard
     │   ├── ui_push.py          – Web-Push-Verwaltung
+    │   ├── ui_weather.py       – Wetter-Panel, /wetter-Seite
+    │   ├── ui_uas.py           – UAS/Drohnen-Modul (Geräte, Piloten, Einsätze)
+    │   ├── ui_verleih.py       – Geräteverleih (Ausleihe, Stücklisten)
+    │   ├── ui_profile.py       – Benutzer-Profil (Name/E-Mail/Passwort/Avatar)
     │   ├── ui_password_reset.py
     │   ├── api_v1.py           – REST-API (Alarmierung, Lage-Alarm)
     │   ├── lagekarte_api.py    – GeoJSON-Feed für lagekarte.info
+    │   ├── device_api.py       – SMS-Gateway/Geräte-WebSocket-Anbindung
     │   └── ws.py               – WebSocket Pub/Sub
     ├── Core
     │   ├── security.py        – Passwort-Hashing, Session, API-Key, QR-Token
@@ -41,30 +50,59 @@ Browser (HTMX + Alpine.js + WebSocket)
     │   ├── queries.py         – visible_incidents_q() — Tenant-Filterung
     │   ├── rate_limit.py      – slowapi-Instanz + get_api_key_identifier()
     │   ├── audit.py           – Audit-Log-Writer
+    │   ├── crypto.py          – Fernet encrypt_secret/decrypt_secret (SSO)
     │   └── templating.py      – Jinja2-Env + local-Filter
     ├── Services (Geschäftslogik)
     │   ├── incident_service.py
-    │   ├── media_service.py   – Upload-Pipeline (Bild/PDF/Video/HEIC)
-    │   ├── broadcast.py       – WS Pub/Sub-Manager
-    │   ├── pdf_service.py     – WeasyPrint
-    │   ├── push_service.py    – VAPID Push
-    │   ├── autoclose.py       – Hintergrund-Job Auto-Schließen
-    │   ├── ai_service.py      – Anthropic Claude
-    │   ├── alarm_service.py   – Alarmtyp-Lookup
-    │   ├── seed_service.py    – Seed-Template bei Org-Anlage
-    │   ├── sms_service.py     – SMS via Gateway-Container
-    │   ├── mail_service.py    – SMTP (Passwort-Reset, Einladungen)
-    │   └── update_service.py  – ZIP-Update + Alembic
+    │   ├── major_incident_service.py – Großschadenslage: Stellen, Phasen, Cross-Marker
+    │   ├── resource_service.py       – GSL-Ressourcen + Mehrfach-Disposition
+    │   ├── lagemeldung_service.py    – SKKM-Regelkreis Timer-Logik
+    │   ├── gsl_lagemeldung_reminder.py – Auto-Auftrag bei Überfälligkeit (Loop)
+    │   ├── gsl_staff_service.py      – Stab, Einsatzjournal, Funkjournal
+    │   ├── lagekarte.py              – Lagekarte-Geometrie-Persistenz
+    │   ├── site_pages.py             – Einsatzstellen-Druck/Seiten
+    │   ├── weather_service.py        – Wetter-Aggregation + Cache + Fallback
+    │   ├── kachelmann_service.py     – Kachelmann Plus-API-Client
+    │   ├── weather_focus.py          – Sturm-/Waldbrand-Szenario-Analyse
+    │   ├── geocoding.py / geo_service.py  – Adresse ↔ Koordinaten
+    │   ├── address_autocomplete.py   – Adress-Suche (Bürgerportal, Pin)
+    │   ├── media_service.py          – Upload-Pipeline (Bild/PDF/Video/HEIC)
+    │   ├── lage_media_service.py     – GSL-Medien (Einsatzstellen-Fotos)
+    │   ├── storage_service.py        – Speicher-Quota-Verwaltung
+    │   ├── sso_service.py            – OIDC/PKCE, JWKS-Cache, JIT-Provisioning
+    │   ├── uas_compliance_service.py – UAS Pilot-Freigabe, Wartungsampel
+    │   ├── uas_pdf_service.py        – UAS PDF-Anhänge (8.1–8.6)
+    │   ├── verleih_service.py        – Geräteverleih Logik
+    │   ├── verleih_erinnerung.py     – SMS-Erinnerungen für Ausleihen
+    │   ├── pdf_service.py            – WeasyPrint PDF-Generierung
+    │   ├── push_service.py           – Web-Push (VAPID)
+    │   ├── broadcast.py              – WS-Pub/Sub-Manager
+    │   ├── autoclose.py              – Auto-Schließen Hintergrund-Service
+    │   ├── task_reminder.py          – Auftrags-/Meldungs-Fälligkeits-Reminder
+    │   ├── breathing_service.py      – Atemschutz-Logik
+    │   ├── ai_service.py             – Anthropic Claude Integration
+    │   ├── alarm_service.py          – Alarmtyp-Lookup + org-aware
+    │   ├── seed_service.py           – Seed-Template-Anwendung bei Org-Anlage
+    │   ├── sms_service.py            – SMS-Versand via Gateway-Container
+    │   ├── mail_service.py           – SMTP (Passwort-Reset, Einladungen)
+    │   └── update_service.py         – ZIP-Update + Alembic-Migration
     └── Models (SQLAlchemy ORM)
-        ├── incident.py   – Incident, Task, TaskMedia, IncidentOrg, IncidentToken, ...
-        ├── user.py       – User, Role, ApiKey, AuditLog, DeviceToken, ...
-        ├── master.py     – FireDept, Member (TenantScoped), AlarmType (TenantScoped), OrgSettings, SeedTemplate, ...
-        ├── invitation.py – OrgInvitation
-        └── breathing.py  – BreathingTroop, TroopMember, PressureLog
+        ├── incident.py       – Incident, Task, TaskMedia, IncidentOrg, IncidentToken, ...
+        ├── major_incident.py – Großschadenslage: IncidentSite, Sector, SiteLogEntry,
+        │                       LageEinheit, LageDispatch, CrossSiteMarker, SiteMedia, ...
+        ├── lagekarte.py      – Lagekarte-Geometrie, Marker, Fahrzeug-Positionen
+        ├── user.py           – User (entra_oid/tid/auth_provider), Role, ApiKey, AuditLog, ...
+        ├── master.py         – FireDept, Member (TenantScoped), AlarmType (TenantScoped),
+        │                       OrgSettings (uas_module_enabled, weather_enabled, ...), SeedTemplate, ...
+        ├── sso.py            – OrgSsoConfig, OrgSsoGroupMap
+        ├── uas.py            – UASDevice, UASPilot, UASEinsatz, UASFlug, UASEreignis, ...
+        ├── verleih.py        – VerleihArtikel, VerleihStueckliste, VerleihAusleihe, ...
+        ├── invitation.py     – OrgInvitation
+        └── breathing.py      – BreathingTroop, TroopMember, PressureLog
          │
     SQLAlchemy 2.x (ORM + do_orm_execute Tenant-Filter + Alembic)
          │
-    MariaDB 10.11 (UTF8MB4, InnoDB, 55 Migrationen)
+    MariaDB 10.11 (UTF8MB4, InnoDB, 93 Migrationen)
 ```
 
 ## Multi-Tenancy: Row-Level-Isolation

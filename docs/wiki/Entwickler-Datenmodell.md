@@ -27,6 +27,11 @@ org_settings                     ← 1:1 zu fire_dept
   primary_color, footer_text
   mi_auto_adopt
   autoclose_enabled (NULL = global), autoclose_after_hours, autoclose_grace_minutes
+  weather_enabled (BOOL, Default 1)   ← Wetter-Opt-out je Org
+  uas_module_enabled (BOOL, Default 0) ← UAS-Modul je Org (zusätzlich zu SystemSettings)
+  gsl_lagemeldung_enabled (BOOL)      ← SKKM-Regelkreis aktivieren
+  gsl_lagemeldung_interval_min        ← Fälligkeitsintervall in Minuten
+  gsl_verleih_enabled (BOOL)          ← Geräteverleih-Modul aktivieren
 ```
 
 ## Stammdaten (TenantScoped = automatisch nach org_id gefiltert)
@@ -216,6 +221,144 @@ lagekarte_token          ← Read-only GeoJSON-Feed-Tokens
 
 major_incident_*         ← Großschadenslage (Phasen-Kanban, Einsatzstellen, Stab, ...)
   (siehe app/models/major_incident.py)
+
+lage_einheit             ← GSL-Ressourcen/Einheiten
+  id, major_incident_id FK, org_id FK
+  bezeichnung, typ (feuerwehr|rettung|polizei|technisch|sonstig)
+  fremdorg_name, tetra_rufname, bemerkungen
+  display_order
+
+lage_dispatch            ← Mehrfach-Disposition (m:n Einheit ↔ Einsatzstelle)
+  id, einheit_id FK, site_id FK, major_incident_id FK
+  assigned_at, assigned_by_user_id FK?
+
+cross_site_marker        ← Übergreifende Meldungen
+  id, major_incident_id FK
+  titel, status (meldung|achtung|hinweis|information)
+  notizen, lat, lng, address
+  is_done, done_at
+```
+
+## SSO (Microsoft Entra ID)
+
+```
+org_sso_config           ← SSO-Konfiguration je Org
+  id, org_id FK (UNIQUE)
+  tenant_id, client_id
+  client_secret_enc (Fernet-verschlüsselt)
+  allowed_domains (CSV), default_role_code
+  enforce_sso (BOOL), sso_enabled (BOOL)
+
+org_sso_group_map        ← Gruppen-Rollen-Mapping
+  id, org_id FK, group_object_id, role_code, label
+```
+
+Felder in `user`:
+```
+user.entra_oid           ← Azure Object-ID des Benutzers
+user.entra_tid           ← Azure Tenant-ID
+user.auth_provider       ← 'local' oder 'entra'
+user.password_hash       ← NULL wenn nur SSO
+```
+
+## UAS / Drohnen-Modul
+
+```
+uas_device  [TenantScoped: org_id]
+  id, org_id FK
+  bezeichnung, hersteller, typ_modell, registriernummer
+  ce_klasse, unterkategorie, mtom_g, leergewicht_g
+  waermebildkamera, allwettertauglich
+  versicherungspolizze, versicherung_gueltig_bis
+  sybos_id, beschaffungsdatum, tauschintervall_jahre
+  status (aktiv|ausser_betrieb|ausgemustert)
+  notizen
+
+uas_wartung              ← Wartungsbuch je Gerät
+  id, device_id FK, wartungsart, pruefdatum, pruefer
+  ergebnis (io|nicht_io|bedingt_io)
+  naechste_faelligkeit, bemerkungen
+  positionen (JSON: Checklisten-Punkte)
+
+uas_pilot  [TenantScoped: org_id]
+  id, org_id FK, member_id FK?
+  nachname, vorname, geburtsdatum
+  a1a3_nr, a1a3_gueltig_bis
+  a2_nr, a2_gueltig_bis
+  bos_stufe, bos_datum, bos_rezertifizierung_bis
+  lfv_zugelassen (BOOL), ist_truppfuehrer (BOOL), aktiv (BOOL)
+  qualifikationen (JSON)
+
+uas_flugbewegung         ← Manuelle Flugbewegungen (Pilot-Profil)
+  id, pilot_id FK, datum, art, dauer_min, bemerkungen
+
+uas_einsatz              ← UAS-Einsatz verknüpft mit Incident
+  id, incident_id FK, org_id FK
+  status (alarmiert|angemeldet|im_einsatz|abgemeldet|abgeschlossen)
+  tetra_rufname, betreibernummer, einsatzgrund
+  gesamteinsatzleiter, datenschutz_bestaetigt
+  alarmierungszeitpunkt, startzeit, endzeit
+
+uas_einsatz_rolle        ← Teambesetzung je UAS-Einsatz
+  id, einsatz_id FK, pilot_id FK?
+  rolle (teamleiter|pilot|operator|luftraumbeobachter|...)
+  helfer_name, override_begruendung
+
+uas_flug                 ← Flugbuch
+  id, einsatz_id FK, device_id FK, pilot_id FK
+  startzeit, landezeit, luftraum, hoehe_m
+  durchfuehrungsgrundlage, wetterdaten (JSON)
+  missionsziel, besonderheiten
+
+uas_checkliste           ← Vor-/Nachflug-Checkliste (4-Augen)
+  id, flug_id FK, art (vor|nach)
+  abgehakt (JSON), sign1_name, sign1_at, sign2_name, sign2_at
+
+uas_ereignis             ← Notfall-/Unfall-Workflow
+  id, einsatz_id FK, art (notfall|unfall)
+  beschreibung, meldekette_stufe (1-4)
+  acg_meldung_at, nachbericht_at
+
+uas_kartenobjekt         ← Karte des UAS-Einsatzes
+  id, einsatz_id FK, typ, geojson (TEXT)
+  bezeichnung, farbe
+
+uas_medien               ← DSGVO-Medien-Verwaltung
+  id, einsatz_id FK
+  dateiname, stored_path, mime_type, file_size_bytes
+  dsgvo_status (erfasst|begruendet|zur_loeschung|geloescht)
+  rechtsgrundlage, loeschfrist_datum, geloescht_at
+```
+
+## Geräteverleih
+
+```
+verleih_artikel  [TenantScoped: org_id]
+  id, org_id FK
+  bezeichnung, barcode, einheit (stk|satz|karton|kg|l)
+  bestand, beschreibung, aktiv
+
+verleih_stueckliste  [TenantScoped: org_id]
+  id, org_id FK, bezeichnung, beschreibung
+
+verleih_stueckliste_position
+  id, stueckliste_id FK, artikel_id FK, menge
+
+verleih_ausleihe  [TenantScoped: org_id]
+  id, org_id FK, lage_id FK
+  site_id FK? (Einsatzstelle), einheit_freitext
+  artikel_id FK? / stueckliste_id FK?
+  status (offen|teilweise|zurueck)
+  ausgeliehen_at, zurueck_at
+  notizen, ausgegeben_von_user_id FK?
+
+verleih_position         ← Einzelpositionen einer Ausleihe
+  id, ausleihe_id FK, artikel_id FK
+  menge_ausgegeben, menge_zurueck, zurueck_at
+
+verleih_foto
+  id, ausleihe_id FK, stored_path, thumb_path
+  created_at, created_by_user_id FK?
 ```
 
 ## Wichtige Indexe

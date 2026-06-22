@@ -143,11 +143,90 @@ Das Dashboard (`/lage/{id}/dashboard`) bietet eine Echtzeit-Übersicht über:
 
 ---
 
+## SKKM-Lagemeldungs-Regelkreis
+
+Der **Lagemeldungs-Regelkreis** stellt sicher, dass für jede aktive Einsatzstelle regelmäßig eine Lagemeldung abgegeben wird. Er folgt dem SKKM-Führungskreis: **Lage → Auftrag → Kontrolle**.
+
+### Wie es funktioniert
+
+1. **Lage**: Jede Einsatzstelle zeigt einen **Fälligkeits-Timer** für die nächste Lagemeldung an.
+2. **Auftrag**: Wird eine Lagemeldung überfällig, legt das System **automatisch einen Auftrag** im Funkjournal der Einsatzstelle an (Art: `auto_lagemeldung`).
+3. **Kontrolle**: Der Einsatzleiter quittiert den automatischen Auftrag, wenn die Lagemeldung eingegangen ist — der Timer startet neu.
+
+### Konfiguration (Org-Admin)
+
+- **Fälligkeitsintervall**: Einstellbar je Einsatzstelle (Standard: 15 Minuten)
+- **Automatischer Auftrag**: Kann in den GSL-Einstellungen aktiviert/deaktiviert werden
+
+### Anzeige im Board
+
+- Ein **Chip** am oberen Rand der Board-Karte zeigt den aktuellen Status:
+  - 🟢 Lagemeldung aktuell
+  - 🟡 Lagemeldung bald fällig
+  - 🔴 Lagemeldung überfällig
+
+---
+
+## Ressourcenverwaltung (Einheiten)
+
+Das **Ressourcen-Tab** im GSL-Board ermöglicht die Erfassung und Disposition von Einheiten:
+
+- Eigene Fahrzeuge/Trupps anlegen
+- **Fremdorganisations-Einheiten** (z.B. FF Lauterach, Rotes Kreuz, Polizei)
+- Einheiten per Drag & Drop sortieren
+- **Mehrfach-Disposition**: Eine Einheit kann gleichzeitig an mehreren Einsatzstellen disponiert sein
+- Ressourcen-Journal mit vollständigem Dispositions-Verlauf
+
+→ Vollständige Dokumentation: [GSL-Ressourcenverwaltung](Anwender-GSL-Ressourcenverwaltung)
+
+---
+
+## Übergreifende Meldungen
+
+Im Phasen-Dropdown gibt es die Spalte **„Übergreifend"** für lageweite Meldungen, die nicht an eine einzelne Einsatzstelle gebunden sind — z.B. Straßensperren, Sammelplätze, Gefahrenbereiche.
+
+Übergreifende Meldungen haben:
+- Status-Workflow (Meldung / Achtung / Hinweis / Information)
+- Standort-Koordinaten mit Mini-Karte
+- Foto-Upload
+- Anzeige auf der Lagekarte
+
+→ Vollständige Dokumentation: [Übergreifende Meldungen](Anwender-Uebergreifende-Meldungen)
+
+---
+
+## Wetter im GSL-Board
+
+Das GSL-Board enthält ein **Wetter-Tab** mit aktuellen Wetterdaten für den Lagestandort:
+- Nowcast (15 min), Ist-Werte, Vorhersage +6/+12/+24h
+- Amtliche Unwetterwarnungen (ZAMG)
+- Sturm- und Waldbrand-Szenario-Indikatoren
+
+Die Lagekarte zeigt zusätzlich ein **Radar-Overlay** (RainViewer).
+
+→ Vollständige Dokumentation: [Wetter-Integration](Anwender-Wetter)
+
+---
+
+## Geräteverleih
+
+Über das **Verleih-Tab** (muss in GSL-Einstellungen aktiviert sein) können Material und Geräte erfasst und dokumentiert werden:
+- Artikel einzeln oder als Stückliste ausgeben
+- Barcode/QR-Scan direkt im Browser
+- Rücknahme mit Mengenangabe
+- Druckschein und SMS-Erinnerungen
+
+→ Vollständige Dokumentation: [Geräteverleih](Anwender-Geraeteverleih)
+
+---
+
 ## Lage beenden
 
 1. Button **Lage beenden** im Board-Header
 2. Bestätigung erforderlich
 3. Status wechselt auf `closed`; das Board ist danach schreibgeschützt
+
+Org-Admins können eine beendete Lage **wiedereröffnen** (Button in der Lage-Liste).
 
 ---
 
@@ -159,6 +238,10 @@ Das Dashboard (`/lage/{id}/dashboard`) bietet eine Echtzeit-Übersicht über:
 | Einsatzstelle anlegen/bearbeiten | `recorder`, `incident_leader`, `admin`, `org_admin` |
 | Einsatzstelle via Karten-Pin anlegen | `recorder`, `incident_leader`, `admin`, `org_admin` |
 | Lage starten / beenden | `incident_leader`, `admin`, `org_admin` |
+| Lage wiedereröffnen | `org_admin`, `system_admin` |
 | Abschnitte verwalten / zeichnen | `incident_leader`, `admin`, `org_admin`, `recorder` |
 | Stab-Journal schreiben | `recorder`, `incident_leader`, `admin`, `org_admin` |
 | Stab-Journal löschen | `incident_leader`, `admin`, `org_admin` |
+| Ressourcen/Einheiten anlegen | `incident_leader`, `admin`, `org_admin` |
+| Übergreifende Meldungen anlegen | `recorder`, `incident_leader`, `admin`, `org_admin` |
+| Geräteverleih | `recorder`, `incident_leader`, `admin`, `org_admin` |

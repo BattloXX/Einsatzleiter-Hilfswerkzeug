@@ -2,11 +2,11 @@
 
 Digitales Einsatzleiter-Werkzeug für österreichische Feuerwehren — Multi-User, Multi-Organisations-fähig, Echtzeit.
 
-**Version:** 2.2.0 · **Python:** 3.14 · **FastAPI** + HTMX + MariaDB
+**Version:** 2.7.0 · **Python:** 3.14 · **FastAPI** + HTMX + MariaDB
 
 ## Was ist das?
 
-Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-HTML-Tool ersetzt und um echte Multi-User-Fähigkeit, Atemschutzüberwachung, Mannschaftsregister, Archiv, PDF-Export und vollständige Multi-Tenancy erweitert.
+Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-HTML-Tool ersetzt und um echte Multi-User-Fähigkeit, Atemschutzüberwachung, Mannschaftsregister, Archiv, PDF-Export, vollständige Multi-Tenancy, Großschadenslage-Führung und Drohnen-Dokumentation erweitert.
 
 **Kernfunktionen:**
 - Echtzeit-Kanban-Board für mehrere Geräte gleichzeitig (WebSockets)
@@ -15,9 +15,16 @@ Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-
 - Mannschaftsregister mit Qualifikationen und Ablaufdaten
 - Archiv mit vollständigem Audit-Log und PDF-Export
 - Multi-Tenancy: mehrere Organisationen, row-level isoliert, gemeinsame Einsätze via Kollaborationsmodell
+- Großschadenslage (GSL): Phasen-Kanban, Einsatzstellen, SKKM-Stab, Lagekarte, Ressourcenverwaltung
+- SKKM-Lagemeldungs-Regelkreis: Lage → Auftrag → Kontrolle mit Fälligkeits-Timern
+- Taktische Lagekarte nach ÖBFV-Richtlinie E-27 (genormte Symbole, Magnetfarben)
+- Wetterdaten-Integration: Nowcast, Vorhersage, Unwetterwarnungen, Radar-Overlay
+- UAS/Drohnen-Modul gemäß RL-UAS LFV Vorarlberg 2024 (Flugbuch, Checklisten, PDF, DSGVO)
+- SSO via Microsoft Entra ID (JIT-Provisioning, Gruppen-Mapping, PKCE/OIDC)
+- Geräteverleih für Großschadenslagen (Artikel, Stücklisten, Barcode-Scan, SMS)
 - PWA für Offline-Betrieb, Web-Push-Benachrichtigungen
 - QR-Code-Schnellzugriff für zustoßende Einsatzkräfte
-- KI-Assistent (Auftragsvorschläge, Lagebild) via Anthropic Claude — opt-in
+- KI-Assistent (Auftragsvorschläge, Lagebild, Auto-Priorisierung) via Anthropic Claude — opt-in
 - Rate-Limiting per IP und API-Key (slowapi)
 
 ## Inhaltsverzeichnis
@@ -52,8 +59,13 @@ Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-
 | [Mobile Nutzung / PWA](Anwender-Mobile-Nutzung-PWA) | Installieren, Offline-Verhalten |
 | [Push-Benachrichtigungen](Anwender-Push-Benachrichtigungen) | Aktivieren auf Handy und PC |
 | [Lagekarte.info](Anwender-Lagekarte) | Adresse & Koordinaten, Live-Fahrzeuge auf lagekarte.info |
-| [Großschadenslage](Anwender-Grosschadenslage) | Phasen-Kanban, Einsatzstellen, Abschnitte, Stab-Journal, KI-Priorisierung |
-| [Lagekarte der Großschadenslage](Anwender-Grosschadenslage-Karte) | Interaktive Karte, Abschnitt-Polygone zeichnen, Pin-Modus, Fahrzeuge |
+| [Wetter-Integration](Anwender-Wetter) | Nowcast, Vorhersage, Unwetterwarnungen, Radar-Overlay |
+| [Großschadenslage](Anwender-Grosschadenslage) | Phasen-Kanban, SKKM-Stab, Regelkreis, Ressourcen, GSL-Einheiten |
+| [Lagekarte der Großschadenslage](Anwender-Grosschadenslage-Karte) | Interaktive Karte, Polygone, Pin-Modus, Druck & Print-Center |
+| [Taktische Lagekarte (ÖBFV E-27)](Anwender-Taktische-Lagekarte) | Normkonforme Symbole, Magnetfarben, taktische Legende |
+| [Übergreifende Meldungen](Anwender-Uebergreifende-Meldungen) | Lageweite Cross-Marker mit Status-Workflow, Medien & Karte |
+| [GSL-Ressourcenverwaltung](Anwender-GSL-Ressourcenverwaltung) | Einheiten anlegen, disponieren, Mehrfach-Disposition, Fremdorg |
+| [Geräteverleih](Anwender-Geraeteverleih) | Ausgabe & Rücknahme von Material in der GSL, Barcode-Scan |
 | [Drohne / UAS](Anwender-Drohne-UAS) | BOS-Drohneneinsatz: starten, Flugbuch, Checklisten, Notfall, Medien, PDF |
 
 ### Administration
@@ -61,11 +73,12 @@ Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-
 |-------|-------------|
 | [Benutzer und Rollen](Administration-Benutzer-und-Rollen) | User anlegen, Rollen zuweisen, Lockout |
 | [Stammdaten pflegen](Administration-Stammdaten-pflegen) | Fahrzeuge, Alarmtypen, Auftragsvorschläge |
-| [Einstellungen](Administration-Einstellungen) | Org-Stammdaten, Logo, Auto-Schließen, Konfig-Backup |
+| [Einstellungen](Administration-Einstellungen) | Org-Stammdaten, Logo, Auto-Schließen, Wetter-Opt-out |
 | [Organisationen verwalten](Administration-Organisations-verwalten) | Multi-Org: anlegen, Seed-Profile, Einladungen, System-Konsole |
 | [API-Keys verwalten](Administration-API-Keys-verwalten) | Anlegen, Rotieren, Sperren |
 | [Audit-Log und Zeitreise](Administration-Audit-Log-und-Zeitreise) | Historie nachvollziehen, Stand rekonstruieren |
 | [Statistik-Dashboard](Administration-Statistik-Dashboard) | Kennzahlen interpretieren |
+| [Geräteverleih (Admin)](Administration-Geraeteverleih) | Artikel und Stücklisten pflegen, Verleih-Übersicht |
 | [Drohne / UAS](Administration-Drohne-UAS) | Modul aktivieren, Geräteregister, Wartungsbuch, Pilotenregister, Compliance |
 | [Single Sign-On (Entra ID)](Administration-Single-Sign-On) | Microsoft-365-Login einrichten, Gruppen-Mapping, JIT-Provisioning |
 
@@ -78,10 +91,16 @@ Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-
 | [WebSocket-Events](Entwickler-WebSocket-Events) | Event-Typen, Pub/Sub |
 | [Lokale Entwicklung](Entwickler-Lokale-Entwicklung) | uvicorn, Docker-Compose für DB, CSS-Build |
 | [Tests](Entwickler-Tests) | pytest, Fixtures, Multi-Tenancy-Tests, CI |
-| [Beitragen](Entwickler-Beitragen) | Branch-Strategie, PRs, Commits |
+| [Beitragen](Entwickler-Beitragen) | Branch-Strategie, PRs, Commits, Feature-Flag-Pattern |
+
+### Feedback & Support
+| Seite | Beschreibung |
+|-------|-------------|
+| [Fehler melden / Wünsche / Diskussion](Feedback-und-Support) | Bug Reports, Feature Requests und Diskussionen auf GitHub |
 
 ---
 
 **Repository:** https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug  
+**Issues & Feedback:** https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/issues  
 **Feuerwehr Wolfurt:** https://www.feuerwehr-wolfurt.at  
 **Migration-Runbook:** [docs/MIGRATION_RUNBOOK.md](../MIGRATION_RUNBOOK.md)
