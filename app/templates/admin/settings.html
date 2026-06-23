@@ -300,107 +300,12 @@
   </div>
 </section>
 
-{# ── Pegelmessstationen ──────────────────────────────────────────────────── #}
-<section class="card mb-4" id="pegel">
-  <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
-    <h2>&#x1F30A; Pegelmessstationen</h2>
-    <span class="badge badge--muted" style="font-size:.72rem;">Wetter-Panel &rsaquo; Tab &bdquo;Pegel&ldquo;</span>
-  </div>
-  <div class="card-body">
-
-    {% if request.query_params.get('abfluss_error') %}
-    <div class="alert alert--error" style="margin-bottom:1rem;">Ung&uuml;ltige Eingabe &ndash; hzbnr muss eine Zahl sein und Name darf nicht leer sein.</div>
-    {% endif %}
-
-    <div class="alert" style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:4px;padding:.6rem .9rem;font-size:.82rem;color:var(--text-primary);margin-bottom:1.25rem;">
-      <strong>So finden Sie die hzbnr:</strong>
-      Besuchen Sie <a href="https://vowis.vorarlberg.at" target="_blank" rel="noopener" style="color:var(--link);">vowis.vorarlberg.at</a>,
-      w&auml;hlen Sie eine Messstation aus und lesen Sie den Parameter
-      <code style="background:rgba(255,255,255,.1);padding:0 4px;border-radius:3px;">hzbnr=XXXXXX</code>
-      aus der URL ab, z.&thinsp;B.
-      <code style="background:rgba(255,255,255,.1);padding:0 4px;border-radius:3px;">ofwStation.aspx?hzbnr=200329</code>
-      &rarr; hzbnr <strong>200329</strong>.<br>
-      Werte werden alle 10&thinsp;Minuten von vowis abgerufen und tempor&auml;r im Arbeitsspeicher
-      gehalten (kein Neustart-Recovery).
-    </div>
-
-    {% set _stationen = (org_settings.abfluss_stationen_list if org_settings else []) %}
-    {% if _stationen %}
-    <table style="width:100%;border-collapse:collapse;margin-bottom:1.25rem;font-size:.85rem;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--border);">
-          <th style="text-align:left;padding:4px 10px 6px 0;color:var(--text-muted);font-weight:600;">hzbnr</th>
-          <th style="text-align:left;padding:4px 10px 6px;color:var(--text-muted);font-weight:600;">Name</th>
-          <th style="text-align:left;padding:4px 10px 6px;color:var(--text-muted);font-weight:600;">Beschreibung</th>
-          <th style="width:80px;"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for st in _stationen %}
-        <tr style="border-bottom:1px solid var(--border-subtle);">
-          <td style="padding:7px 10px 7px 0;"><code style="font-size:.82rem;">{{ st.hzbnr }}</code></td>
-          <td style="padding:7px 10px;">{{ st.name }}</td>
-          <td style="padding:7px 10px;color:var(--text-muted);font-size:.80rem;">{{ st.beschreibung or "&ndash;" }}</td>
-          <td style="padding:7px 0;">
-            <form method="post" action="/admin/settings/abfluss/remove" style="display:inline;">
-              <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-              <input type="hidden" name="hzbnr" value="{{ st.hzbnr }}">
-              {% if is_sysadmin and org %}<input type="hidden" name="target_org_id" value="{{ org.id }}">{% endif %}
-              <button type="submit" class="btn btn--danger btn--sm"
-                      onclick="return confirm('Station entfernen?');">
-                Entfernen
-              </button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1.25rem;">
-      Noch keine Stationen konfiguriert. Stationen unten hinzuf&uuml;gen.
-    </p>
-    {% endif %}
-
-    <form method="post" action="/admin/settings/abfluss/add">
-      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-      {% if is_sysadmin and org %}<input type="hidden" name="target_org_id" value="{{ org.id }}">{% endif %}
-      <fieldset style="border:1px solid var(--border);border-radius:6px;padding:.75rem 1rem;">
-        <legend style="font-size:.80rem;font-weight:600;color:var(--text-muted);padding:0 6px;">Station hinzuf&uuml;gen</legend>
-        <div style="display:grid;grid-template-columns:120px 1fr 1fr auto;gap:.5rem;align-items:end;">
-          <div>
-            <label style="font-size:.78rem;font-weight:600;display:block;margin-bottom:3px;">hzbnr *</label>
-            <input type="text" name="hzbnr" class="form-control" required
-                   placeholder="200329" pattern="[0-9]+" maxlength="10"
-                   title="Nur Ziffern, z.B. 200329">
-          </div>
-          <div>
-            <label style="font-size:.78rem;font-weight:600;display:block;margin-bottom:3px;">Name *</label>
-            <input type="text" name="name" class="form-control" required
-                   placeholder="Bregenzerach Kennelbach" maxlength="80">
-          </div>
-          <div>
-            <label style="font-size:.78rem;font-weight:600;display:block;margin-bottom:3px;">Beschreibung</label>
-            <input type="text" name="beschreibung" class="form-control"
-                   placeholder="Hauptzufluss Wolfurt (optional)" maxlength="200">
-          </div>
-          <div>
-            <button type="submit" class="btn btn--primary">Hinzuf&uuml;gen</button>
-          </div>
-        </div>
-      </fieldset>
-    </form>
-
-  </div>
-</section>
-
-{% if org %}
 <section class="card mb-4" style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);">
   <div class="card-body" style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
     <div>
-      <strong>&#x1F321;&#xFE0F; Wetter-Einstellungen wurden verschoben</strong>
+      <strong>&#x1F30A;&#x1F321;&#xFE0F; Wetter &amp; Pegel wurden verschoben</strong>
       <p style="margin:.25rem 0 0;font-size:.85rem;color:var(--text-muted);">
-        Wetterstation, Infoscreen-Dashboard und Wetter-Aktivierung finden Sie jetzt unter
+        Wetterstation, Pegelstationen, Kachelmann-API und Infoscreen-Dashboard finden Sie jetzt unter
         <strong>Einstellungen &rsaquo; Wetter</strong>.
       </p>
     </div>

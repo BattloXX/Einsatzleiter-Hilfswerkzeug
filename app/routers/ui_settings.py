@@ -358,8 +358,8 @@ async def abfluss_station_add(
     name = name.strip()[:80]
     beschreibung = beschreibung.strip()[:200]
     if not hzbnr or not name:
-        org_suffix = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
-        return RedirectResponse(f"/admin/settings?abfluss_error=ungueltig{org_suffix}", status_code=303)
+        amp = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
+        return RedirectResponse(f"/admin/settings/wetter?abfluss_error=ungueltig{amp}#pegel", status_code=303)
 
     org_s = db.query(OrgSettings).filter(OrgSettings.org_id == effective_org_id).first()
     if not org_s:
@@ -372,8 +372,8 @@ async def abfluss_station_add(
     org_s.abfluss_stationen = json.dumps(stationen, ensure_ascii=False)
     db.commit()
 
-    org_suffix = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
-    return RedirectResponse(f"/admin/settings?saved=1{org_suffix}#pegel", status_code=303)
+    amp = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
+    return RedirectResponse(f"/admin/settings/wetter?saved=1{amp}#pegel", status_code=303)
 
 
 @router.post("/settings/abfluss/remove")
@@ -398,8 +398,8 @@ async def abfluss_station_remove(
         from app.services import abfluss_service
         abfluss_service.remove_station(effective_org_id, hzbnr.strip())
 
-    org_suffix = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
-    return RedirectResponse(f"/admin/settings?saved=1{org_suffix}#pegel", status_code=303)
+    amp = f"&org_id={effective_org_id}" if has_role(user, "system_admin") else ""
+    return RedirectResponse(f"/admin/settings/wetter?saved=1{amp}#pegel", status_code=303)
 
 
 # ── Wetter-Einstellungsseite ─────────────────────────────────────────────────
@@ -422,6 +422,7 @@ def _weather_settings_context(request, db, user, org_id, **extra) -> dict:
         .all()
         if effective_org_id else []
     )
+    from app.services import kachelmann_service
     base_url = (app_settings.PUBLIC_BASE_URL or app_settings.APP_BASE_URL).rstrip("/")
     ctx = {
         "user": user,
@@ -436,6 +437,7 @@ def _weather_settings_context(request, db, user, org_id, **extra) -> dict:
         "weather_db_enabled": bool(app_settings.WEATHER_DATABASE_URL),
         "public_base_url": base_url,
         "dashboard_url": f"{base_url}/wetter/infoscreen/DASHBOARD_TOKEN",
+        "kachelmann_is_configured": kachelmann_service.is_configured(),
     }
     ctx.update(extra)
     return ctx
@@ -534,6 +536,45 @@ async def weather_toggle(
         request, "admin/settings_wetter.html",
         _weather_settings_context(request, db, user, org_id_param),
     )
+
+
+# ── Kachelmann API-Key (systemweit, nur system_admin) ────────────────────────
+
+@router.post("/settings/wetter/kachelmann")
+async def weather_kachelmann_save(
+    request: Request,
+    db=Depends(get_db),
+    user: User = Depends(require_role("system_admin")),
+    kachelmann_api_key: str = Form(""),
+):
+    from datetime import UTC, datetime
+
+    from app.models.master import SystemSettings
+
+    key_val = kachelmann_api_key.strip()
+    if key_val and key_val != "__clear__":
+        existing = db.get(SystemSettings, "kachelmann_api_key")
+        if existing:
+            existing.value = key_val
+            existing.updated_at = datetime.now(UTC)
+            existing.updated_by_user_id = user.id
+        else:
+            db.add(SystemSettings(key="kachelmann_api_key", value=key_val,
+                                  updated_by_user_id=user.id))
+        db.commit()
+    elif key_val == "__clear__":
+        existing = db.get(SystemSettings, "kachelmann_api_key")
+        if existing:
+            existing.value = ""
+            db.commit()
+
+    try:
+        from app.services import kachelmann_service
+        kachelmann_service.reset_key_cache()
+    except Exception:
+        pass
+
+    return RedirectResponse("/admin/settings/wetter?saved=1#kachelmann", status_code=303)
 
 
 # ── Lokale Wetterstationen (Davis/Meteobridge) ───────────────────────────────

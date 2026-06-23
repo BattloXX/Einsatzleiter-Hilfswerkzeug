@@ -34,6 +34,20 @@ _CSP_BASE = (
 _CSP_DEFAULT = _CSP_BASE + "; frame-ancestors 'none'"
 # Fuer Routen, die per <iframe>/<video> im eigenen UI eingebettet werden:
 _CSP_SAMEORIGIN_FRAME = _CSP_BASE + "; frame-ancestors 'self'"
+# Wetter-Infoscreen: standalone FullHD-Seite mit Tailwind CDN + Google Fonts
+_CSP_INFOSCREEN = (
+    "default-src 'self'; "
+    "img-src 'self' data: blob:; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com; "
+    "font-src 'self' data: https://fonts.gstatic.com; "
+    "connect-src 'self'; "
+    "frame-src 'none'; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'none'; "
+    "frame-ancestors 'self'"
+)
 
 
 def _is_embeddable_route(path: str) -> bool:
@@ -52,12 +66,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
         embeddable = _is_embeddable_route(path)
+        infoscreen = path.startswith("/wetter/infoscreen/")
+
+        if infoscreen:
+            csp = _CSP_INFOSCREEN
+        elif embeddable:
+            csp = _CSP_SAMEORIGIN_FRAME
+        else:
+            csp = _CSP_DEFAULT
 
         # CSP überschreibt frame-ancestors → eigener X-Frame-Options als Fallback
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            _CSP_SAMEORIGIN_FRAME if embeddable else _CSP_DEFAULT,
-        )
+        response.headers.setdefault("Content-Security-Policy", csp)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault(
