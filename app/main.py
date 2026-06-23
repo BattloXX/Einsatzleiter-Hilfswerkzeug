@@ -21,6 +21,7 @@ from app.models.major_incident import LageToken, MajorIncident, MajorIncidentSta
 from app.models.user import Role, User
 from app.routers import (
     api_v1,
+    api_weather,
     auth,
     device_api,
     lagekarte_api,
@@ -77,6 +78,13 @@ async def lifespan(app: FastAPI):
     # Bootstrap admin on first start
     _bootstrap_admin()
 
+    # Separate Wetter-DB (Zeitreihe lokaler Stationen) initialisieren, falls konfiguriert.
+    try:
+        from app.db_weather import init_weather_db
+        init_weather_db()
+    except Exception as exc:  # Wetter ist unkritisch – Start nie blockieren.
+        logger.warning("Wetter-DB-Init übersprungen: %s", exc)
+
     # Background-Loop für 48h-Auto-Close-Lifecycle
     from app.services.autoclose import autoclose_loop
     autoclose_task = asyncio.create_task(autoclose_loop())
@@ -97,6 +105,10 @@ async def lifespan(app: FastAPI):
     from app.services.verleih_erinnerung import verleih_erinnerung_loop
     verleih_task = asyncio.create_task(verleih_erinnerung_loop())
 
+    # Background-Loop für Wetterstations-Zeitreihen-Retention (täglich 03:30)
+    from app.services.weather_retention import weather_retention_loop
+    weather_retention_task = asyncio.create_task(weather_retention_loop())
+
     try:
         yield
     finally:
@@ -105,7 +117,9 @@ async def lifespan(app: FastAPI):
         reminder_task.cancel()
         lagemeldung_task.cancel()
         verleih_task.cancel()
-        for t in (autoclose_task, watchdog_task, reminder_task, lagemeldung_task, verleih_task):
+        weather_retention_task.cancel()
+        for t in (autoclose_task, watchdog_task, reminder_task, lagemeldung_task, verleih_task,
+                  weather_retention_task):
             try:
                 await t
             except (asyncio.CancelledError, Exception):
@@ -353,6 +367,7 @@ app.include_router(sso.router)
 app.include_router(public.router)
 app.include_router(ui_password_reset.router)
 app.include_router(api_v1.router)
+app.include_router(api_weather.router)
 app.include_router(device_api.router)
 app.include_router(lagekarte_api.router)
 app.include_router(ws.router)

@@ -85,6 +85,8 @@ _TENANT_TABLE_NAMES: frozenset[str] = frozenset({
     "verleih_artikel",
     "verleih_stueckliste",
     "verleih_ausleihe",
+    # Lokale Wetterstation (TenantScoped via Mixin) — Org-Isolation Fail-Closed
+    "weather_station",
 })
 
 

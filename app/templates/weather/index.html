@@ -134,6 +134,9 @@
     </div>
     {% endif %}
 
+    {# ── Eigene Wetterstation (Ist-Stand) ──────────────────────────────────────── #}
+    {% include "weather/_station_card.html" %}
+
     {% if no_location %}
     <div style="font-size:.8rem;color:var(--text-muted);padding:12px 0;">Standortkoordinaten fehlen – Wetterdaten nicht verfügbar.</div>
     {% elif not current and not nowcast and not forecast and not warn_views %}

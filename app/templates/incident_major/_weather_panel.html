@@ -19,6 +19,9 @@
 <div x-show="_t==='wetter'" style="display:block;">
 {% endif %}
 
+{# ── Eigene Wetterstation (Ist-Stand) ──────────────────────────────────────── #}
+{% include "weather/_station_card.html" %}
+
 {# ── Wetter-Inhalt ─────────────────────────────────────────────────────────── #}
 {% if no_location %}
 <span style="font-size:.75rem;color:var(--text-muted);">Standortkoordinaten fehlen &ndash; Wetterdaten nicht verf&uuml;gbar.</span>

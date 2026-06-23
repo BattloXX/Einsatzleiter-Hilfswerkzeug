@@ -1,7 +1,7 @@
 """UI-Router: Wetter-Panel (HTMX-Partials für GSL-Board, Einzeleinsatz und /wetter-Seite)."""
 import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -39,16 +39,19 @@ _SOURCE_LABELS = {
     "geosphere": "GeoSphere Austria (ZAMG)",
     "geosphere_nwp": "GeoSphere Austria (ZAMG)",
     "openmeteo": "Open-Meteo",
+    "station": "Lokale Wetterstation",
 }
 
 
-def _build_attribution(current, forecast, nowcast, warnings) -> str:
+def _build_attribution(
+    current, forecast, nowcast, warnings, station_current=None
+) -> str:
     """Baut die Quellenangabe aus den tatsächlich genutzten Datenquellen.
 
     Warnungen kommen immer von ZAMG/GeoSphere und werden separat ausgewiesen.
     """
     sources: list[str] = []
-    for obj in (current, forecast, nowcast):
+    for obj in (station_current, current, forecast, nowcast):
         src = getattr(obj, "source", None)
         if src:
             label = _SOURCE_LABELS.get(src, src)
@@ -210,6 +213,123 @@ async def _build_abfluss_views(org_id: int | None, db: Session) -> list[dict]:
     return views
 
 
+# Station gilt als "offline", wenn der letzte Push länger als so viele Minuten her ist
+# (Davis/Meteobridge pusht alle 5 min ⇒ 15 min = 3 verpasste Intervalle).
+_STATION_STALE_MIN = 15
+
+
+def _seen_label(age_min: int) -> str:
+    if age_min < 1:
+        return "gerade eben"
+    if age_min < 60:
+        return f"vor {age_min} min"
+    return f"vor {age_min // 60} h"
+
+
+def _build_station_views(org_id: int | None, db: Session) -> list[dict]:
+    """Lädt die aktiven Wetterstationen der Org und baut template-ready Ist-Stand-Views."""
+    if not org_id:
+        return []
+    from app.models.weather import WeatherStation
+    stations = (
+        db.query(WeatherStation)
+        .filter(WeatherStation.org_id == org_id, WeatherStation.active == True)  # noqa: E712
+        .order_by(WeatherStation.name)
+        .all()
+    )
+    now = datetime.now(UTC)
+    views: list[dict] = []
+    for s in stations:
+        last_seen = s.last_seen_at
+        if last_seen is not None and last_seen.tzinfo is None:
+            last_seen = last_seen.replace(tzinfo=UTC)
+        online = False
+        seen_label = None
+        if last_seen is not None:
+            age_min = max(int((now - last_seen).total_seconds() / 60), 0)
+            online = age_min <= _STATION_STALE_MIN
+            seen_label = _seen_label(age_min)
+        views.append({
+            "id":        s.id,
+            "name":      s.name,
+            "online":    online,
+            "seen_label": seen_label,
+            "temp":      s.last_temp_c,
+            "hum":       s.last_hum_pct,
+            "wind":      s.last_wind_ms,
+            "gust":      s.last_gust_ms,
+            "wind_dir":  _wind_dir_label(s.last_wind_dir_deg),
+            "pressure":  s.last_pressure_hpa,
+            "rain_rate": s.last_rain_rate_mmh,
+            "rain_day":  s.last_rain_day_mm,
+            "dew":       s.last_dewpoint_c,
+            "solar":     s.last_solar_wm2,
+            "uv":        s.last_uv,
+        })
+    return views
+
+
+def _station_current_weather(
+    station_views: list[dict],
+) -> weather_service.CurrentWeather | None:
+    """Baut ein CurrentWeather-Objekt aus der ersten Online-Station für Szenario-Analyse.
+
+    Wird dem NWP-Modellwert vorgezogen, wenn die Station live ist.
+    """
+    for sv in station_views:
+        if sv.get("online"):
+            return weather_service.CurrentWeather(
+                temperature_c=sv.get("temp"),
+                wind_speed_ms=sv.get("wind"),
+                gust_speed_ms=sv.get("gust"),
+                wind_direction_deg=None,
+                humidity_pct=sv.get("hum"),
+                precipitation_1h_mm=sv.get("rain_rate"),
+                source="station",
+            )
+    return None
+
+
+def _build_sparkline_svg(
+    readings: list,
+    field: str,
+    width: int = 200,
+    height: int = 40,
+) -> dict | None:
+    """Baut SVG-Polyline-Koordinaten aus einer Zeitreihe von WeatherReadings.
+
+    Gibt None zurück, wenn weniger als 2 Punkte vorhanden sind.
+    Format wie abfluss_service.sparkline_data – verwendbar mit denselben SVG-Templates.
+    """
+    pairs = [
+        (r.ts.timestamp(), getattr(r, field))
+        for r in readings
+        if getattr(r, field, None) is not None
+    ]
+    if len(pairs) < 2:
+        return None
+    ts_vals = [p[0] for p in pairs]
+    y_vals  = [p[1] for p in pairs]
+    ts_min, ts_max = min(ts_vals), max(ts_vals)
+    y_min, y_max   = min(y_vals), max(y_vals)
+    if ts_max == ts_min:
+        return None
+    y_range = (y_max - y_min) or 1.0
+    pts = " ".join(
+        f"{(t - ts_min) / (ts_max - ts_min) * width:.1f},"
+        f"{height - (v - y_min) / y_range * (height - 4) - 2:.1f}"
+        for t, v in pairs
+    )
+    return {
+        "points": pts,
+        "width":  width,
+        "height": height,
+        "min":    y_min,
+        "max":    y_max,
+        "latest": y_vals[-1],
+    }
+
+
 async def _render_weather_panel(
     request: Request,
     lat: float,
@@ -217,6 +337,7 @@ async def _render_weather_panel(
     focus_label: str,
     extra_ctx: dict,
     abfluss_views: list[dict] | None = None,
+    station_views: list[dict] | None = None,
 ) -> HTMLResponse:
     """Shared rendering logic for all weather panel endpoints."""
     nowcast, current, forecast, warnings = await asyncio.gather(
@@ -246,7 +367,8 @@ async def _render_weather_panel(
     warn_color = weather_service._WARN_LEVEL_COLORS.get(
         top_warning.level, "#6b7280"
     ) if top_warning else None
-    scenarios = analyze_weather(current, forecast, nowcast, warnings)
+    station_current = _station_current_weather(station_views or [])
+    scenarios = analyze_weather(station_current or current, forecast, nowcast, warnings)
     now_utc = datetime.now(UTC)
     active_warnings = [w for w in warnings if w.valid_from <= now_utc]
 
@@ -265,8 +387,9 @@ async def _render_weather_panel(
         "top_warning": top_warning,
         "warn_color": warn_color,
         "scenarios": scenarios,
-        "attribution": _build_attribution(current, forecast, nowcast, warnings),
+        "attribution": _build_attribution(current, forecast, nowcast, warnings, station_current),
         "abfluss_views": abfluss_views or [],
+        "station_views": station_views or [],
     }
     ctx.update(extra_ctx)
     return templates.TemplateResponse(request, "incident_major/_weather_panel.html", ctx)
@@ -294,6 +417,7 @@ async def gsl_wetter_panel(
         return HTMLResponse("")
 
     abfluss_views = await _build_abfluss_views(lage.org_id, db)
+    station_views = _build_station_views(lage.org_id, db)
 
     focus = resolve_weather_focus(lage)
     lat: float | None = None
@@ -318,12 +442,13 @@ async def gsl_wetter_panel(
                 "no_location": True,
                 "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
                 "abfluss_views": abfluss_views,
+                "station_views": station_views,
             },
         )
 
     return await _render_weather_panel(
         request, lat, lng, focus_label, {"lage_id": lage_id},
-        abfluss_views=abfluss_views,
+        abfluss_views=abfluss_views, station_views=station_views,
     )
 
 
@@ -460,6 +585,7 @@ async def einsatz_wetter_panel(
         return HTMLResponse("")
 
     abfluss_views = await _build_abfluss_views(org_id, db)
+    station_views = _build_station_views(org_id, db)
 
     lat: float | None = incident.lat
     lng: float | None = incident.lng
@@ -485,12 +611,13 @@ async def einsatz_wetter_panel(
                 "no_location": True,
                 "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
                 "abfluss_views": abfluss_views,
+                "station_views": station_views,
             },
         )
 
     return await _render_weather_panel(
         request, lat, lng, focus_label, {"incident_id": incident_id},
-        abfluss_views=abfluss_views,
+        abfluss_views=abfluss_views, station_views=station_views,
     )
 
 
@@ -528,6 +655,7 @@ async def wetter_index(
 
     user = request.state.user
     abfluss_views = await _build_abfluss_views(getattr(user, "org_id", None), db)
+    station_views = _build_station_views(getattr(user, "org_id", None), db)
     lat, lng, focus_label = _resolve_menu_standort(user, db)
 
     if lat is None or lng is None:
@@ -543,6 +671,7 @@ async def wetter_index(
                 "user": user,
                 "scenarios": [],
                 "abfluss_views": abfluss_views,
+                "station_views": station_views,
             },
         )
 
@@ -572,7 +701,8 @@ async def wetter_index(
     warn_color = weather_service._WARN_LEVEL_COLORS.get(
         top_warning.level, "#6b7280"
     ) if top_warning else None
-    scenarios = analyze_weather(current, forecast, nowcast, warnings)
+    station_current = _station_current_weather(station_views)
+    scenarios = analyze_weather(station_current or current, forecast, nowcast, warnings)
 
     return templates.TemplateResponse(
         request,
@@ -594,10 +724,11 @@ async def wetter_index(
             "top_warning": top_warning,
             "warn_color": warn_color,
             "scenarios": scenarios,
-            "attribution": _build_attribution(current, forecast, nowcast, warnings),
+            "attribution": _build_attribution(current, forecast, nowcast, warnings, station_current),
             "user": user,
             "windy_enabled": settings.WEATHER_WINDY_ENABLED,
             "abfluss_views": abfluss_views,
+            "station_views": station_views,
         },
     )
 
@@ -618,6 +749,7 @@ async def wetter_panel(
 
     user = request.state.user
     abfluss_views = await _build_abfluss_views(getattr(user, "org_id", None), db)
+    station_views = _build_station_views(getattr(user, "org_id", None), db)
     lat, lng, focus_label = _resolve_menu_standort(user, db)
 
     if lat is None or lng is None:
@@ -628,8 +760,69 @@ async def wetter_panel(
                 "no_location": True,
                 "attribution": weather_service.GEOSPHERE_ATTRIBUTION,
                 "abfluss_views": abfluss_views,
+                "station_views": station_views,
             },
         )
 
     return await _render_weather_panel(request, lat, lng, focus_label, {},
-                                       abfluss_views=abfluss_views)
+                                       abfluss_views=abfluss_views, station_views=station_views)
+
+
+# ── 24-h-Sparkline (lazy HTMX) ───────────────────────────────────────────────
+
+@router.get(
+    "/wetter/station/{station_id}/sparkline",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def station_sparkline(
+    request: Request,
+    station_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    """HTMX-Partial: 24-h-Sparkline einer Wetterstation (lazy, nicht im 5-min-Pfad)."""
+    user = request.state.user
+    org_id = getattr(user, "org_id", None)
+    if not org_id:
+        return HTMLResponse("")
+
+    from app.db_weather import get_weather_session, weather_db_enabled
+    from app.models.weather import WeatherReading, WeatherStation
+
+    station = (
+        db.query(WeatherStation)
+        .filter(WeatherStation.id == station_id, WeatherStation.org_id == org_id)
+        .first()
+    )
+    if not station:
+        return HTMLResponse("")
+
+    if not weather_db_enabled():
+        return HTMLResponse("")
+
+    cutoff = datetime.now(UTC) - timedelta(hours=24)
+    session = get_weather_session()
+    try:
+        readings = (
+            session.query(WeatherReading)
+            .filter(
+                WeatherReading.org_id == org_id,
+                WeatherReading.station_id == station_id,
+                WeatherReading.ts >= cutoff,
+            )
+            .order_by(WeatherReading.ts)
+            .limit(300)
+            .all()
+        )
+    finally:
+        session.close()
+
+    return templates.TemplateResponse(
+        request,
+        "weather/_station_sparkline.html",
+        {
+            "temp_svg": _build_sparkline_svg(readings, "temp_c"),
+            "wind_svg": _build_sparkline_svg(readings, "wind_ms"),
+        },
+    )

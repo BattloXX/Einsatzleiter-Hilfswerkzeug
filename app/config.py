@@ -125,6 +125,19 @@ class Settings(BaseSettings):
     KACHELMANN_BASE_URL: str = "https://api.kachelmannwetter.com/v02"
     KACHELMANN_API_KEY: str = ""
 
+    # Lokale Wetterstationen (Davis/Meteobridge etc.) — je Org per Push-Ingest.
+    # Zeitreihen-Historie liegt in einer SEPARATEN DB (eigener Pool) damit die
+    # operative DB nicht aufgebläht wird und Einsatz-Funktionen Vorrang behalten.
+    # Leer ⇒ Zeitreihen-Persistenz/Ingest deaktiviert (nur Ist-Stand in der Haupt-DB
+    # wäre dann ebenfalls nicht möglich, daher für das Feature setzen).
+    WEATHER_DATABASE_URL: str = ""
+    # Ingest-Endpoint (Meteobridge-Push) global aktiv/deaktiv.
+    WEATHER_STATION_INGEST_ENABLED: bool = True
+    # Aufbewahrungsdauer der Zeitreihe in Tagen; ältere Messwerte werden täglich gelöscht.
+    WEATHER_READING_RETENTION_DAYS: int = 365
+    # Mindestabstand zwischen zwei akzeptierten Pushes je Station (Flood-Schutz).
+    WEATHER_INGEST_MIN_INTERVAL_S: int = 60
+
     # Fernet-Verschlüsselung (Client Secrets, KI-API-Keys)
     # Eigener Key für Datenverschlüsselung; unabhängig von SECRET_KEY rotierbar.
     # Generieren: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"

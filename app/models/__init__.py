@@ -1,13 +1,4 @@
 from app.models.breathing import BreathingTroop, PressureLog, TroopMember
-from app.models.verleih import (
-    VerleihArtikel,
-    VerleihAusleihe,
-    VerleihFoto,
-    VerleihPosition,
-    VerleihStatus,
-    VerleihStueckliste,
-    VerleihStuecklistePosition,
-)
 from app.models.incident import (
     Incident,
     IncidentChange,
@@ -69,6 +60,16 @@ from app.models.user import (
     User,
     UserRole,
 )
+from app.models.verleih import (
+    VerleihArtikel,
+    VerleihAusleihe,
+    VerleihFoto,
+    VerleihPosition,
+    VerleihStatus,
+    VerleihStueckliste,
+    VerleihStuecklistePosition,
+)
+from app.models.weather import WeatherReading, WeatherStation
 
 __all__ = [
     "OrgSsoConfig", "OrgSsoGroupMap",
@@ -90,4 +91,5 @@ __all__ = [
     "SiteLogEntry", "SiteMedia", "CommLogEntry", "CitizenReport",
     "VerleihArtikel", "VerleihStueckliste", "VerleihStuecklistePosition",
     "VerleihAusleihe", "VerleihPosition", "VerleihStatus", "VerleihFoto",
+    "WeatherStation", "WeatherReading",
 ]
