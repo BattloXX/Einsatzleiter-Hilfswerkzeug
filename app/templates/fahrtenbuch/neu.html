@@ -233,6 +233,6 @@ document.addEventListener('pointerdown', function(e) {
   container.dispatchEvent(new CustomEvent('member-selected', {
     detail: { id: item.dataset.memberId, name: item.dataset.name }
   }));
-});
+}, { passive: false });
 </script>
 {% endblock %}

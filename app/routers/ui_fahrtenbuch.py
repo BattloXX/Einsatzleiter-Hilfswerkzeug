@@ -129,7 +129,7 @@ async def hx_maschinist_autocomplete(
 ):
     # HTMX sendet den Feldnamen als Parameter-Key (maschinist_name, ausbildner_name …)
     qp = request.query_params
-    q = qp.get("q") or qp.get("maschinist_name") or qp.get("ausbildner_name") or qp.get("gruppenkommandant_name") or ""
+    q = qp.get("q") or qp.get("maschinist_name") or qp.get("ausbildner_name") or qp.get("gruppenkommandant_name") or qp.get("seilwinde_bediener_name") or ""
     user = _current_user(request)
     token_org: OrgSettings | None = getattr(request.state, "fahrtenbuch_org", None)
     org_id = user.org_id if user else (token_org.org_id if token_org else None)
@@ -147,6 +147,7 @@ async def hx_maschinist_autocomplete(
     for m in members:
         html += (
             f"<li class='autocomplete-item' "
+            f"style='cursor:pointer;' "
             f"data-member-id='{m.id}' "
             f"data-name='{m.full_name}'>"
             f"{m.full_name}</li>"

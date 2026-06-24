@@ -31,8 +31,7 @@
          hx-post="/fahrtenbuch/hx/zaehler-check"
          hx-target="#km-check"
          hx-trigger="blur, input delay:400ms"
-         hx-vals='{"art":"km","fahrzeug_id":"{{ fahrzeug.id }}"}'
-         hx-include="[name='km_stand_neu']">
+         hx-vals='js:{art:"km",fahrzeug_id:"{{ fahrzeug.id }}",wert:document.getElementById("km_stand_neu").value}'>
   <div x-show="km !== null && km > aktuell"
        style="margin-top:.3rem;font-size:.85rem;color:var(--text-muted);">
     Delta: <strong x-text="(km - aktuell) + ' km'"></strong>
@@ -64,8 +63,7 @@
          hx-post="/fahrtenbuch/hx/zaehler-check"
          hx-target="#bh-check"
          hx-trigger="blur, input delay:400ms"
-         hx-vals='{"art":"bh","fahrzeug_id":"{{ fahrzeug.id }}"}'
-         hx-include="[name='betriebsstunden_neu']">
+         hx-vals='js:{art:"bh",fahrzeug_id:"{{ fahrzeug.id }}",wert:document.getElementById("betriebsstunden_neu").value}'>
   <div x-show="bh !== null && bh > aktuell"
        style="margin-top:.3rem;font-size:.85rem;color:var(--text-muted);">
     Delta: <strong x-text="(Math.round((bh - aktuell) * 10) / 10) + ' h'"></strong>
@@ -118,8 +116,7 @@
            hx-post="/fahrtenbuch/hx/zaehler-check"
            hx-target="#sw-check"
            hx-trigger="blur, input delay:400ms"
-           hx-vals='{"art":"seilwinde_bh","fahrzeug_id":"{{ fahrzeug.id }}"}'
-           hx-include="[name='seilwinde_bh_neu']">
+           hx-vals='js:{art:"seilwinde_bh",fahrzeug_id:"{{ fahrzeug.id }}",wert:document.getElementById("seilwinde_bh_neu").value}'>
     <div x-show="sw !== null && sw > aktuell"
          style="margin-top:.3rem;font-size:.85rem;color:var(--text-muted);">
       Delta: <strong x-text="(Math.round((sw - aktuell) * 10) / 10) + ' h'"></strong>
