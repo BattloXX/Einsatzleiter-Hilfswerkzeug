@@ -332,6 +332,8 @@ class OrgSettings(Base):
     weather_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     # Wetter-Dashboard-Token (SHA256-Hash); NULL = kein Dashboard aktiviert
     weather_dashboard_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    # Darstellungszeitraum für historische Werte im Infoscreen (in Stunden), Default 24
+    infoscreen_history_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=24)
 
     # GSL-Lagemeldungs-Regelkreis (SKKM): Intervall der Lagemeldungs-Pflicht je Einsatz.
     # NULL beim Default-Intervall ⇒ gesamte Logik deaktiviert (kein Timer/Auftrag/Chip).

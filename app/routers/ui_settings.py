@@ -420,6 +420,29 @@ async def abfluss_station_remove(
 
 # ── Wetter-Einstellungsseite ─────────────────────────────────────────────────
 
+def _generate_qr_datauri(url: str) -> str | None:
+    """Generiert einen QR-Code als base64 PNG Data-URI (dark theme). None bei Fehler."""
+    try:
+        import base64
+        import io
+
+        import qrcode
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=5,
+            border=2,
+        )
+        qr.add_data(url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#dae2fd", back_color="#0b1326")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return None
+
+
 def _weather_settings_context(request, db, user, org_id, **extra) -> dict:
     """Baut den Template-Kontext fuer admin/settings_wetter.html."""
     is_sysadmin = has_role(user, "system_admin")
@@ -454,8 +477,12 @@ def _weather_settings_context(request, db, user, org_id, **extra) -> dict:
         "public_base_url": base_url,
         "dashboard_url": f"{base_url}/wetter/infoscreen/DASHBOARD_TOKEN",
         "kachelmann_is_configured": kachelmann_service.is_configured(),
+        "dashboard_qr": None,
     }
     ctx.update(extra)
+    # QR-Code nur wenn gerade eine frische URL bekannt ist
+    if ctx.get("dashboard_url") and ctx.get("new_dashboard_token"):
+        ctx["dashboard_qr"] = _generate_qr_datauri(ctx["dashboard_url"])
     return ctx
 
 
@@ -545,6 +572,38 @@ async def weather_toggle(
         db.add(org_settings)
 
     org_settings.weather_enabled = bool(enabled_raw)
+    db.commit()
+
+    org_id_param = effective_org_id if is_sysadmin else None
+    return templates.TemplateResponse(
+        request, "admin/settings_wetter.html",
+        _weather_settings_context(request, db, user, org_id_param),
+    )
+
+
+# ── Infoscreen Darstellungszeitraum ──────────────────────────────────────────
+
+@router.post("/settings/wetter/infoscreen-hours", response_class=HTMLResponse)
+async def weather_infoscreen_hours_save(
+    request: Request,
+    db=Depends(get_db),
+    user: User = Depends(require_role("org_admin", "admin")),
+    history_hours: int = Form(24),
+    target_org_id: int | None = Form(None),
+):
+    is_sysadmin = has_role(user, "system_admin")
+    effective_org_id = target_org_id if (is_sysadmin and target_org_id) else user.org_id
+    if not effective_org_id:
+        return RedirectResponse("/admin/settings/wetter", status_code=303)
+
+    hours = history_hours if history_hours in (6, 12, 24, 48, 72) else 24
+
+    org_settings = db.query(OrgSettings).filter(OrgSettings.org_id == effective_org_id).first()
+    if not org_settings:
+        org_settings = OrgSettings(org_id=effective_org_id)
+        db.add(org_settings)
+
+    org_settings.infoscreen_history_hours = hours
     db.commit()
 
     org_id_param = effective_org_id if is_sysadmin else None

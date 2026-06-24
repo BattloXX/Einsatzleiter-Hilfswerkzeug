@@ -77,6 +77,50 @@ def purge_old_readings(retention_days: int | None = None, chunk_size: int = _CHU
     return total
 
 
+def purge_old_abfluss_readings(retention_days: int | None = None, chunk_size: int = _CHUNK_SIZE) -> int:
+    """Löscht Pegelmessungen älter als retention_days in Chunks. Gibt die Anzahl zurück."""
+    if not weather_db_enabled():
+        return 0
+
+    days = retention_days if retention_days is not None else settings.WEATHER_READING_RETENTION_DAYS
+    if days <= 0:
+        return 0
+
+    from app.models.weather import AbflussReading
+
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    total = 0
+    session = get_weather_session()
+    try:
+        while True:
+            ids = [
+                row[0]
+                for row in session.query(AbflussReading.id)
+                .filter(AbflussReading.ts < cutoff)
+                .limit(chunk_size)
+                .all()
+            ]
+            if not ids:
+                break
+            session.query(AbflussReading).filter(
+                AbflussReading.id.in_(ids)
+            ).delete(synchronize_session=False)
+            session.commit()
+            total += len(ids)
+            if len(ids) < chunk_size:
+                break
+    except Exception:
+        session.rollback()
+        logger.exception("Wetter-Retention Abfluss: Löschen fehlgeschlagen")
+        raise
+    finally:
+        session.close()
+
+    if total:
+        logger.info("Wetter-Retention Abfluss: %d alte Pegelmessungen gelöscht (älter als %d Tage).", total, days)
+    return total
+
+
 def _seconds_until_next(hour: int, minute: int) -> float:
     """Sekunden bis zum nächsten Zeitpunkt hour:minute in Europe/Vienna."""
     now = datetime.now(_VIENNA_TZ)
@@ -94,7 +138,7 @@ async def weather_retention_loop() -> None:
     while True:
         await asyncio.sleep(_seconds_until_next(_PURGE_HOUR, _PURGE_MINUTE))
         try:
-            # Blockierende DB-Arbeit aus dem Event-Loop auslagern.
             await asyncio.to_thread(purge_old_readings)
+            await asyncio.to_thread(purge_old_abfluss_readings)
         except Exception:
             logger.exception("Fehler im Wetter-Retention-Loop")

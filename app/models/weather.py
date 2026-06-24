@@ -86,3 +86,22 @@ class WeatherReading(WeatherBase):
         # Verlauf-Abfragen: je Org+Station chronologisch; Retention löscht über ts.
         Index("ix_weather_reading_org_station_ts", "org_id", "station_id", "ts"),
     )
+
+
+class AbflussReading(WeatherBase):
+    """Einzelne Pegelmessung (Zeitreihe, separate Wetter-DB).
+
+    Persistiert die In-Memory-Verlaufsdaten aus abfluss_service über Neustarts hinweg.
+    Org-Isolation über explizites WHERE org_id + hzbnr.
+    """
+    __tablename__ = "abfluss_reading"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    org_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    hzbnr: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    wert_m3s: Mapped[float] = mapped_column(Float, nullable=False)
+
+    __table_args__ = (
+        Index("ix_abfluss_reading_org_hzbnr_ts", "org_id", "hzbnr", "ts"),
+    )

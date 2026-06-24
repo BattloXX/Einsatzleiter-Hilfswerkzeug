@@ -100,6 +100,21 @@ class ForecastResult:
 
 
 @dataclass
+class DailyForecastDay:
+    date_label: str                    # z.B. "Mo 24.06."
+    temp_max_c: float | None = None
+    temp_min_c: float | None = None
+    precip_mm: float | None = None
+    wind_max_ms: float | None = None   # m/s
+
+
+@dataclass
+class DailyForecast:
+    days: list[DailyForecastDay]
+    source: str = "openmeteo"
+
+
+@dataclass
 class WeatherWarning:
     level: int
     event_type: str
@@ -961,6 +976,70 @@ def analyze_weather(
         + _ice_alerts(current, nowcast)
     )
     return sorted(alerts, key=lambda a: 0 if a.level == "danger" else 1)
+
+
+# ── 7-Tage-Tagesvorhersage (Open-Meteo daily endpoint) ───────────────────────
+
+_WEEKDAYS_DE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+async def get_daily_forecast(lat: float, lng: float) -> "DailyForecast | None":
+    """7-Tage-Tagesvorhersage: Temp-Min/Max, Niederschlag, Windspitze (Open-Meteo daily).
+
+    Gecacht fuer 1 Stunde (genug fuer ein Dashboard das alle 5 min neu laedt).
+    """
+    if not settings.WEATHER_ENABLED:
+        return None
+
+    key = _cache_key("daily7", lat, lng)
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        async with httpx.AsyncClient(timeout=settings.WEATHER_HTTP_TIMEOUT) as client:
+            resp = await client.get(
+                "https://api.open-meteo.com/v1/forecast",
+                params={
+                    "latitude": lat,
+                    "longitude": lng,
+                    "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max",
+                    "forecast_days": 7,
+                    "timezone": "Europe/Vienna",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as exc:
+        logger.warning("Open-Meteo 7-Tage-Forecast fehlgeschlagen: %s", exc)
+        return None
+
+    daily = data.get("daily", {})
+    dates = daily.get("time", [])
+    temp_max = daily.get("temperature_2m_max", [])
+    temp_min = daily.get("temperature_2m_min", [])
+    precip = daily.get("precipitation_sum", [])
+    wind_max = daily.get("wind_speed_10m_max", [])  # km/h
+
+    days: list[DailyForecastDay] = []
+    for i, dt_str in enumerate(dates[:7]):
+        try:
+            from datetime import date as _d
+            dt = _d.fromisoformat(dt_str)
+            label = f"{_WEEKDAYS_DE[dt.weekday()]} {dt.day:02d}.{dt.month:02d}."
+        except (ValueError, AttributeError):
+            label = dt_str
+        days.append(DailyForecastDay(
+            date_label=label,
+            temp_max_c=temp_max[i] if i < len(temp_max) else None,
+            temp_min_c=temp_min[i] if i < len(temp_min) else None,
+            precip_mm=precip[i] if i < len(precip) else None,
+            wind_max_ms=(wind_max[i] / 3.6) if (i < len(wind_max) and wind_max[i] is not None) else None,
+        ))
+
+    result = DailyForecast(days=days)
+    _cache_set(key, result, 3600)
+    return result
 
 
 # ── Nowcast grid stub (PR 4) ──────────────────────────────────────────────────

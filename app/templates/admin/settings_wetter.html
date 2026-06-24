@@ -89,12 +89,38 @@
       </p>
       <textarea id="wxDashUrl" readonly rows="2"
                 style="width:100%;font-family:var(--font-mono,monospace);font-size:.82rem;background:rgba(0,0,0,.25);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;padding:.5rem;resize:vertical;">{{ dashboard_url }}</textarea>
-      <button type="button" class="btn btn--sm btn--primary" style="margin-top:.5rem;"
-              onclick="var t=document.getElementById('wxDashUrl');t.select();navigator.clipboard.writeText(t.value);this.textContent='Kopiert ✓';">
-        URL kopieren
-      </button>
+      <div style="display:flex;align-items:flex-start;gap:1rem;margin-top:.5rem;flex-wrap:wrap;">
+        <button type="button" class="btn btn--sm btn--primary"
+                onclick="var t=document.getElementById('wxDashUrl');t.select();navigator.clipboard.writeText(t.value);this.textContent='Kopiert ✓';">
+          URL kopieren
+        </button>
+        {% if dashboard_qr %}
+        <div style="display:flex;align-items:center;gap:.75rem;">
+          <img src="{{ dashboard_qr }}" alt="QR-Code Dashboard-URL"
+               style="width:80px;height:80px;border-radius:4px;border:1px solid var(--border);"
+               title="QR-Code zum Scannen mit dem Infoscreen-Ger&auml;t">
+          <span style="font-size:.78rem;color:var(--text-muted);">QR-Code scannen<br>f&uuml;r schnellen Aufruf<br>am Infoscreen</span>
+        </div>
+        {% endif %}
+      </div>
     </div>
     {% endif %}
+
+    {# Darstellungszeitraum #}
+    {% set _hist_h = (org_settings.infoscreen_history_hours if org_settings and org_settings.infoscreen_history_hours else 24) %}
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;padding:.65rem 1rem;background:rgba(255,255,255,.04);border:1px solid var(--border-subtle);border-radius:6px;">
+      <label style="font-weight:600;font-size:.88rem;white-space:nowrap;">&#x1F4C5; Verlaufs-Zeitraum:</label>
+      <form method="post" action="/admin/settings/wetter/infoscreen-hours" style="display:flex;align-items:center;gap:.5rem;">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        {% if is_sysadmin and org %}<input type="hidden" name="target_org_id" value="{{ org.id }}">{% endif %}
+        <select name="history_hours" class="form-control" style="width:auto;" onchange="this.form.submit()">
+          {% for h in [6, 12, 24, 48, 72] %}
+          <option value="{{ h }}" {% if _hist_h == h %}selected{% endif %}>{{ h }}&thinsp;h</option>
+          {% endfor %}
+        </select>
+        <small class="form-hint" style="margin:0;">Stunden an historischen Werten (Sparklines, Min/Max) im Infoscreen</small>
+      </form>
+    </div>
 
     <div class="alert" style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:4px;padding:.6rem .9rem;font-size:.82rem;color:var(--text-primary);margin-bottom:1.25rem;">
       Das Dashboard ist eine <strong>passwortfreie Vollbild-Ansicht</strong> f&uuml;r FullHD-Infoscreens (1920&times;1080).

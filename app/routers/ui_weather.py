@@ -258,7 +258,8 @@ def _build_station_views(org_id: int | None, db: Session) -> list[dict]:
             "hum":       s.last_hum_pct,
             "wind":      s.last_wind_ms,
             "gust":      s.last_gust_ms,
-            "wind_dir":  _wind_dir_label(s.last_wind_dir_deg),
+            "wind_dir":     _wind_dir_label(s.last_wind_dir_deg),
+            "wind_dir_deg": s.last_wind_dir_deg,
             "pressure":  s.last_pressure_hpa,
             "rain_rate": s.last_rain_rate_mmh,
             "rain_day":  s.last_rain_day_mm,
@@ -327,6 +328,142 @@ def _build_sparkline_svg(
         "min":    y_min,
         "max":    y_max,
         "latest": y_vals[-1],
+    }
+
+
+def _compute_trend(vals: list[float]) -> str:
+    """Vergleicht erste und zweite Hälfte der Wertereihe: 'up', 'down' oder 'stable'."""
+    if len(vals) < 4:
+        return "stable"
+    mid = len(vals) // 2
+    first_avg = sum(vals[:mid]) / mid
+    second_avg = sum(vals[mid:]) / (len(vals) - mid)
+    span = (max(vals) - min(vals)) or 1.0
+    change = (second_avg - first_avg) / span
+    if change > 0.05:
+        return "up"
+    if change < -0.05:
+        return "down"
+    return "stable"
+
+
+def _build_infoscreen_metric_history(
+    station_id: int,
+    org_id: int,
+    hours: int,
+    width: int = 380,
+    height: int = 72,
+) -> dict:
+    """Liest WeatherReadings der letzten `hours` Stunden und berechnet Sparkline + Statistik.
+
+    Gibt ein Dict {metric: {svg, min, max, delta, trend} | None} zurück.
+    Verwendet die separate Wetter-DB; gibt leeres Dict zurück wenn nicht konfiguriert.
+    """
+    from app.db_weather import get_weather_session, weather_db_enabled
+    from app.models.weather import WeatherReading
+
+    if not weather_db_enabled():
+        return {}
+
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    session = get_weather_session()
+    try:
+        readings = (
+            session.query(WeatherReading)
+            .filter(
+                WeatherReading.org_id == org_id,
+                WeatherReading.station_id == station_id,
+                WeatherReading.ts >= cutoff,
+            )
+            .order_by(WeatherReading.ts)
+            .limit(1200)
+            .all()
+        )
+    finally:
+        session.close()
+
+    result: dict = {}
+    for name, field in [
+        ("temp",  "temp_c"),
+        ("hum",   "hum_pct"),
+        ("wind",  "wind_ms"),
+        ("gust",  "gust_ms"),
+        ("rain",  "rain_day_mm"),
+        ("solar", "solar_wm2"),
+        ("uv",    "uv"),
+    ]:
+        vals = [getattr(r, field) for r in readings if getattr(r, field) is not None]
+        if len(vals) >= 2:
+            result[name] = {
+                "svg":   _build_sparkline_svg(readings, field, width=width, height=height),
+                "min":   min(vals),
+                "max":   max(vals),
+                "delta": vals[-1] - vals[0],
+                "trend": _compute_trend(vals),
+            }
+        else:
+            result[name] = None
+    return result
+
+
+def _build_infoscreen_abfluss_history(
+    org_id: int,
+    hzbnr: str,
+    hours: int,
+    width: int = 280,
+    height: int = 54,
+) -> dict | None:
+    """Liest AbflussReadings der letzten `hours` Stunden aus der Wetter-DB.
+
+    Gibt SVG-Punkt-Dict + Statistik zurück, oder None bei zu wenig Daten.
+    Fällt auf In-Memory-Verlauf zurück wenn DB nicht konfiguriert (via abfluss_service.sparkline_data).
+    """
+    from app.db_weather import get_weather_session, weather_db_enabled
+    from app.models.weather import AbflussReading
+
+    if not weather_db_enabled():
+        return None
+
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    session = get_weather_session()
+    try:
+        readings = (
+            session.query(AbflussReading)
+            .filter(
+                AbflussReading.org_id == org_id,
+                AbflussReading.hzbnr == hzbnr,
+                AbflussReading.ts >= cutoff,
+            )
+            .order_by(AbflussReading.ts)
+            .limit(500)
+            .all()
+        )
+    finally:
+        session.close()
+
+    if len(readings) < 2:
+        return None
+
+    vals = [r.wert_m3s for r in readings]
+    pairs = [(r.ts.timestamp(), r.wert_m3s) for r in readings]
+    ts_min, ts_max = min(p[0] for p in pairs), max(p[0] for p in pairs)
+    y_min, y_max = min(vals), max(vals)
+    if ts_max == ts_min:
+        return None
+
+    y_range = (y_max - y_min) or 0.001
+    pts = " ".join(
+        f"{(t - ts_min) / (ts_max - ts_min) * width:.1f},{height - (v - y_min) / y_range * (height - 4) - 2:.1f}"
+        for t, v in pairs
+    )
+    return {
+        "points": pts,
+        "width":  width,
+        "height": height,
+        "min":    y_min,
+        "max":    y_max,
+        "delta":  vals[-1] - vals[0],
+        "trend":  _compute_trend(vals),
     }
 
 
@@ -878,11 +1015,13 @@ async def weather_infoscreen(
     warnings: list = []
     current = None
     nowcast = None
+    daily_forecast = None
     if lat is not None and lng is not None:
         results = await asyncio.gather(
             weather_service.get_warnings(lat, lng),
             weather_service.get_current(lat, lng),
             weather_service.get_nowcast(lat, lng),
+            weather_service.get_daily_forecast(lat, lng),
             return_exceptions=True,
         )
         if not isinstance(results[0], Exception):
@@ -891,11 +1030,63 @@ async def weather_infoscreen(
             current = results[1]
         if not isinstance(results[2], Exception):
             nowcast = results[2]
+        if not isinstance(results[3], Exception):
+            daily_forecast = results[3]
 
     now_utc = datetime.now(UTC)
     active_warnings = [w for w in warnings if w.valid_from <= now_utc]
     station_current = _station_current_weather(station_views)
     base_url = (settings.PUBLIC_BASE_URL or settings.APP_BASE_URL).rstrip("/")
+
+    history_hours = getattr(org_settings, "infoscreen_history_hours", None) or 24
+
+    # Historische Wetterdaten aus der Wetter-DB (für Sparklines + Min/Max in den Karten)
+    metric_history: dict = {}
+    if station_views:
+        primary_station = station_views[0]
+        metric_history = _build_infoscreen_metric_history(
+            station_id=primary_station["id"],
+            org_id=org.id,
+            hours=history_hours,
+        )
+
+    # Historische Pegeldaten je Station (für Sparklines im Pegel-Panel)
+    from app.services import abfluss_service as _abf_svc
+    abfluss_sparklines: dict[str, dict | None] = {}
+    for av in abfluss_views:
+        abfluss_sparklines[av["hzbnr"]] = _build_infoscreen_abfluss_history(
+            org_id=org.id,
+            hzbnr=av["hzbnr"],
+            hours=history_hours,
+        )
+        # Fallback auf In-Memory-Verlauf wenn DB-Daten fehlen
+        if abfluss_sparklines[av["hzbnr"]] is None and av.get("sparkline", {}).get("points"):
+            sl = av["sparkline"]
+            abfluss_sparklines[av["hzbnr"]] = {
+                "points": sl["points"],
+                "width":  sl["width"],
+                "height": sl["height"],
+                "min":    None,
+                "max":    None,
+                "delta":  None,
+                "trend":  "stable",
+            }
+        # HQ-Schwellen als Y-Positionen für Sparkline-Markierungen
+        sl = abfluss_sparklines.get(av["hzbnr"])
+        if sl and sl.get("min") is not None and sl.get("max") is not None:
+            hq = _abf_svc.get_hq_werte(org.id, av["hzbnr"])
+            if hq:
+                y_range = (sl["max"] - sl["min"]) or 0.001
+                for hq_name, hq_val, color in [
+                    ("hq1",   hq.hq1,   "#eab308"),
+                    ("hq10",  hq.hq10,  "#f97316"),
+                    ("hq100", hq.hq100, "#ef4444"),
+                ]:
+                    if hq_val is not None:
+                        pct = (hq_val - sl["min"]) / y_range
+                        sl[f"{hq_name}_pct"]   = max(0.0, min(1.0, pct))
+                        sl[f"{hq_name}_val"]   = hq_val
+                        sl[f"{hq_name}_color"] = color
 
     return templates.TemplateResponse(
         request,
@@ -906,6 +1097,7 @@ async def weather_infoscreen(
             "station": station_views[0] if station_views else None,
             "station_views": station_views,
             "abfluss_views": abfluss_views,
+            "abfluss_sparklines": abfluss_sparklines,
             "current": current,
             "station_current": station_current,
             "warnings": active_warnings,
@@ -917,5 +1109,9 @@ async def weather_infoscreen(
             "public_base_url": base_url,
             "map_lat": lat,
             "map_lng": lng,
+            "history_hours": history_hours,
+            "metric_history": metric_history,
+            "daily_forecast": daily_forecast,
+            "wind_dir_deg": station_views[0].get("wind_dir_deg") if station_views else None,
         },
     )

@@ -41,15 +41,16 @@ class AbflussMessung:
 
 @dataclass
 class _StationState:
-    hzbnr:          str
-    name:           str
-    beschreibung:   str = ""
-    verlauf:        deque = field(default_factory=lambda: deque(maxlen=_MAX_VERLAUF))
-    aktuell:        AbflussMessung | None = None
-    hq_werte:       HQWerte = field(default_factory=HQWerte)
-    hq_abfragezeit: datetime | None = None
-    letzter_fehler: str | None = None
-    last_fetched:   datetime | None = None
+    hzbnr:              str
+    name:               str
+    beschreibung:       str = ""
+    verlauf:            deque = field(default_factory=lambda: deque(maxlen=_MAX_VERLAUF))
+    aktuell:            AbflussMessung | None = None
+    hq_werte:           HQWerte = field(default_factory=HQWerte)
+    hq_abfragezeit:     datetime | None = None
+    letzter_fehler:     str | None = None
+    last_fetched:       datetime | None = None
+    last_persisted_ts:  datetime | None = None
 
 
 # { org_id: { hzbnr: _StationState } }
@@ -159,6 +160,30 @@ async def _fetch_from_vowis(hzbnr: str) -> tuple[float | None, datetime | None, 
     return None, None, None
 
 
+# ── Persistenz (Wetter-DB) ────────────────────────────────────────────────────
+
+def _persist_abfluss_reading(org_id: int, hzbnr: str, messung: AbflussMessung) -> None:
+    """Schreibt eine Pegelmessung best-effort in die Wetter-DB (blockt – via asyncio.to_thread aufrufen)."""
+    try:
+        from app.db_weather import get_weather_session, weather_db_enabled
+        from app.models.weather import AbflussReading
+        if not weather_db_enabled():
+            return
+        session = get_weather_session()
+        try:
+            session.add(AbflussReading(
+                org_id=org_id,
+                hzbnr=hzbnr,
+                ts=messung.zeitstempel,
+                wert_m3s=messung.wert_m3s,
+            ))
+            session.commit()
+        finally:
+            session.close()
+    except Exception:
+        logger.debug("Abfluss-Persist fehlgeschlagen: org=%s hzbnr=%s", org_id, hzbnr)
+
+
 # ── Öffentliche API ───────────────────────────────────────────────────────────
 
 def _state(org_id: int, hzbnr: str, name: str, beschreibung: str = "") -> _StationState:
@@ -190,6 +215,13 @@ async def refresh_station(org_id: int, hzbnr: str, name: str, beschreibung: str 
         st.aktuell = messung
         st.letzter_fehler = None
         logger.debug("Abfluss OK: hzbnr=%s name=%r wert=%.3f m³/s ts=%s", hzbnr, name, wert, zeitstempel)
+        # Persistenz in Wetter-DB (best-effort, nur neue Messungen)
+        if messung.zeitstempel != st.last_persisted_ts:
+            try:
+                await asyncio.to_thread(_persist_abfluss_reading, org_id, hzbnr, messung)
+                st.last_persisted_ts = messung.zeitstempel
+            except Exception:
+                pass
     else:
         logger.warning("Abfluss kein Wert: hzbnr=%s name=%r org_id=%s", hzbnr, name, org_id)
         st.letzter_fehler = "Keine Daten verfügbar"
@@ -247,6 +279,12 @@ def sparkline_data(st: _StationState) -> dict:
         pts.append(f"{x},{y}")
 
     return {"points": " ".join(pts), "width": W, "height": H}
+
+
+def get_hq_werte(org_id: int, hzbnr: str) -> HQWerte | None:
+    """Gibt gecachte HQ-Referenzwerte einer Station zurück, oder None."""
+    st = _store.get(org_id, {}).get(hzbnr)
+    return st.hq_werte if st else None
 
 
 def remove_station(org_id: int, hzbnr: str) -> None:
