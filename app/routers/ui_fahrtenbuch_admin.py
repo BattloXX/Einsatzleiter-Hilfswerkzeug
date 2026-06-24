@@ -430,7 +430,7 @@ async def fahrzeug_fahrtenbuch_settings(
     fz.schaden_mail_override = schaden_mail_override.strip() or None
     fz.schaden_teams_webhook_override = schaden_teams_webhook_override.strip() or None
     db.commit()
-    return RedirectResponse(f"/admin/fahrzeuge/{fahrzeug_id}?saved=1", status_code=303)
+    return RedirectResponse("/admin/fahrtenbuch/fahrzeuge?saved=1", status_code=303)
 
 
 @router.post("/admin/fahrzeuge/{fahrzeug_id}/zaehler-korrektur")
@@ -452,7 +452,7 @@ async def zaehler_korrektur(
     val = int(wert) if art == "km" else Decimal(wert)
     stammdaten_korrektur_zaehler(fz, art, val, user.id, db)
     db.commit()
-    return RedirectResponse(f"/admin/fahrzeuge/{fahrzeug_id}?zaehler_saved=1", status_code=303)
+    return RedirectResponse("/admin/fahrtenbuch/fahrzeuge?zaehler_saved=1", status_code=303)
 
 
 @router.post("/admin/fahrzeuge/{fahrzeug_id}/qr")
@@ -517,6 +517,36 @@ async def org_token_seite(request: Request, db: Session = Depends(get_db)):
         "user": user, "org": org, "base_url": base_url,
         "saved": request.query_params.get("saved"),
     })
+
+
+@router.get("/admin/fahrtenbuch/einstellungen", response_class=HTMLResponse)
+async def fahrtenbuch_einstellungen(request: Request, db: Session = Depends(get_db)):
+    user = _check_fahrtenbuch_admin(request)
+    org = db.query(OrgSettings).filter(OrgSettings.org_id == user.org_id).first()
+    return templates.TemplateResponse(request, "fahrtenbuch/admin/einstellungen.html", {
+        "user": user, "org": org,
+        "saved": request.query_params.get("saved"),
+    })
+
+
+@router.post("/admin/fahrtenbuch/einstellungen")
+async def fahrtenbuch_einstellungen_speichern(
+    request: Request,
+    schaden_mail: str = Form(""),
+    schaden_teams_webhook_url: str = Form(""),
+    fahrt_doppel_minuten: int = Form(10),
+    db: Session = Depends(get_db),
+):
+    user = _check_fahrtenbuch_admin(request)
+    org = db.query(OrgSettings).filter(OrgSettings.org_id == user.org_id).first()
+    if not org:
+        raise HTTPException(status_code=404)
+    org.schaden_mail = schaden_mail.strip() or None
+    org.schaden_teams_webhook_url = schaden_teams_webhook_url.strip() or None
+    org.fahrt_doppel_minuten = max(1, fahrt_doppel_minuten)
+    write_audit(db, action="fahrtenbuch.einstellungen_gespeichert", org_id=user.org_id, user_id=user.id)
+    db.commit()
+    return RedirectResponse("/admin/fahrtenbuch/einstellungen?saved=1", status_code=303)
 
 
 @router.get("/admin/fahrtenbuch/fahrzeuge", response_class=HTMLResponse)

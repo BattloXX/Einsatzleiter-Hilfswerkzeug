@@ -1,26 +1,32 @@
-{% extends "base.html" %}
+{% extends "admin/_layout.html" %}
+{% from "admin/_breadcrumb.html" import breadcrumb %}
 {% block title %}Fahrtenbuch-Statistik{% endblock %}
+{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Fahrtenbuch', 'url': '/verwaltung/fahrten'}, {'label': 'Statistik'}]) }}{% endblock %}
+
 {% block head_extra %}
+{{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 {% endblock %}
-{% block content %}
-<div class="container" style="max-width:1100px;margin:0 auto;padding:1rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem;">
-    <h1 style="font-size:1.4rem;font-weight:700;margin:0;">Fahrtenbuch-Statistik</h1>
-    <a href="/statistik" class="btn btn--ghost btn--sm">&#8592; Dashboard</a>
-  </div>
 
-  {# Filter #}
-  <form method="get" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;align-items:flex-end;">
-    <div>
+{% block admin_content %}
+<div class="page-header">
+  <div>
+    <h1>Fahrtenbuch-Statistik</h1>
+    <p class="page-header__sub">Auswertung nach Fahrzeug, Maschinist, Ausbildner oder Gruppenkommandant</p>
+  </div>
+</div>
+
+<form method="get" class="card" style="padding:1rem;margin-bottom:1.25rem;">
+  <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end;">
+    <div class="form-group" style="margin:0;">
       <label class="form-label" style="font-size:.8rem;">Von</label>
       <input type="date" name="von" value="{{ filter.von }}" class="form-control form-control--sm">
     </div>
-    <div>
+    <div class="form-group" style="margin:0;">
       <label class="form-label" style="font-size:.8rem;">Bis</label>
       <input type="date" name="bis" value="{{ filter.bis }}" class="form-control form-control--sm">
     </div>
-    <div>
+    <div class="form-group" style="margin:0;">
       <label class="form-label" style="font-size:.8rem;">Fahrzeug</label>
       <select name="fahrzeug_id" class="form-control form-control--sm">
         <option value="0">Alle</option>
@@ -29,7 +35,7 @@
         {% endfor %}
       </select>
     </div>
-    <div>
+    <div class="form-group" style="margin:0;">
       <label class="form-label" style="font-size:.8rem;">Typ</label>
       <select name="fahrttyp" class="form-control form-control--sm">
         <option value="">Alle</option>
@@ -38,7 +44,7 @@
         <option value="sonstige" {% if filter.fahrttyp == 'sonstige' %}selected{% endif %}>Sonstige</option>
       </select>
     </div>
-    <div>
+    <div class="form-group" style="margin:0;">
       <label class="form-label" style="font-size:.8rem;">Gruppierung</label>
       <select name="gruppierung" class="form-control form-control--sm">
         <option value="fahrzeug" {% if gruppierung == 'fahrzeug' %}selected{% endif %}>Je Fahrzeug</option>
@@ -47,47 +53,51 @@
         <option value="gruppenkommandant" {% if gruppierung == 'gruppenkommandant' %}selected{% endif %}>Je Gruppenkommandant</option>
       </select>
     </div>
-    <button type="submit" class="btn btn--ghost btn--sm">Anzeigen</button>
-    <a href="/statistik/fahrtenbuch" class="btn btn--ghost btn--sm">Reset</a>
-  </form>
+    <div style="display:flex;gap:.4rem;">
+      <button type="submit" class="btn btn--primary btn--sm">Anzeigen</button>
+      <a href="/statistik/fahrtenbuch" class="btn btn--ghost btn--sm">Reset</a>
+    </div>
+  </div>
+</form>
 
-  <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem;">
-    {{ gesamt_fahrten }} Fahrten in der Auswahl (statistikrelevant, aktiv)
-  </p>
+<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem;">
+  <strong>{{ gesamt_fahrten }}</strong> Fahrten in der Auswahl (statistikrelevant, aktiv)
+</p>
 
-  {# Chart #}
-  {% if gruppen %}
-  <div style="max-height:300px;margin-bottom:1.5rem;">
+{% if gruppen %}
+<div class="card" style="padding:1rem;margin-bottom:1.25rem;">
+  <div style="max-height:320px;">
     <canvas id="fbChart"></canvas>
   </div>
-  {% endif %}
+</div>
+{% endif %}
 
-  {# Tabelle #}
+<div class="card">
   <table class="table">
     <thead>
       <tr>
         <th>{{ gruppierung|capitalize }}</th>
-        <th>Einsatz</th>
-        <th>Übung</th>
-        <th>Sonstige</th>
-        <th>Gesamt</th>
-        <th>km</th>
-        <th>BH</th>
+        <th style="text-align:right;">Einsatz</th>
+        <th style="text-align:right;">Übung</th>
+        <th style="text-align:right;">Sonstige</th>
+        <th style="text-align:right;"><strong>Gesamt</strong></th>
+        <th style="text-align:right;">km</th>
+        <th style="text-align:right;">BH (h)</th>
       </tr>
     </thead>
     <tbody>
       {% for g in gruppen %}
       <tr>
         <td>{{ g.label }}</td>
-        <td>{{ g.einsatz }}</td>
-        <td>{{ g.uebung }}</td>
-        <td>{{ g.sonstige }}</td>
-        <td><strong>{{ g.einsatz + g.uebung + g.sonstige }}</strong></td>
-        <td>{{ g.km_sum }}</td>
-        <td>{{ g.bh_sum }}</td>
+        <td style="text-align:right;">{{ g.einsatz }}</td>
+        <td style="text-align:right;">{{ g.uebung }}</td>
+        <td style="text-align:right;">{{ g.sonstige }}</td>
+        <td style="text-align:right;"><strong>{{ g.einsatz + g.uebung + g.sonstige }}</strong></td>
+        <td style="text-align:right;">{{ g.km_sum }}</td>
+        <td style="text-align:right;">{{ g.bh_sum }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Keine Daten</td></tr>
+      <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Keine Daten für den gewählten Zeitraum</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -111,6 +121,7 @@ new Chart(document.getElementById('fbChart'), {
   },
   options: {
     responsive: true,
+    maintainAspectRatio: true,
     plugins: { legend: { position: 'top' } },
     scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
   }

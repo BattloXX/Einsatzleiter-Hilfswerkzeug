@@ -1,38 +1,63 @@
-{% extends "base.html" %}
-{% block title %}Fahrtenbuch-Token{% endblock %}
-{% block content %}
-<div class="container" style="max-width:640px;margin:0 auto;padding:1rem;">
-  <h1 style="font-size:1.3rem;font-weight:700;margin-bottom:1.25rem;">Fahrtenbuch-Token</h1>
+{% extends "admin/_layout.html" %}
+{% from "admin/_breadcrumb.html" import breadcrumb %}
+{% block title %}Fahrtenbuch – Token / QR{% endblock %}
+{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Fahrtenbuch', 'url': '/verwaltung/fahrten'}, {'label': 'Token / QR'}]) }}{% endblock %}
 
-  {% if saved %}
-  <div class="alert alert--success" style="margin-bottom:1rem;">Token wurde generiert/rotiert.</div>
-  {% endif %}
-
-  {% if org and org.fahrtenbuch_token %}
-  <div style="border:1px solid var(--border);border-radius:.5rem;padding:1rem;margin-bottom:1.5rem;">
-    <div class="form-label" style="margin-bottom:.4rem;">Aktueller Token-Link</div>
-    <code style="word-break:break-all;font-size:.9rem;">{{ base_url }}/f/{{ org.fahrtenbuch_token }}</code>
-    <div style="margin-top:.75rem;font-size:.85rem;color:var(--text-muted);">
-      Dieser Link ermöglicht das Erfassen von Fahrten ohne Login. Gib ihn an Maschinisten weiter.
-    </div>
+{% block admin_content %}
+<div class="page-header">
+  <div>
+    <h1>Fahrtenbuch-Token &amp; QR-Codes</h1>
+    <p class="page-header__sub">Org-Token für Login-freie Erfassung; QR-Codes je Fahrzeug</p>
   </div>
-  {% else %}
-  <div class="alert alert--warn" style="margin-bottom:1.5rem;">Noch kein Token generiert.</div>
-  {% endif %}
+</div>
 
-  <form method="post" action="/admin/fahrtenbuch/token">
-    <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-    <button type="submit" class="btn btn--primary">
-      {% if org and org.fahrtenbuch_token %}Token rotieren{% else %}Token generieren{% endif %}
-    </button>
-  </form>
+{% if saved %}
+<div class="alert alert--success" style="margin-bottom:1rem;">Token wurde generiert/rotiert.</div>
+{% endif %}
 
-  <hr style="margin:2rem 0;">
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="card__header" style="padding:12px 16px;border-bottom:1px solid var(--border);">
+    <strong>Organisations-Token</strong>
+  </div>
+  <div style="padding:1rem;">
+    {% if org and org.fahrtenbuch_token %}
+    <div style="margin-bottom:1rem;">
+      <div class="form-label" style="margin-bottom:.4rem;">Aktueller Token-Link</div>
+      <code style="word-break:break-all;font-size:.9rem;background:var(--surface-mid);padding:.4rem .6rem;border-radius:.3rem;display:block;">
+        {{ base_url }}/f/{{ org.fahrtenbuch_token }}
+      </code>
+      <p style="margin-top:.5rem;font-size:.85rem;color:var(--text-muted);">
+        Dieser Link ermöglicht das Erfassen von Fahrten ohne Login. Gib ihn an Maschinisten weiter oder drucke ihn aus.
+      </p>
+    </div>
+    {% else %}
+    <div class="alert alert--warn" style="margin-bottom:1rem;">Noch kein Token generiert.</div>
+    {% endif %}
+    <form method="post" action="/admin/fahrtenbuch/token">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <button type="submit" class="btn btn--primary">
+        {% if org and org.fahrtenbuch_token %}Token rotieren (neuer Link){% else %}Token generieren{% endif %}
+      </button>
+    </form>
+    {% if org and org.fahrtenbuch_token %}
+    <p style="margin-top:.6rem;font-size:.8rem;color:var(--red-light);">
+      &#9888; Token rotieren macht den alten Link ungültig — alle ausgegebenen Links müssen neu verteilt werden.
+    </p>
+    {% endif %}
+  </div>
+</div>
 
-  <h2 style="font-size:1.1rem;font-weight:600;margin-bottom:.75rem;">Fahrzeug-QR-Codes</h2>
-  <p style="font-size:.85rem;color:var(--text-muted);">
-    Unter <a href="/admin/fahrtenbuch/fahrzeuge">Fahrtenbuch-Fahrzeuge</a> kannst du pro Fahrzeug
-    einen QR-Code generieren, der das Fahrzeug im Formular vorausfüllt.
-  </p>
+<div class="card">
+  <div class="card__header" style="padding:12px 16px;border-bottom:1px solid var(--border);">
+    <strong>Fahrzeug-QR-Codes</strong>
+  </div>
+  <div style="padding:1rem;">
+    <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:.75rem;">
+      Unter <a href="/admin/fahrtenbuch/fahrzeuge">Fahrzeuge</a> kannst du pro Fahrzeug
+      einen QR-Code generieren, der beim Scannen das Fahrzeug im Formular vorausfüllt.
+      Der QR-Code wird als PNG heruntergeladen.
+    </p>
+    <a href="/admin/fahrtenbuch/fahrzeuge" class="btn btn--ghost btn--sm">&#x2192; Zu Fahrzeug-Einstellungen</a>
+  </div>
 </div>
 {% endblock %}

@@ -16,7 +16,7 @@
   {% set active_group = 'einstellungen' %}
 {% elif _p.startswith('/uas/') %}
   {% set active_group = 'uas' %}
-{% elif '/admin/fahrtenbuch' in _p or '/verwaltung/fahrten' in _p %}
+{% elif '/admin/fahrtenbuch' in _p or '/verwaltung/fahrten' in _p or '/statistik/fahrtenbuch' in _p %}
   {% set active_group = 'fahrtenbuch' %}
 {% elif _p == '/admin/hilfe' %}
   {% set active_group = 'hilfe' %}
@@ -414,6 +414,16 @@
                class="admin-nav__item {% if '/admin/fahrtenbuch/token' in request.url.path %}is-active{% endif %}"
                {{ tip('Org-Token und QR-Codes für Tablet-/Token-Erfassung') }}>
               <span class="admin-nav__icon">🔑</span>Token / QR
+            </a>
+            <a href="/admin/fahrtenbuch/einstellungen"
+               class="admin-nav__item {% if '/admin/fahrtenbuch/einstellungen' in request.url.path %}is-active{% endif %}"
+               {{ tip('Schaden-Mail, Teams-Webhook, Doppelfahrt-Fenster') }}>
+              <span class="admin-nav__icon">⚙️</span>Einstellungen
+            </a>
+            <a href="/statistik/fahrtenbuch"
+               class="admin-nav__item {% if '/statistik/fahrtenbuch' in request.url.path %}is-active{% endif %}"
+               {{ tip('Fahrtenstatistik nach Fahrzeug, Maschinist, Ausbildner') }}>
+              <span class="admin-nav__icon">📊</span>Statistik
             </a>
           </div>
         </div>

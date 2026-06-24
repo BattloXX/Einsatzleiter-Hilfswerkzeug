@@ -1,0 +1,68 @@
+{% extends "admin/_layout.html" %}
+{% from "admin/_breadcrumb.html" import breadcrumb %}
+{% block title %}Fahrtenbuch – Einstellungen{% endblock %}
+{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Fahrtenbuch', 'url': '/verwaltung/fahrten'}, {'label': 'Einstellungen'}]) }}{% endblock %}
+
+{% block admin_content %}
+<div class="page-header">
+  <div>
+    <h1>Fahrtenbuch-Einstellungen</h1>
+    <p class="page-header__sub">Schadensmeldung, Doppelfahrt-Erkennung</p>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert--success" style="margin-bottom:1rem;">Einstellungen gespeichert.</div>
+{% endif %}
+
+<form method="post" action="/admin/fahrtenbuch/einstellungen">
+  <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card__header" style="padding:12px 16px;border-bottom:1px solid var(--border);">
+      <strong>Schadensmeldung</strong>
+      <span style="font-size:.78rem;color:var(--text-muted);margin-left:8px;">
+        Org-weite Empfänger — können je Fahrzeug überschrieben werden
+      </span>
+    </div>
+    <div style="padding:1rem;display:flex;flex-direction:column;gap:1rem;">
+      <div class="form-group">
+        <label class="form-label">Schaden-E-Mail</label>
+        <input type="email" name="schaden_mail" class="form-control"
+               value="{{ org.schaden_mail or '' if org else '' }}"
+               placeholder="geraetewart@feuerwehr.at">
+        <small class="form-hint">Wird bei jeder neu erfassten Fahrt mit Schadensangabe benachrichtigt.</small>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Teams-Webhook (Schadensmeldung)</label>
+        <input type="url" name="schaden_teams_webhook_url" class="form-control"
+               value="{{ org.schaden_teams_webhook_url or '' if org else '' }}"
+               placeholder="https://feuerwehr.webhook.office.com/webhookb2/...">
+        <small class="form-hint">Incoming Webhook URL für Microsoft Teams — sendet eine Karte bei jedem Schaden.</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card__header" style="padding:12px 16px;border-bottom:1px solid var(--border);">
+      <strong>Doppelfahrt-Erkennung</strong>
+    </div>
+    <div style="padding:1rem;">
+      <div class="form-group">
+        <label class="form-label">Zeitfenster (Minuten)</label>
+        <input type="number" name="fahrt_doppel_minuten" class="form-control" style="max-width:140px;"
+               min="1" max="120"
+               value="{{ org.fahrt_doppel_minuten if org else 10 }}">
+        <small class="form-hint">
+          Wird für dasselbe Fahrzeug innerhalb dieses Zeitraums eine weitere Fahrt erfasst,
+          erscheint ein Warnhinweis (kein Blocker).
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;">
+    <button type="submit" class="btn btn--primary">Speichern</button>
+  </div>
+</form>
+{% endblock %}

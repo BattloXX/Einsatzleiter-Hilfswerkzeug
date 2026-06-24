@@ -1,39 +1,56 @@
-{% extends "base.html" %}
+{% extends "admin/_layout.html" %}
+{% from "admin/_breadcrumb.html" import breadcrumb %}
 {% block title %}Fahrtenbuch – Zielorte{% endblock %}
-{% block content %}
-<div class="container" style="max-width:700px;margin:0 auto;padding:1rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
-    <h1 style="font-size:1.3rem;font-weight:700;margin:0;">Zielorte</h1>
+{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Fahrtenbuch', 'url': '/verwaltung/fahrten'}, {'label': 'Zielorte'}]) }}{% endblock %}
+
+{% block admin_content %}
+<div class="page-header">
+  <div>
+    <h1>Zielorte</h1>
+    <p class="page-header__sub">Häufige Zielorte als Schnellauswahl im Erfassungsformular</p>
   </div>
+</div>
 
-  {% if request.query_params.get('saved') %}
-  <div class="alert alert--success" style="margin-bottom:1rem;">Gespeichert.</div>
-  {% endif %}
+{% if request.query_params.get('saved') %}
+<div class="alert alert--success" style="margin-bottom:1rem;">Gespeichert.</div>
+{% endif %}
 
-  <div style="border:1px solid var(--border);border-radius:.5rem;padding:1rem;margin-bottom:1.5rem;">
-    <h2 style="font-size:1rem;margin:0 0 .75rem;">Neuer Zielort</h2>
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="card__header" style="padding:12px 16px;border-bottom:1px solid var(--border);">
+    <strong>Neuer Zielort</strong>
+  </div>
+  <div style="padding:1rem;">
     <form method="post" action="/admin/fahrtenbuch/zielorte/neu" style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap;">
       <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-      <div>
+      <div class="form-group" style="margin:0;">
         <label class="form-label" style="font-size:.8rem;">Name</label>
         <input type="text" name="name" class="form-control form-control--sm" required placeholder="Bezeichnung">
       </div>
-      <div>
+      <div class="form-group" style="margin:0;">
         <label class="form-label" style="font-size:.8rem;">Sort</label>
         <input type="number" name="sort" class="form-control form-control--sm" value="0" style="width:70px;">
       </div>
       <button type="submit" class="btn btn--primary btn--sm">Hinzufügen</button>
     </form>
   </div>
+</div>
 
+<div class="card">
   <table class="table">
-    <thead><tr><th>Name</th><th>Sort</th><th>Aktiv</th><th></th></tr></thead>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Sort</th>
+        <th>Aktiv</th>
+        <th></th>
+      </tr>
+    </thead>
     <tbody>
       {% for zo in zielorte %}
       <tr>
         <td>{{ zo.name }}</td>
         <td>{{ zo.sort }}</td>
-        <td>{% if zo.aktiv %}Ja{% else %}<span class="badge badge--gray">Nein</span>{% endif %}</td>
+        <td>{% if zo.aktiv %}<span class="badge badge--success">Ja</span>{% else %}<span class="badge badge--gray">Nein</span>{% endif %}</td>
         <td>
           <details>
             <summary class="btn btn--ghost btn--xs">Bearbeiten</summary>
@@ -51,7 +68,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Keine Zielorte</td></tr>
+      <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1.5rem;">Keine Zielorte vorhanden</td></tr>
       {% endfor %}
     </tbody>
   </table>

@@ -125,8 +125,11 @@ async def token_qr_formular(request: Request, token: str, qr_token: str, db: Ses
 
 @router.get("/fahrtenbuch/hx/maschinist", response_class=HTMLResponse)
 async def hx_maschinist_autocomplete(
-    request: Request, q: str = "", db: Session = Depends(get_db)
+    request: Request, db: Session = Depends(get_db)
 ):
+    # HTMX sendet den Feldnamen als Parameter-Key (maschinist_name, ausbildner_name …)
+    qp = request.query_params
+    q = qp.get("q") or qp.get("maschinist_name") or qp.get("ausbildner_name") or ""
     user = _current_user(request)
     token_org: OrgSettings | None = getattr(request.state, "fahrtenbuch_org", None)
     org_id = user.org_id if user else (token_org.org_id if token_org else None)
