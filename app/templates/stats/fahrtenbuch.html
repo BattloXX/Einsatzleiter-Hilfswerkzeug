@@ -181,9 +181,54 @@ vehicleIds.forEach(function(fzId, idx) {
 });
 {% endif %}
 
+const barLabels = {
+  id: 'barLabels',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach(function(dataset, di) {
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden) return;
+      meta.data.forEach(function(bar, idx) {
+        const value = dataset.data[idx];
+        if (!value) return;
+        const p = bar.getProps(['x', 'y', 'base', 'width'], true);
+        const barH = Math.abs(p.base - p.y);
+        const cx = p.x;
+        ctx.save();
+        ctx.textAlign = 'center';
+        if (barH >= 22) {
+          const mid = p.y + barH / 2;
+          ctx.fillStyle = 'rgba(255,255,255,.92)';
+          if (barH >= 42) {
+            const raw = dataset.label;
+            const lbl = raw.length > 15 ? raw.slice(0, 14) + '…' : raw;
+            ctx.font = '500 10px system-ui,sans-serif';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText(lbl, cx, mid - 1);
+            ctx.font = '700 12px system-ui,sans-serif';
+            ctx.textBaseline = 'top';
+            ctx.fillText(value, cx, mid + 3);
+          } else {
+            ctx.font = '700 11px system-ui,sans-serif';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(value, cx, mid);
+          }
+        } else if (barH > 0) {
+          ctx.font = '600 10px system-ui,sans-serif';
+          ctx.fillStyle = '#9ca3af';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(value, cx, p.y - 2);
+        }
+        ctx.restore();
+      });
+    });
+  }
+};
+
 new Chart(document.getElementById('fbChart'), {
   type: 'bar',
   data: { labels: labels, datasets: datasets },
+  plugins: [barLabels],
   options: {
     responsive: true,
     maintainAspectRatio: false,
