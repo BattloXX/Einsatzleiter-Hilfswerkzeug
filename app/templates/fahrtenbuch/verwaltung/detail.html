@@ -123,6 +123,7 @@
   {# Aktionen #}
   {% if fahrt.status.value == 'aktiv' %}
   <div style="display:flex;gap:.75rem;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:1rem;">
+    {% if can_edit %}
     <a href="/verwaltung/fahrten/{{ fahrt.id }}/korrektur" class="btn btn--ghost btn--sm">Korrigieren</a>
 
     <form method="post" action="/verwaltung/fahrten/{{ fahrt.id }}/statistikflag">
@@ -131,6 +132,7 @@
         Statistik {{ 'aktivieren' if fahrt.nicht_statistikrelevant else 'deaktivieren' }}
       </button>
     </form>
+    {% endif %}
 
     <div x-data="{open:false}" style="position:relative;">
       <button type="button" class="btn btn--ghost btn--sm" style="color:var(--red-light);" @click="open=!open">

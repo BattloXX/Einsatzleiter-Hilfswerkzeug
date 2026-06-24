@@ -194,6 +194,7 @@ async def fahrt_detail(request: Request, fahrt_id: int, db: Session = Depends(ge
 
     return templates.TemplateResponse(request, "fahrtenbuch/verwaltung/detail.html", {
         "user": user, "fahrt": fahrt, "original": original, "ersatz": ersatz,
+        "can_edit": is_fahrtenbuch_admin(user),
     })
 
 
