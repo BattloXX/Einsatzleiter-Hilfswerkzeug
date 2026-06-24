@@ -2,12 +2,13 @@
 {% if fahrzeug %}
 
 {% if fahrzeug.erfasst_km %}
-<div class="form-group">
+<div class="form-group" x-data="{ km: null, aktuell: {{ fahrzeug.km_aktuell }} }">
   <label class="form-label" for="km_stand_neu">
     km-Stand (aktuell: {{ fahrzeug.km_aktuell }} km) *
   </label>
   <input type="number" name="km_stand_neu" id="km_stand_neu"
          class="form-control form-control--lg" inputmode="numeric"
+         x-model.number="km"
          min="{{ fahrzeug.km_aktuell }}" step="1"
          placeholder="{{ fahrzeug.km_aktuell }}"
          hx-post="/fahrtenbuch/hx/zaehler-check"
@@ -15,17 +16,22 @@
          hx-trigger="blur"
          hx-vals='{"art":"km","fahrzeug_id":"{{ fahrzeug.id }}"}'
          hx-include="[name='km_stand_neu']">
+  <div x-show="km !== null && km > aktuell"
+       style="margin-top:.3rem;font-size:.85rem;color:var(--text-muted);">
+    Delta: <strong x-text="(km - aktuell) + ' km'"></strong>
+  </div>
   <div id="km-check" style="margin-top:.3rem;"></div>
 </div>
 {% endif %}
 
 {% if fahrzeug.erfasst_betriebsstunden %}
-<div class="form-group">
+<div class="form-group" x-data="{ bh: null, aktuell: {{ fahrzeug.betriebsstunden_aktuell }} }">
   <label class="form-label" for="betriebsstunden_neu">
     Betriebsstunden-Stand (aktuell: {{ fahrzeug.betriebsstunden_aktuell }} h)
   </label>
   <input type="number" name="betriebsstunden_neu" id="betriebsstunden_neu"
          class="form-control form-control--lg" inputmode="decimal" step="0.1"
+         x-model.number="bh"
          min="{{ fahrzeug.betriebsstunden_aktuell }}"
          placeholder="{{ fahrzeug.betriebsstunden_aktuell }}"
          hx-post="/fahrtenbuch/hx/zaehler-check"
@@ -33,6 +39,10 @@
          hx-trigger="blur"
          hx-vals='{"art":"bh","fahrzeug_id":"{{ fahrzeug.id }}"}'
          hx-include="[name='betriebsstunden_neu']">
+  <div x-show="bh !== null && bh > aktuell"
+       style="margin-top:.3rem;font-size:.85rem;color:var(--text-muted);">
+    Delta: <strong x-text="(Math.round((bh - aktuell) * 10) / 10) + ' h'"></strong>
+  </div>
   <div id="bh-check" style="margin-top:.3rem;"></div>
 </div>
 {% endif %}
@@ -59,12 +69,13 @@
 {% if fahrzeug.seilwinde_abfrage %}
 <fieldset style="border:1px solid var(--border);border-radius:.5rem;padding:1rem;margin-top:.5rem;">
   <legend style="font-weight:600;padding:0 .5rem;">Seilwinde</legend>
-  <div class="form-group">
+  <div class="form-group" x-data="{ sw: null, aktuell: {{ fahrzeug.seilwinde_bh_aktuell }} }">
     <label class="form-label" for="seilwinde_bh_neu">
       Seilwinde BH-Stand (aktuell: {{ fahrzeug.seilwinde_bh_aktuell }} h)
     </label>
     <input type="number" name="seilwinde_bh_neu" id="seilwinde_bh_neu"
            class="form-control" inputmode="decimal" step="0.1"
+           x-model.number="sw"
            min="{{ fahrzeug.seilwinde_bh_aktuell }}"
            placeholder="{{ fahrzeug.seilwinde_bh_aktuell }}"
            hx-post="/fahrtenbuch/hx/zaehler-check"
@@ -72,6 +83,10 @@
            hx-trigger="blur"
            hx-vals='{"art":"seilwinde_bh","fahrzeug_id":"{{ fahrzeug.id }}"}'
            hx-include="[name='seilwinde_bh_neu']">
+    <div x-show="sw !== null && sw > aktuell"
+         style="margin-top:.3rem;font-size:.85rem;color:var(--text-muted);">
+      Delta: <strong x-text="(Math.round((sw - aktuell) * 10) / 10) + ' h'"></strong>
+    </div>
     <div id="sw-check" style="margin-top:.3rem;"></div>
   </div>
   <div class="form-group" x-data="maschinistAutocomplete('seilwinde')">

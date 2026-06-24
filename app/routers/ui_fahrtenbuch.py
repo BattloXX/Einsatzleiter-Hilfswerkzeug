@@ -13,7 +13,7 @@ from app.core.templating import templates
 from app.db import get_db
 from app.models.fahrtenbuch import FahrtErfassungsweg, FahrtKategorie, Fahrtzweck, Zielort
 from app.models.incident import Incident
-from app.models.master import Member, OrgSettings, VehicleMaster
+from app.models.master import Member, MemberQualification, OrgSettings, Qualification, VehicleMaster
 from app.services.fahrtenbuch_service import erstelle_fahrt, pruefe_doppelfahrt, pruefe_zaehler
 from app.services.schaden_service import melde_schaden
 
@@ -198,8 +198,16 @@ async def hx_zweck_felder(
     if zweck and zweck.verlangt_gruppenkommandant and org_id:
         gk_members = (
             db.query(Member)
-            .filter(Member.active == True, Member.ist_gruppenkommandant == True)  # noqa: E712
+            .join(MemberQualification, MemberQualification.member_id == Member.id)
+            .join(Qualification, Qualification.id == MemberQualification.qualification_id)
+            .filter(
+                Member.active == True,  # noqa: E712
+                Member.org_id == org_id,
+                Qualification.is_gruppenkommandant == True,  # noqa: E712
+            )
+            .execution_options(include_all_tenants=True)
             .order_by(Member.lastname, Member.firstname)
+            .distinct()
             .all()
         )
 

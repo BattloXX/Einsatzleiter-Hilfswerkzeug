@@ -6,7 +6,7 @@ import secrets
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -547,6 +547,30 @@ async def fahrtenbuch_einstellungen_speichern(
     write_audit(db, action="fahrtenbuch.einstellungen_gespeichert", org_id=user.org_id, user_id=user.id)
     db.commit()
     return RedirectResponse("/admin/fahrtenbuch/einstellungen?saved=1", status_code=303)
+
+
+@router.post("/admin/fahrtenbuch/fahrzeuge/sortierung")
+async def fahrzeuge_sortierung(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = _check_fahrtenbuch_admin(request)
+    try:
+        data = await request.json()
+        ids = [int(i) for i in data.get("ids", [])]
+    except Exception:
+        raise HTTPException(status_code=422, detail="Ungültige Reihenfolge")
+    for idx, fz_id in enumerate(ids):
+        fz = (
+            db.query(VehicleMaster)
+            .filter(VehicleMaster.id == fz_id, VehicleMaster.dept_id == user.org_id)
+            .execution_options(include_all_tenants=True)
+            .first()
+        )
+        if fz:
+            fz.display_order = idx
+    db.commit()
+    return JSONResponse({"ok": True})
 
 
 @router.get("/admin/fahrtenbuch/fahrzeuge", response_class=HTMLResponse)

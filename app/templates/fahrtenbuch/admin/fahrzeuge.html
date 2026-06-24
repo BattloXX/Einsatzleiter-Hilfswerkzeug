@@ -3,11 +3,37 @@
 {% block title %}Fahrtenbuch – Fahrzeuge{% endblock %}
 {% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Fahrtenbuch', 'url': '/verwaltung/fahrten'}, {'label': 'Fahrzeuge'}]) }}{% endblock %}
 
+{% block head_extra %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+<style>
+  .fz-card { border: 1px solid var(--border); border-radius: .5rem; background: var(--surface); }
+  .fz-card.sortable-ghost { opacity: .4; }
+  .fz-card.sortable-chosen { box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+  .drag-handle {
+    cursor: grab;
+    padding: .2rem .4rem;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  #sort-saved {
+    display: none;
+    font-size: .8rem;
+    color: var(--green);
+    margin-left: .5rem;
+  }
+</style>
+{% endblock %}
+
 {% block admin_content %}
 <div class="page-header">
   <div>
     <h1>Fahrzeuge – Fahrtenbuch-Einstellungen</h1>
-    <p class="page-header__sub">km/BH-Zähler, Warnschwellen, QR-Codes je Fahrzeug</p>
+    <p class="page-header__sub">km/BH-Zähler, Warnschwellen, QR-Codes je Fahrzeug <span id="sort-saved">&#10003; Reihenfolge gespeichert</span></p>
   </div>
 </div>
 
@@ -24,18 +50,21 @@
 <div class="alert alert--warn" style="margin-bottom:1rem;">Bibliothek <code>qrcode</code> nicht installiert — QR als PNG nicht verfügbar.</div>
 {% endif %}
 
-<div style="display:flex;flex-direction:column;gap:1.25rem;">
+<div id="fahrzeug-sort-list" style="display:flex;flex-direction:column;gap:1.25rem;">
   {% for fz in fahrzeuge %}
-  <details style="border:1px solid var(--border);border-radius:.5rem;">
-    <summary style="padding:.85rem 1rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:.75rem;">
-      🚒 {{ fz.code }}
-      {% if fz.kennzeichen %}<span style="color:var(--text-muted);font-weight:400;">{{ fz.kennzeichen }}</span>{% endif %}
+  <details class="fz-card" data-id="{{ fz.id }}">
+    <summary style="padding:.85rem 1rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:.5rem;list-style:none;">
+      <span class="drag-handle" title="Reihenfolge ändern">&#8942;&#8942;</span>
+      <span style="font-size:1rem;">&#x1F697;</span>
+      <span>{{ fz.code }}</span>
+      {% if fz.kennzeichen %}<span style="color:var(--text-muted);font-weight:400;font-size:.9rem;">{{ fz.kennzeichen }}</span>{% endif %}
       <span style="margin-left:auto;display:flex;gap:.4rem;font-weight:400;">
         {% if fz.erfasst_km %}<span class="badge badge--blue">km</span>{% endif %}
         {% if fz.erfasst_betriebsstunden %}<span class="badge badge--blue">BH</span>{% endif %}
         {% if fz.seilwinde_abfrage %}<span class="badge badge--blue">Seilwinde</span>{% endif %}
         {% if fz.qr_token %}<span class="badge badge--success">QR</span>{% endif %}
       </span>
+      <span style="font-size:.8rem;color:var(--text-muted);margin-left:.25rem;">&#9660;</span>
     </summary>
     <div style="padding:1rem;border-top:1px solid var(--border);">
       <form method="post" action="/admin/fahrzeuge/{{ fz.id }}/fahrtenbuch"
@@ -134,4 +163,38 @@
   <div class="card" style="padding:2rem;text-align:center;color:var(--text-muted);">Keine Fahrzeuge gefunden</div>
   {% endfor %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  var list = document.getElementById('fahrzeug-sort-list');
+  if (!list || typeof Sortable === 'undefined') return;
+
+  Sortable.create(list, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    onEnd: function() {
+      var ids = Array.from(list.querySelectorAll('[data-id]')).map(function(el) {
+        return parseInt(el.dataset.id, 10);
+      });
+      fetch('/admin/fahrtenbuch/fahrzeuge/sortierung', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids }),
+      }).then(function(r) {
+        if (r.ok) {
+          var saved = document.getElementById('sort-saved');
+          if (saved) {
+            saved.style.display = 'inline';
+            setTimeout(function() { saved.style.display = 'none'; }, 2500);
+          }
+        }
+      });
+    },
+  });
+})();
+</script>
 {% endblock %}
