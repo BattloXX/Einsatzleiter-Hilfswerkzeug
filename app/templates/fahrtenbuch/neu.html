@@ -234,5 +234,17 @@ document.addEventListener('pointerdown', function(e) {
     detail: { id: item.dataset.memberId, name: item.dataset.name }
   }));
 }, { passive: false });
+
+// Alpine nach HTMX-Swap der dynamischen Felder re-initialisieren.
+// Ohne dies wird die maschinistAutocomplete-Komponente in den nachgeladenen
+// Fahrzeug-/Zweck-Feldern nie initialisiert → der member-selected-Listener
+// fehlt → Antippen eines Vorschlags füllt Name/member_id nicht (v.a. mobil).
+document.body.addEventListener('htmx:afterSwap', function(ev) {
+  const t = ev.detail && ev.detail.target;
+  if (!t) return;
+  if (t.id === 'fahrzeug-felder' || t.id === 'zweck-felder') {
+    if (window.Alpine) Alpine.initTree(t);
+  }
+});
 </script>
 {% endblock %}
