@@ -97,6 +97,7 @@ async def fahrtenbuch_speichern(
         "user": user,
         "fahrt": fahrt,
         "token_org": token_org,
+        "fab_token": form.get("t", "") or "",
     })
 
 
