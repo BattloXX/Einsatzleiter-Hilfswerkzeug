@@ -54,7 +54,7 @@ def upgrade():
     op.execute(text("""
         CREATE TABLE IF NOT EXISTS `fahrtzweck` (
             `id`                           BIGINT        NOT NULL AUTO_INCREMENT,
-            `org_id`                       INT           NULL,
+            `org_id`                       BIGINT        NULL,
             `name`                         VARCHAR(120)  NOT NULL,
             `kategorie`                    VARCHAR(20)   NOT NULL,
             `verlangt_ausbildner`          TINYINT(1)    NOT NULL DEFAULT 0,
@@ -72,7 +72,7 @@ def upgrade():
     op.execute(text("""
         CREATE TABLE IF NOT EXISTS `zielort` (
             `id`      BIGINT       NOT NULL AUTO_INCREMENT,
-            `org_id`  INT          NULL,
+            `org_id`  BIGINT       NULL,
             `name`    VARCHAR(200) NOT NULL,
             `aktiv`   TINYINT(1)   NOT NULL DEFAULT 1,
             `sort`    INT          NOT NULL DEFAULT 0,
