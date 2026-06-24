@@ -25,10 +25,21 @@
       </select>
     </div>
 
-    <div class="form-group">
+    <div class="form-group" x-data="maschinistAutocomplete('maschinist', '{{ fahrt.maschinist_name }}', '{{ fahrt.maschinist_member_id or '' }}')">
       <label class="form-label">Maschinist *</label>
-      <input type="hidden" name="maschinist_member_id" value="{{ fahrt.maschinist_member_id or '' }}">
-      <input type="text" name="maschinist_name" class="form-control" value="{{ fahrt.maschinist_name }}" required>
+      <input type="hidden" name="maschinist_member_id" :value="memberId">
+      <div style="position:relative;">
+        <input type="text" name="maschinist_name" id="maschinist_name"
+               class="form-control"
+               placeholder="Name tippen…" required autocomplete="new-password"
+               x-model="query"
+               hx-get="/fahrtenbuch/hx/maschinist"
+               hx-target="#maschinist-suggestions"
+               hx-trigger="input changed delay:200ms"
+               hx-include="[name='maschinist_name']"
+               @focus="open=true" @blur="setTimeout(()=>open=false,150)" @input="open=true">
+        <div id="maschinist-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
+      </div>
     </div>
 
     {% if fahrt.fahrzeug and fahrt.fahrzeug.erfasst_km %}
@@ -82,4 +93,37 @@
     <button type="submit" class="btn btn--primary">Korrektur speichern</button>
   </form>
 </div>
+
+<script>
+function maschinistAutocomplete(prefix, initialName, initialId) {
+  return {
+    query: initialName || '',
+    memberId: initialId || '',
+    open: false,
+    init() {
+      this.$el.addEventListener('member-selected', (e) => {
+        this.memberId = e.detail.id;
+        this.query = e.detail.name;
+        this.open = false;
+      });
+      this.$watch('query', (val) => { if (!val) this.memberId = ''; });
+    },
+    select(id, name) {
+      this.memberId = id;
+      this.query = name;
+      this.open = false;
+    }
+  };
+}
+document.addEventListener('pointerdown', function(e) {
+  const item = e.target.closest('.autocomplete-item');
+  if (!item) return;
+  e.preventDefault();
+  const container = item.closest('[x-data]');
+  if (!container) return;
+  container.dispatchEvent(new CustomEvent('member-selected', {
+    detail: { id: item.dataset.memberId, name: item.dataset.name }
+  }));
+}, { passive: false });
+</script>
 {% endblock %}
