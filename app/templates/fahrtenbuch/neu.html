@@ -51,6 +51,7 @@
 
   <form method="post" action="/fahrtenbuch"
         x-data="fahrtForm()"
+        @submit="checkZaehlerWarnings($event)"
         style="display:flex;flex-direction:column;gap:1.25rem;">
     <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
 
@@ -183,7 +184,23 @@
 
 <script>
 function fahrtForm() {
-  return { fahrzeugId: '{{ preset_fahrzeug.id if preset_fahrzeug else "" }}' };
+  return {
+    fahrzeugId: '{{ preset_fahrzeug.id if preset_fahrzeug else "" }}',
+  };
+}
+function checkZaehlerWarnings(e) {
+  const checks = ['#km-check', '#bh-check', '#sw-check'];
+  for (const sel of checks) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    const cb = el.querySelector('input[type="checkbox"]');
+    if (cb && !cb.checked) {
+      e.preventDefault();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      cb.focus();
+      return;
+    }
+  }
 }
 function maschinistAutocomplete(prefix, initialName, initialId) {
   return {
@@ -195,6 +212,9 @@ function maschinistAutocomplete(prefix, initialName, initialId) {
         this.memberId = e.detail.id;
         this.query = e.detail.name;
         this.open = false;
+      });
+      this.$watch('query', (val) => {
+        if (!val) this.memberId = '';
       });
     },
     select(id, name) {

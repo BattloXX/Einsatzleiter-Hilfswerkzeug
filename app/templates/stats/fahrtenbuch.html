@@ -66,7 +66,7 @@
 
 {% if gruppen %}
 <div class="card" style="padding:1rem;margin-bottom:1.25rem;">
-  <div style="max-height:320px;">
+  <div style="position:relative;height:300px;">
     <canvas id="fbChart"></canvas>
   </div>
 </div>
@@ -108,20 +108,22 @@
 {% if gruppen %}
 <script>
 const labels = {{ gruppen|map(attribute='label')|list|tojson }};
-const einsatzData = {{ gruppen|map(attribute='einsatz')|list|tojson }};
-const uebungData  = {{ gruppen|map(attribute='uebung')|list|tojson }};
+const einsatzData  = {{ gruppen|map(attribute='einsatz')|list|tojson }};
+const uebungData   = {{ gruppen|map(attribute='uebung')|list|tojson }};
+const sonstigeData = {{ gruppen|map(attribute='sonstige')|list|tojson }};
 new Chart(document.getElementById('fbChart'), {
   type: 'bar',
   data: {
     labels: labels,
     datasets: [
-      { label: 'Einsatz', data: einsatzData, backgroundColor: '#d42225' },
-      { label: 'Übung',   data: uebungData,  backgroundColor: '#1877f2' },
+      { label: 'Einsatz',  data: einsatzData,  backgroundColor: '#d42225' },
+      { label: 'Übung',    data: uebungData,   backgroundColor: '#1877f2' },
+      { label: 'Sonstige', data: sonstigeData, backgroundColor: '#6b7280' },
     ]
   },
   options: {
     responsive: true,
-    maintainAspectRatio: true,
+    maintainAspectRatio: false,
     plugins: { legend: { position: 'top' } },
     scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
   }

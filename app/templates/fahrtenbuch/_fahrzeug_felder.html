@@ -13,7 +13,7 @@
            hx-target="#maschinist-suggestions"
            hx-trigger="input changed delay:200ms"
            hx-include="[name='maschinist_name']"
-           @focus="open=true" @blur="open=false">
+           @focus="open=true" @blur="open=false" @input="open=true">
     <div id="maschinist-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
   </div>
 </div>
@@ -30,7 +30,7 @@
          placeholder="{{ fahrzeug.km_aktuell }}"
          hx-post="/fahrtenbuch/hx/zaehler-check"
          hx-target="#km-check"
-         hx-trigger="blur"
+         hx-trigger="blur, input delay:400ms"
          hx-vals='{"art":"km","fahrzeug_id":"{{ fahrzeug.id }}"}'
          hx-include="[name='km_stand_neu']">
   <div x-show="km !== null && km > aktuell"
@@ -63,7 +63,7 @@
          placeholder="{{ fahrzeug.betriebsstunden_aktuell }}"
          hx-post="/fahrtenbuch/hx/zaehler-check"
          hx-target="#bh-check"
-         hx-trigger="blur"
+         hx-trigger="blur, input delay:400ms"
          hx-vals='{"art":"bh","fahrzeug_id":"{{ fahrzeug.id }}"}'
          hx-include="[name='betriebsstunden_neu']">
   <div x-show="bh !== null && bh > aktuell"
@@ -97,7 +97,7 @@
            hx-target="#maschinist2-suggestions"
            hx-trigger="input changed delay:200ms"
            hx-include="[name='maschinist2_name']"
-           @focus="open=true" @blur="setTimeout(()=>open=false,150)">
+           @focus="open=true" @blur="setTimeout(()=>open=false,150)" @input="open=true">
     <div id="maschinist2-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
   </div>
 </div>
@@ -117,7 +117,7 @@
            placeholder="{{ fahrzeug.seilwinde_bh_aktuell }}"
            hx-post="/fahrtenbuch/hx/zaehler-check"
            hx-target="#sw-check"
-           hx-trigger="blur"
+           hx-trigger="blur, input delay:400ms"
            hx-vals='{"art":"seilwinde_bh","fahrzeug_id":"{{ fahrzeug.id }}"}'
            hx-include="[name='seilwinde_bh_neu']">
     <div x-show="sw !== null && sw > aktuell"
@@ -148,7 +148,7 @@
              hx-target="#seilwinde-suggestions"
              hx-trigger="input changed delay:200ms"
              hx-include="[name='seilwinde_bediener_name']"
-             @focus="open=true" @blur="open=false">
+             @focus="open=true" @blur="open=false" @input="open=true">
       <div id="seilwinde-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
     </div>
   </div>
