@@ -1,0 +1,22 @@
+{# Fahrtenbuch-Abschnitts-Navigation – in Liste und Statistik einbinden #}
+{% set _fp = request.url.path %}
+{% set _on_liste = '/verwaltung/fahrten' in _fp and '/statistik' not in _fp %}
+{% set _on_statistik = '/statistik/fahrtenbuch' in _fp %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--border);padding-bottom:0;">
+  <div style="display:flex;gap:0;align-items:flex-end;">
+    <a href="/verwaltung/fahrten"
+       style="display:inline-block;padding:.55rem 1rem;font-size:.875rem;font-weight:600;border-bottom:2px solid {% if _on_liste %}var(--brand-red,#b71921){% else %}transparent{% endif %};color:{% if _on_liste %}var(--text){% else %}var(--text-muted){% endif %};text-decoration:none;white-space:nowrap;transition:color .15s;">
+      Fahrten
+    </a>
+    <a href="/statistik/fahrtenbuch"
+       style="display:inline-block;padding:.55rem 1rem;font-size:.875rem;font-weight:600;border-bottom:2px solid {% if _on_statistik %}var(--brand-red,#b71921){% else %}transparent{% endif %};color:{% if _on_statistik %}var(--text){% else %}var(--text-muted){% endif %};text-decoration:none;white-space:nowrap;transition:color .15s;">
+      Statistik
+    </a>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;padding-bottom:.75rem;">
+    <a href="/fahrtenbuch/neu" class="btn btn--primary btn--sm">+ Fahrt erfassen</a>
+    {% if _on_liste %}
+    <a href="/verwaltung/fahrten/export.xlsx?{{ request.query_string.decode() }}" class="btn btn--ghost btn--sm">Excel-Export</a>
+    {% endif %}
+  </div>
+</div>
