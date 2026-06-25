@@ -167,6 +167,7 @@ async def create_user(
                     user_display_name=display,
                     app_url=app_url,
                     org_slug=org_slug,
+                    org_name=org.name if org else "",
                     is_test=is_test,
                     db=db,
                 )

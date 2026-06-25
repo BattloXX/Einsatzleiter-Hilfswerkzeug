@@ -264,7 +264,7 @@ async def send_welcome_mail(*, to: str, username: str, password: str,
 
 
 async def send_sso_welcome_mail(*, to: str, user_display_name: str,
-                                 app_url: str, org_slug: str,
+                                 app_url: str, org_slug: str, org_name: str = "",
                                  is_test: bool = False, db=None) -> None:
     smtp_cfg = get_smtp_cfg(db)
     subject = "Anmeldung per Microsoft-Login – Einsatzleiter-Hilfswerkzeug"
@@ -272,6 +272,8 @@ async def send_sso_welcome_mail(*, to: str, user_display_name: str,
     safe_url = html.escape(app_url.rstrip("/"))
     safe_sso_url = html.escape(sso_url)
     safe_name = html.escape(user_display_name)
+    org_display = org_name if org_name else "deiner Organisation"
+    safe_org = html.escape(org_display)
     test_notice_txt = "\n⚠️  HINWEIS: Dies ist ein TESTSYSTEM – bitte keine Echtdaten eingeben.\n" if is_test else ""
     test_notice_html = (
         '<p style="background:#7c3c00;color:#ffe0b2;padding:8px 12px;border-radius:4px;font-weight:bold;">'
@@ -280,23 +282,36 @@ async def send_sso_welcome_mail(*, to: str, user_display_name: str,
     body_txt = (
         f"Hallo {user_display_name},\n\n"
         f"Dein Account für das Einsatzleiter-Hilfswerkzeug wurde eingerichtet.\n"
-        f"Du kannst dich mit deinem Microsoft-/Office-365-Account anmelden.\n"
+        f"Du kannst dich mit deinem dienstlichen Microsoft-Account der {org_display} anmelden.\n"
         f"{test_notice_txt}"
-        f"\nAnmeldung per Microsoft-Login:\n  {sso_url}\n\n"
+        f"\n"
+        f"WICHTIG: Verwende ausschliesslich deinen dienstlichen Microsoft-Account\n"
+        f"der {org_display} – also jenen Account, den du auch fuer\n"
+        f"Microsoft 365 / Teams der {org_display} nutzt.\n"
+        f"Kein privates Microsoft-, Hotmail- oder Outlook.com-Konto verwenden!\n"
+        f"\n"
+        f"Anmeldung per Microsoft-Login:\n  {sso_url}\n\n"
         f"Alternativ: Gehe auf {app_url.rstrip('/')} und klicke auf \"Mit Microsoft anmelden\".\n\n"
-        f"Mit freundlichen Grüßen\n"
+        f"Kein eigenes Passwort erforderlich – die Anmeldung erfolgt vollstaendig ueber Microsoft.\n\n"
+        f"Mit freundlichen Gruessen\n"
         f"Einsatzleiter-Hilfswerkzeug"
     )
     body_html = f"""<!doctype html>
 <html lang="de"><body style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
 <p>Hallo <strong>{safe_name}</strong>,</p>
 <p>Dein Account für das Einsatzleiter-Hilfswerkzeug wurde eingerichtet.<br>
-Du kannst dich mit deinem <strong>Microsoft-/Office-365-Account</strong> anmelden.</p>
+Du kannst dich mit deinem <strong>dienstlichen Microsoft-Account der {safe_org}</strong> anmelden.</p>
 {test_notice_html}
+<div style="background:#e8f4fd;border-left:4px solid #0078d4;padding:12px 16px;border-radius:0 4px 4px 0;margin:16px 0;font-size:0.95rem;">
+  <strong>Welches Konto verwenden?</strong><br><br>
+  Melde dich mit deinem <strong>dienstlichen Microsoft-Account der {safe_org}</strong> an –
+  also dem Konto, das du auch für Microsoft 365 / Teams der {safe_org} verwendest.<br><br>
+  <span style="color:#c0392b;font-weight:bold;">&#10060; Kein privates Microsoft-, Hotmail- oder Outlook.com-Konto verwenden!</span>
+</div>
 <p style="text-align:center;margin:20px 0;">
   <a href="{safe_sso_url}" style="background:#0078d4;color:#fff;padding:12px 24px;
      border-radius:6px;text-decoration:none;display:inline-block;font-size:1rem;">
-    &#128274; Mit Microsoft anmelden
+    &#128274; Mit Microsoft anmelden ({safe_org})
   </a>
 </p>
 <p style="font-size:0.85rem;color:#666;">
