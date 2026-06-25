@@ -142,7 +142,7 @@
   <header class="flex items-center justify-between px-8 bg-surface-container border-b border-outline-variant shadow-md"
           style="height:116px;flex-shrink:0;">
     <div class="flex items-center gap-5">
-      {% set _logo = org.logo_path or '/static/img/Logo-rot.png' %}
+      {% set _logo = org.logo_path or '/static/img/logo_einsatzcockpit.png' %}
       <img src="{{ _logo }}" alt="{{ org.name }}" class="object-contain"
            style="max-height:60px;max-width:140px;" onerror="this.style.display='none'">
       <div class="flex flex-col">
@@ -194,7 +194,7 @@
     </div>
 
     <div class="flex flex-col items-end gap-1">
-      <img src="/static/img/Logo-rot.png" alt="{{ brand }}"
+      <img src="/static/img/logo_einsatzcockpit.png" alt="{{ brand }}"
            style="max-height:34px;object-fit:contain;" onerror="this.style.display='none'">
       <span class="font-mono text-label-caps text-on-surface-variant tracking-widest">{{ brand }}</span>
       {% if station %}
