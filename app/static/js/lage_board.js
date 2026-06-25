@@ -8,7 +8,7 @@
   }
 
   function getCsrf() {
-    return document.cookie.match(/(?:^|;\s*)fwwo_csrf=([^;]+)/)?.[1] || '';
+    return document.cookie.match(/(?:^|;\s*)ec_csrf=([^;]+)/)?.[1] || '';
   }
 
   function postPhase(lageId, siteId, phase, sortIndex) {

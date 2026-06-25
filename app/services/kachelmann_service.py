@@ -106,7 +106,7 @@ async def _get(path: str, params: dict | None = None) -> dict | None:
         async with httpx.AsyncClient(
             headers={
                 "X-API-Key": api_key,
-                "User-Agent": "Einsatzleiter-Hilfswerkzeug/2.x (weather)",
+                "User-Agent": "Einsatzcockpit/2.x (weather)",
                 "Accept": "application/json",
             },
             timeout=settings.WEATHER_HTTP_TIMEOUT,

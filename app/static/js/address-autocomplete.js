@@ -1,5 +1,5 @@
 /**
- * Adress-Autocomplete für Einsatzleiter (Photon/Historie über Backend).
+ * Adress-Autocomplete für Einsatzcockpit (Photon/Historie über Backend).
  *
  * Nutzung:
  *   initAddressAutocomplete({

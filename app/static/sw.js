@@ -1,6 +1,6 @@
 /* Service Worker – PWA Offline Cache */
-const CACHE = 'fwwo-v5';
-const BOARD_CACHE = 'fwwo-board-v1';
+const CACHE = 'ec-v1';
+const BOARD_CACHE = 'ec-board-v1';
 const PRECACHE = [
   '/',
   '/static/css/app.css',

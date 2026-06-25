@@ -77,7 +77,7 @@
     for (const c of cookies) {
       const i = c.indexOf('=');
       if (i === -1) continue;
-      if (c.slice(0, i).trim() === 'fwwo_csrf') return decodeURIComponent(c.slice(i + 1));
+      if (c.slice(0, i).trim() === 'ec_csrf') return decodeURIComponent(c.slice(i + 1));
     }
     return null;
   }

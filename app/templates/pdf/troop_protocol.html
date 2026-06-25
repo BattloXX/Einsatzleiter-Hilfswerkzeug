@@ -54,7 +54,7 @@
 {% endif %}
 
 <div class="pdf-footer">
-  Erstellt mit einsatzleiter.cloud – https://einsatzleiter.cloud/
+  Erstellt mit {{ brand }} – https://{{ brand_domain }}/
 </div>
 
 <div class="header-box">
@@ -65,8 +65,8 @@
     <div class="meta" style="margin-top:4pt;">AS-Protokoll: <strong>{{ troop.name }}</strong>{% if troop.unit_name %} ({{ troop.unit_name }}){% endif %}</div>
   </div>
   <div class="header-box__brand">
-    <img src="{{ (base_url or '').rstrip('/') }}/static/img/Logo-rot.png" alt="einsatzleiter.cloud">
-    <div class="source-url">einsatzleiter.cloud</div>
+    <img src="{{ (base_url or '').rstrip('/') }}/static/img/Logo-rot.png" alt="{{ brand }}">
+    <div class="source-url">{{ brand_domain }}</div>
   </div>
   <div style="text-align:right">
     <div><strong>Einsatz #{{ incident.nummer or incident.id }}</strong></div>

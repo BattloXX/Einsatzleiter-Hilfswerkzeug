@@ -1,4 +1,4 @@
-# Konzept: Lokale Wetterstation (Davis Vantage Pro 2 Plus + Meteobridge) → einsatzleiter.cloud
+# Konzept: Lokale Wetterstation (Davis Vantage Pro 2 Plus + Meteobridge) → Einsatzcockpit
 
 **Stand:** 2026-06-23
 **Status:** Entwurf / Planung
@@ -9,8 +9,8 @@
 - Hardware im FW-Haus: **Davis Vantage Pro 2 Plus (wireless, mit Belüftung)** + Konsole +
   **Meteobridge PRO RED**. Die Meteobridge empfängt die ISS-Daten direkt per RF und ist
   für Datenspeicherung und Internet-Transfer zuständig.
-- **einsatzleiter.cloud kann die Station NICHT direkt erreichen** (kein eingehender Zugriff
-  ins FW-Haus-Netz). Folglich muss die **Meteobridge die Daten aktiv an einsatzleiter.cloud
+- **Einsatzcockpit kann die Station NICHT direkt erreichen** (kein eingehender Zugriff
+  ins FW-Haus-Netz). Folglich muss die **Meteobridge die Daten aktiv an Einsatzcockpit
   pushen** (Outbound von der Meteobridge → Cloud).
 - Es existiert bereits ein ausgereiftes Wetter-Subsystem:
   - `app/services/weather_service.py` (GeoSphere/ZAMG, Open-Meteo, Kachelmann, Nowcast,
@@ -34,7 +34,7 @@
 
 ```
   Davis ISS ──RF──> Meteobridge PRO RED ──HTTPS push (alle 1–5 min)──>
-       POST https://einsatzleiter.cloud/api/v1/weather/ingest?token=<STATION_TOKEN>
+       POST https://Einsatzcockpit/api/v1/weather/ingest?token=<STATION_TOKEN>
                        │
                        ▼
         ┌─────────────────────────────────────────────────────────┐

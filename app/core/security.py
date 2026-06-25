@@ -47,7 +47,7 @@ def verify_api_key(plain: str, stored: str) -> bool:
 
 
 def generate_api_key() -> str:
-    return "fwwo_" + secrets.token_urlsafe(32)
+    return "ec_" + secrets.token_urlsafe(32)
 
 
 def generate_sms_gateway_token() -> str:

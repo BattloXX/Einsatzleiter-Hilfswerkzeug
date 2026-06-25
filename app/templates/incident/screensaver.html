@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>Bildschirmschoner – {{ incident.alarm_type_code }} – einsatzleiter.cloud</title>
+  <title>Bildschirmschoner – {{ incident.alarm_type_code }} – {{ brand }}</title>
   <link rel="stylesheet" href="/static/css/app.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -96,7 +96,7 @@
   </video>
 
   <div class="ss-float" id="ssFloat">
-    <img class="ss-logo" src="/static/img/Logo-rot.png" alt="einsatzleiter.cloud">
+    <img class="ss-logo" src="/static/img/Logo-rot.png" alt="{{ brand }}">
 
     <div class="ss-clock" id="ssClock">--:--:--</div>
 

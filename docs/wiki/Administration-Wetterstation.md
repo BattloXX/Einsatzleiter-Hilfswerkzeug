@@ -15,7 +15,7 @@ Das Wetterstation-Modul verbindet eine lokale **Davis Vantage Pro 2 Plus** (oder
 |-----------|---------|
 | **Davis Vantage Pro 2 Plus** | Wetterkonsole mit ISS (kabelloses Außensensoren-Set) |
 | **Meteobridge PRO RED** | Bridge-Gerät; Firmware ≥ 5.x empfohlen |
-| **HTTPS nach außen** | Meteobridge muss einsatzleiter.cloud auf Port 443 erreichen — nur **ausgehend** nötig, kein Inbound-Port nötig |
+| **HTTPS nach außen** | Meteobridge muss einsatzcockpit.com auf Port 443 erreichen — nur **ausgehend** nötig, kein Inbound-Port nötig |
 
 ---
 
@@ -35,7 +35,7 @@ In der Meteobridge-Weboberfläche unter **Services → Custom Push**:
 
 | Feld | Wert |
 |------|------|
-| **URL** | `https://einsatzleiter.cloud/api/v1/weather/ingest?token=wxst_...&temp=[th0temp-act]&hum=[th0hum-act]&wind=[wind0avgwind-act]&gust=[wind0wind-act]&dir=[wind0dir-act]&press=[thb0seapress-act]&rainrate=[rain0rate-act]&rainday=[rain0total-act]&dew=[th0dew-act]&solar=[sol0rad-act]&uv=[uv0index-act]` |
+| **URL** | `https://einsatzcockpit.com/api/v1/weather/ingest?token=wxst_...&temp=[th0temp-act]&hum=[th0hum-act]&wind=[wind0avgwind-act]&gust=[wind0wind-act]&dir=[wind0dir-act]&press=[thb0seapress-act]&rainrate=[rain0rate-act]&rainday=[rain0total-act]&dew=[th0dew-act]&solar=[sol0rad-act]&uv=[uv0index-act]` |
 | **Methode** | GET |
 | **Intervall** | 5 Minuten (300 s) |
 | **Aktiv** | Ja |

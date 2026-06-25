@@ -1,4 +1,4 @@
-/** Tailwind-Konfiguration fuer einsatzleiter.cloud.
+/** Tailwind-Konfiguration fuer Einsatzcockpit.
  *
  * Farben, Typografie, Spacing und Radius sind aus dem Stitch-Design-System
  * "Emergency Operations System" uebernommen. Wenn das Design veraendert

@@ -1,16 +1,18 @@
-# Einsatzleiter-Hilfswerkzeug
+# Einsatzcockpit
 
-**Digitales Einsatzleiter-Werkzeug für Feuerwehren** — Multi-User, Multi-Organisations-fähig, Echtzeit.
+**Echtzeit-Führung im Einsatz** — das digitale Cockpit für die Einsatzführung.
+Multi-User, mandantenfähig, Echtzeit. Für Feuerwehr, BOS und Gemeinden.
 
+🔗 [einsatzcockpit.com](https://einsatzcockpit.com)
 
-[![CI](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions/workflows/ci.yml/badge.svg)](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/actions)
+[![CI](https://github.com/BattloXX/Einsatzcockpit/actions/workflows/ci.yml/badge.svg)](https://github.com/BattloXX/Einsatzcockpit/actions)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green)
 ![Version](https://img.shields.io/badge/version-2.8.0-orange)
 
 ---
 
-**Wiki & Dokumentation:** [github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/wiki](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/wiki)
+**Wiki & Dokumentation:** [github.com/BattloXX/Einsatzcockpit/wiki](https://github.com/BattloXX/Einsatzcockpit/wiki)
 
 ---
 
@@ -109,8 +111,8 @@ Das Werkzeug ersetzt ein Single-File-HTML-Tool durch eine vollwertige Webapp, di
 
 ```bash
 # 1. Repository klonen
-git clone https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug.git
-cd Einsatzleiter-Hilfswerkzeug
+git clone https://github.com/BattloXX/Einsatzcockpit.git
+cd Einsatzcockpit
 
 # 2. Python venv anlegen und aktivieren
 python3.14 -m venv .venv
@@ -171,7 +173,7 @@ sudo apt-get install -y \
 ### App installieren
 
 ```bash
-git clone https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug.git \
+git clone https://github.com/BattloXX/Einsatzcockpit.git \
     /home/clp-einsatz/htdocs/einsatzleiter
 cd /home/clp-einsatz/htdocs/einsatzleiter
 
@@ -200,7 +202,7 @@ sudo systemctl enable --now einsatzleiter
 Inhalt `deploy/einsatzleiter.service`:
 ```ini
 [Unit]
-Description=Einsatzleiter-Hilfswerkzeug
+Description=Einsatzcockpit
 After=network.target
 
 [Service]

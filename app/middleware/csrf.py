@@ -3,7 +3,7 @@
 Reine ASGI-Middleware: Wir replayen den Body, damit nachgelagerte
 Handler `request.form()` weiterhin nutzen können.
 
-- Cookie `fwwo_csrf` wird automatisch gesetzt (HTTPOnly=False, lesbar für JS).
+- Cookie `ec_csrf` wird automatisch gesetzt (HTTPOnly=False, lesbar für JS).
 - Bei unsafen Methoden (POST/PUT/PATCH/DELETE) muss der gleiche Wert
   als `X-CSRF-Token`-Header ODER als `_csrf`-Form-Feld vorhanden sein.
 - Stimmt nichts → 403.
@@ -15,7 +15,7 @@ from urllib.parse import parse_qs
 
 from app.config import settings
 
-CSRF_COOKIE = "fwwo_csrf"
+CSRF_COOKIE = "ec_csrf"
 CSRF_HEADER = "X-CSRF-Token"
 CSRF_FORM_FIELD = "_csrf"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}

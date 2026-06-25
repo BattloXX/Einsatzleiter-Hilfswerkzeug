@@ -11,8 +11,8 @@
 ## Repository klonen
 
 ```bash
-git clone https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug.git
-cd Einsatzleiter-Hilfswerkzeug
+git clone https://github.com/BattloXX/Einsatzcockpit.git
+cd Einsatzcockpit
 ```
 
 ## Virtuelle Umgebung

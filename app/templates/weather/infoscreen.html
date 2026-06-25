@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0"/>
-<title>Wetter-Monitor {{ org.name }} | einsatzleiter.cloud</title>
+<title>Wetter-Monitor {{ org.name }} | {{ brand }}</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet"/>
 <script>
@@ -194,9 +194,9 @@
     </div>
 
     <div class="flex flex-col items-end gap-1">
-      <img src="/static/img/Logo-rot.png" alt="einsatzleiter.cloud"
+      <img src="/static/img/Logo-rot.png" alt="{{ brand }}"
            style="max-height:34px;object-fit:contain;" onerror="this.style.display='none'">
-      <span class="font-mono text-label-caps text-on-surface-variant tracking-widest">einsatzleiter.cloud</span>
+      <span class="font-mono text-label-caps text-on-surface-variant tracking-widest">{{ brand }}</span>
       {% if station %}
       <span class="font-mono text-label-caps tracking-widest" style="font-size:10px;color:{% if station.online %}#22c55e{% else %}#ef4444{% endif %};">
         &#x25cf; STATION {% if station.online %}ONLINE{% else %}OFFLINE{% endif %}{% if station.seen_label %} &bull; {{ station.seen_label }}{% endif %}
@@ -616,7 +616,7 @@
         <span class="font-mono text-label-caps text-on-surface-variant">GEOSPHERE AUSTRIA &bull; ZAMG</span>
       </div>
       <div class="flex items-center gap-2 border-l border-outline-variant pl-8">
-        <span class="font-mono text-label-caps text-on-surface-variant">einsatzleiter.cloud &bull; {{ org.name }}</span>
+        <span class="font-mono text-label-caps text-on-surface-variant">{{ brand }} &bull; {{ org.name }}</span>
       </div>
     </div>
     <div class="flex items-center gap-4">

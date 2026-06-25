@@ -238,7 +238,7 @@
     const no     = document.getElementById('newIncNo').value;
     const city   = document.getElementById('newIncCity').value;
     const status = document.getElementById('newIncGeocodeStatus');
-    const csrf   = document.cookie.match(/fwwo_csrf=([^;]+)/)?.[1] || '';
+    const csrf   = document.cookie.match(/ec_csrf=([^;]+)/)?.[1] || '';
     status.textContent = '…wird gesucht';
     const fd = new FormData();
     fd.append('address_street', street);

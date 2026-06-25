@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#d42225">
-  <title>Name eingeben – einsatzleiter.cloud</title>
+  <title>Name eingeben – {{ brand }}</title>
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="/static/js/csrf.js" defer></script>
 </head>
@@ -12,9 +12,9 @@
   <div class="login-container">
     <div class="login-card">
       <div class="login-logo">
-        <img src="/static/img/Logo-rot.png" alt="einsatzleiter.cloud"
+        <img src="/static/img/Logo-rot.png" alt="{{ brand }}"
              onerror="this.style.display='none'" class="login-logo__img">
-        <p class="login-logo__sub">Einsatzleiter-Hilfswerkzeug</p>
+        <p class="login-logo__sub">{{ brand_tagline }}</p>
       </div>
 
       {% if incident %}

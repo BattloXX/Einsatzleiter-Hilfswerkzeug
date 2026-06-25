@@ -6,7 +6,7 @@
 
 set -e
 
-REPO="https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug.wiki.git"
+REPO="https://github.com/BattloXX/Einsatzcockpit.wiki.git"
 WIKI_DIR="$(dirname "$0")"
 TMP_DIR=$(mktemp -d)
 
@@ -28,4 +28,4 @@ echo "Aufräumen..."
 rm -rf "$TMP_DIR"
 
 echo "Wiki erfolgreich aktualisiert!"
-echo "Aufrufbar unter: https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug/wiki"
+echo "Aufrufbar unter: https://github.com/BattloXX/Einsatzcockpit/wiki"

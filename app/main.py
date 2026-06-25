@@ -1,4 +1,4 @@
-"""FastAPI application – Einsatzleiter-Hilfswerkzeug (Multi-Org) v2.0.0."""
+"""FastAPI application – Einsatzcockpit (Multi-Org) v2.0.0."""
 import asyncio
 import logging
 import os as _os
@@ -168,15 +168,15 @@ def _bootstrap_admin() -> None:
 
 
 app = FastAPI(
-    title="Einsatzleiter-Hilfswerkzeug",
+    title=settings.APP_NAME,
     version=settings.APP_VERSION,
     dependencies=[Depends(_resolve_current_org)],
     description=(
-        "REST-API des Einsatzleiter-Hilfswerkzeugs.\n\n"
+        "REST-API von Einsatzcockpit.\n\n"
         "**Authentifizierung:** API-Key via Header `X-API-Key`.\n\n"
         "API-Keys werden unter *Admin → API-Keys* verwaltet."
     ),
-    contact={"name": "FF Wolfurt", "email": "office@feuerwehr-wolfurt.at"},
+    contact={"name": "Einsatzcockpit", "email": "office@einsatzcockpit.com"},
     docs_url=None,
     redoc_url=None,
     openapi_url="/api/openapi.json",

@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     TEST_SYSTEM: bool = False
 
+    # Brand-Identität (Einsatzcockpit)
+    APP_NAME: str = "Einsatzcockpit"
+    APP_TAGLINE: str = "Echtzeit-Führung im Einsatz"
+    APP_DOMAIN: str = "einsatzcockpit.com"
+
     # Cookie-Flags
     COOKIE_SECURE: bool = False  # In Produktion auf true (HTTPS)
 
@@ -93,7 +98,7 @@ class Settings(BaseSettings):
 
     # Nominatim Geocoding (OSM – kein API-Key nötig, User-Agent Pflicht!)
     NOMINATIM_BASE_URL: str = "https://nominatim.openstreetmap.org"
-    NOMINATIM_USER_AGENT: str = "Einsatzleiter-Hilfswerkzeug/2.x (contact: office@feuerwehr-wolfurt.at)"
+    NOMINATIM_USER_AGENT: str = "Einsatzcockpit/2.x (contact: office@einsatzcockpit.com)"
     NOMINATIM_TIMEOUT_SECONDS: float = 5.0
 
     # Photon Adress-Autocomplete (OSM/komoot – kein API-Key, über Backend geproxyt)

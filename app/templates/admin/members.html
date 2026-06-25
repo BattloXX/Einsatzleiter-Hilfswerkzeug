@@ -378,7 +378,7 @@ function bulkDeleteMembers() {
   const form = document.getElementById('bulkDeleteForm');
   form.innerHTML = '';
   // CSRF-Token aus Cookie wieder mit-injecten (form.innerHTML='' hat ihn rausgeworfen)
-  const csrf = (document.cookie.match(/(?:^|;\s*)fwwo_csrf=([^;]+)/) || [])[1];
+  const csrf = (document.cookie.match(/(?:^|;\s*)ec_csrf=([^;]+)/) || [])[1];
   if (csrf) {
     const c = document.createElement('input');
     c.type = 'hidden'; c.name = '_csrf'; c.value = decodeURIComponent(csrf);

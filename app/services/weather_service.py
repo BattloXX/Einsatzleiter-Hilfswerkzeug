@@ -209,7 +209,7 @@ async def _geosphere_get(mode: str, resource: str, params: dict) -> dict | None:
     params = dict(params, output_format="geojson")
     try:
         async with httpx.AsyncClient(
-            headers={"User-Agent": "Einsatzleiter-Hilfswerkzeug/2.x (weather)"},
+            headers={"User-Agent": "Einsatzcockpit/2.x (weather)"},
             timeout=settings.WEATHER_HTTP_TIMEOUT,
         ) as client:
             resp = await client.get(url, params=params)
@@ -659,7 +659,7 @@ async def _fetch_geosphere_warnings(lat: float, lng: float) -> list[WeatherWarni
     url = f"{settings.GEOSPHERE_WARN_URL}/getWarningsForCoords"
     try:
         async with httpx.AsyncClient(
-            headers={"User-Agent": "Einsatzleiter-Hilfswerkzeug/2.x (warnings)"},
+            headers={"User-Agent": "Einsatzcockpit/2.x (warnings)"},
             timeout=settings.WEATHER_HTTP_TIMEOUT,
         ) as client:
             resp = await client.get(url, params={"lat": lat, "lon": lng, "lang": "de"})

@@ -7,7 +7,7 @@
 ```bash
 # Als CloudPanel-Site-User (z.B. clp-einsatz):
 cd /home/clp-einsatz/htdocs/
-git clone https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug.git einsatzleiter
+git clone https://github.com/BattloXX/Einsatzcockpit.git einsatzleiter
 cd einsatzleiter
 ```
 

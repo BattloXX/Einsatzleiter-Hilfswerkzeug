@@ -1,6 +1,6 @@
 /* CSRF-Token-Helfer (Phase 7).
  *
- * Liest den CSRF-Token aus dem `fwwo_csrf`-Cookie und setzt ihn bei jedem
+ * Liest den CSRF-Token aus dem `ec_csrf`-Cookie und setzt ihn bei jedem
  * HTMX-POST/PUT/PATCH/DELETE-Request als `X-CSRF-Token`-Header.
  * Server vergleicht Cookie ≡ Header (Double-Submit-Pattern).
  */
@@ -28,7 +28,7 @@
   if (typeof document !== 'undefined') {
     document.body.addEventListener('htmx:configRequest', (evt) => {
       if (!unsafeMethod(evt.detail.verb)) return;
-      const token = readCookie('fwwo_csrf');
+      const token = readCookie('ec_csrf');
       if (token) evt.detail.headers['X-CSRF-Token'] = token;
     });
   }
@@ -38,7 +38,7 @@
   window.fetch = function (input, init = {}) {
     const method = (init.method || (typeof input === 'object' && input.method) || 'GET');
     if (unsafeMethod(method)) {
-      const token = readCookie('fwwo_csrf');
+      const token = readCookie('ec_csrf');
       if (token) {
         const headers = new Headers(init.headers || {});
         headers.set('X-CSRF-Token', token);
@@ -50,7 +50,7 @@
 
   // Plain HTML-Forms bekommen ein verstecktes Feld injiziert
   function injectFormToken() {
-    const token = readCookie('fwwo_csrf');
+    const token = readCookie('ec_csrf');
     if (!token) return;
     document.querySelectorAll('form[method="post" i]:not([data-csrf-skip])').forEach(form => {
       if (form.querySelector('input[name="_csrf"]')) return;

@@ -137,7 +137,7 @@ async def _fetch_from_vowis(hzbnr: str) -> tuple[float | None, datetime | None, 
     url = f"{_VOWIS_BASE}?hzbnr={hzbnr}"
     try:
         async with httpx.AsyncClient(
-            headers={"User-Agent": "Einsatzleiter-Hilfswerkzeug/2.x (+https://feuerwehr-wolfurt.at)"},
+            headers={"User-Agent": "Einsatzcockpit/2.x (+https://einsatzcockpit.com)"},
             timeout=12.0,
             follow_redirects=True,
         ) as client:

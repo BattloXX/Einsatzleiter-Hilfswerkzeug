@@ -121,7 +121,7 @@ async def _send(msg: EmailMessage, smtp_cfg: dict) -> None:
 
 async def send_password_reset(*, to: str, reset_url: str, user_display_name: str, db=None) -> None:
     smtp_cfg = get_smtp_cfg(db)
-    subject = "Passwort zurücksetzen – Einsatzleiter-Hilfswerkzeug"
+    subject = "Passwort zurücksetzen – Einsatzcockpit"
     ttl = settings.PASSWORD_RESET_TTL_MIN
     body_txt = (
         f"Hallo {user_display_name},\n\n"
@@ -132,7 +132,7 @@ async def send_password_reset(*, to: str, reset_url: str, user_display_name: str
         f"{reset_url}\n\n"
         f"Falls du den Reset nicht selbst angefordert hast, ignoriere diese Mail einfach.\n\n"
         f"Mit freundlichen Grüßen\n"
-        f"Einsatzleiter-Hilfswerkzeug"
+        f"Einsatzcockpit"
     )
     body_html = f"""<!doctype html>
 <html lang="de"><body style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
@@ -181,10 +181,10 @@ async def send_contact_message(*, name: str, reply_email: str, message: str, db=
     smtp_cfg = get_smtp_cfg(db)
     # Header-sichere Variante für Subject/Reply-To (kein CR/LF).
     safe_name_hdr = _header_safe(name)
-    subject = f"Kontaktanfrage von {safe_name_hdr or 'Unbekannt'} – einsatzleiter.cloud"
+    subject = f"Kontaktanfrage von {safe_name_hdr or 'Unbekannt'} – Einsatzcockpit"
 
     body_txt = (
-        f"Neue Kontaktanfrage über einsatzleiter.cloud:\n\n"
+        f"Neue Kontaktanfrage über Einsatzcockpit:\n\n"
         f"Name:    {name}\n"
         f"E-Mail:  {reply_email}\n\n"
         f"Nachricht:\n{message}\n"
@@ -214,7 +214,7 @@ async def send_welcome_mail(*, to: str, username: str, password: str,
                             user_display_name: str, app_url: str = "",
                             is_test: bool = False, db=None) -> None:
     smtp_cfg = get_smtp_cfg(db)
-    subject = "Willkommen im Einsatzleiter-Hilfswerkzeug – Zugangsdaten"
+    subject = "Willkommen bei Einsatzcockpit – Zugangsdaten"
     test_notice_txt = "\n⚠️  HINWEIS: Dies ist ein TESTSYSTEM – bitte keine Echtdaten eingeben.\n" if is_test else ""
     test_notice_html = (
         '<p style="background:#7c3c00;color:#ffe0b2;padding:8px 12px;border-radius:4px;font-weight:bold;">'
@@ -230,14 +230,14 @@ async def send_welcome_mail(*, to: str, username: str, password: str,
     ) if app_url else ""
     body_txt = (
         f"Hallo {user_display_name},\n\n"
-        f"Dein Account für das Einsatzleiter-Hilfswerkzeug wurde eingerichtet.\n"
+        f"Dein Account bei Einsatzcockpit wurde eingerichtet.\n"
         f"{test_notice_txt}"
         f"\nBenutzername: {username}\n"
         f"Passwort:     {password}\n"
         f"{url_txt}"
         f"\nBitte ändere dein Passwort nach dem ersten Login.\n\n"
         f"Mit freundlichen Grüßen\n"
-        f"Einsatzleiter-Hilfswerkzeug"
+        f"Einsatzcockpit"
     )
     safe_name = html.escape(user_display_name)
     safe_user = html.escape(username)
@@ -245,7 +245,7 @@ async def send_welcome_mail(*, to: str, username: str, password: str,
     body_html = f"""<!doctype html>
 <html lang="de"><body style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
 <p>Hallo <strong>{safe_name}</strong>,</p>
-<p>Dein Account für das Einsatzleiter-Hilfswerkzeug wurde eingerichtet.</p>
+<p>Dein Account bei Einsatzcockpit wurde eingerichtet.</p>
 {test_notice_html}
 <table style="border-collapse:collapse;margin:12px 0;">
 <tr><td style="padding:4px 12px 4px 0;color:#666;">Benutzername:</td>
@@ -267,7 +267,7 @@ async def send_sso_welcome_mail(*, to: str, user_display_name: str,
                                  app_url: str, org_slug: str, org_name: str = "",
                                  is_test: bool = False, db=None) -> None:
     smtp_cfg = get_smtp_cfg(db)
-    subject = "Anmeldung per Microsoft-Login – Einsatzleiter-Hilfswerkzeug"
+    subject = "Anmeldung per Microsoft-Login – Einsatzcockpit"
     sso_url = f"{app_url.rstrip('/')}/sso/{org_slug}/login"
     safe_url = html.escape(app_url.rstrip("/"))
     safe_sso_url = html.escape(sso_url)
@@ -281,7 +281,7 @@ async def send_sso_welcome_mail(*, to: str, user_display_name: str,
     ) if is_test else ""
     body_txt = (
         f"Hallo {user_display_name},\n\n"
-        f"Dein Account für das Einsatzleiter-Hilfswerkzeug wurde eingerichtet.\n"
+        f"Dein Account bei Einsatzcockpit wurde eingerichtet.\n"
         f"Du kannst dich mit deinem dienstlichen Microsoft-Account der {org_display} anmelden.\n"
         f"{test_notice_txt}"
         f"\n"
@@ -294,12 +294,12 @@ async def send_sso_welcome_mail(*, to: str, user_display_name: str,
         f"Alternativ: Gehe auf {app_url.rstrip('/')} und klicke auf \"Mit Microsoft anmelden\".\n\n"
         f"Kein eigenes Passwort erforderlich – die Anmeldung erfolgt vollstaendig ueber Microsoft.\n\n"
         f"Mit freundlichen Gruessen\n"
-        f"Einsatzleiter-Hilfswerkzeug"
+        f"Einsatzcockpit"
     )
     body_html = f"""<!doctype html>
 <html lang="de"><body style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
 <p>Hallo <strong>{safe_name}</strong>,</p>
-<p>Dein Account für das Einsatzleiter-Hilfswerkzeug wurde eingerichtet.<br>
+<p>Dein Account bei Einsatzcockpit wurde eingerichtet.<br>
 Du kannst dich mit deinem <strong>dienstlichen Microsoft-Account der {safe_org}</strong> anmelden.</p>
 {test_notice_html}
 <div style="background:#e8f4fd;border-left:4px solid #0078d4;padding:12px 16px;border-radius:0 4px 4px 0;margin:16px 0;font-size:0.95rem;">
@@ -333,7 +333,7 @@ async def send_test_mail(*, to: str, db=None) -> None:
     source = "Datenbank" if db is not None else "Umgebungsvariablen"
     msg = _build_message(
         to=to,
-        subject="Test-Mail vom Einsatzleiter-Hilfswerkzeug",
+        subject="Test-Mail von Einsatzcockpit",
         body_txt=(
             "Diese Test-Mail bestätigt, dass die SMTP-Konfiguration funktioniert.\n\n"
             f"Konfigurationsquelle: {source}\n"

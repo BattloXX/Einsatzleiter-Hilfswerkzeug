@@ -22,12 +22,12 @@ apt install -y python3.12 python3.12-venv python3.12-dev \
 
 ```bash
 # 1. CloudPanel: Site anlegen (Type: Generic), User: clp-einsatz
-#    Domain: einsatz.feuerwehr-wolfurt.at
+#    Domain: einsatzcockpit.com
 
 # 2. Als clp-einsatz User
 su - clp-einsatz
 cd /home/clp-einsatz/htdocs/
-git clone https://github.com/BattloXX/FWWO-Einsatzleiter-Hilfswerkzeug.git einsatzleiter
+git clone https://github.com/BattloXX/Einsatzcockpit.git einsatzleiter
 cd einsatzleiter
 
 # 3. Python-Umgebung

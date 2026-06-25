@@ -1,4 +1,4 @@
-# Einsatzleiter-Hilfswerkzeug – Konzept „Tenant-Sichtbarkeit & UX-Erweiterungen" & Claude-Code-Plan
+# Einsatzcockpit – Konzept „Tenant-Sichtbarkeit & UX-Erweiterungen" & Claude-Code-Plan
 
 **Ziel:** (1) Die nach Umsetzung des Multi-Tenancy-Konzepts verbliebenen **Sichtbarkeits-Lecks vollständig schließen** – Benutzer einer Organisation sehen in sämtlichen Listen, Übersichten und Dashboards ausschließlich Daten der eigenen Org. (2) Neun **funktionale Erweiterungen** umsetzen (Personen-Schnellanlage, verschiebbare Spalten, Auftrag-Statusabfrage, Spaltentypen, QR-PIN, Karten-Aktionen, Benutzerprofil, Funkjournal-Ausbau nach österreichischer Funkordnung).
 

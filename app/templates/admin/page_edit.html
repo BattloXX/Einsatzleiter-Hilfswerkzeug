@@ -189,7 +189,7 @@
 
   // ── Bild an Cursor-Position einfügen ────────────────────────────────────────
   function csrfToken() {
-    const m = document.cookie.match(/(?:^|;\s*)fwwo_csrf=([^;]+)/);
+    const m = document.cookie.match(/(?:^|;\s*)ec_csrf=([^;]+)/);
     return m ? decodeURIComponent(m[1]) : '';
   }
 

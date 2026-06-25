@@ -1,5 +1,5 @@
 /**
- * native-bridge.js – Capacitor ↔ Web Bridge für einsatzleiter.cloud
+ * native-bridge.js – Capacitor ↔ Web Bridge für Einsatzcockpit
  *
  * Erkennt ob die App in Capacitor läuft und stellt window.ELNative bereit.
  * In der reinen PWA sind alle Funktionen No-Ops oder fallen auf Web-APIs zurück,
@@ -88,7 +88,7 @@
       BackgroundGeolocation.addWatcher(
         {
           backgroundMessage: 'Standort wird im Einsatz übermittelt.',
-          backgroundTitle: 'einsatzleiter.cloud',
+          backgroundTitle: 'Einsatzcockpit',
           requestPermissions: true,
           stale: false,
           distanceFilter: 20,

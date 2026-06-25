@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#d42225">
-  <title>Anmelden – einsatzleiter.cloud</title>
+  <title>Pre-Flight – {{ brand }}</title>
   <link rel="stylesheet" href="/static/css/app.css">
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
@@ -16,8 +16,8 @@
   <div class="login-container">
     <div class="login-card">
       <div class="login-logo">
-        <img src="/static/img/Logo-rot.png" alt="einsatzleiter.cloud" onerror="this.style.display='none'" class="login-logo__img">
-        <p class="login-logo__sub">Einsatzleiter-Hilfswerkzeug</p>
+        <img src="/static/img/Logo-rot.png" alt="{{ brand }}" onerror="this.style.display='none'" class="login-logo__img">
+        <p class="login-logo__sub">{{ brand_tagline }}</p>
       </div>
 
       {% if error %}
@@ -45,6 +45,8 @@
       <div class="alert alert--warn">Für diesen Account ist ausschliesslich die Microsoft-Anmeldung erlaubt.</div>
       {% endif %}
 
+      <p style="text-align:center;font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                 color:var(--text-muted);margin:0 0 14px;">Pre-Flight Check</p>
       <form method="post" action="/login" class="login-form">
         <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
         <div class="form-group">

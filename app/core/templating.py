@@ -185,6 +185,11 @@ import os as _os  # noqa: E402
 templates.env.globals["WEATHER_ENABLED"] = _settings.WEATHER_ENABLED
 templates.env.globals["TEST_SYSTEM"] = _settings.TEST_SYSTEM
 
+# Brand-Konstanten für Templates ({{ brand }}, {{ brand_tagline }}, {{ brand_domain }})
+templates.env.globals["brand"] = _settings.APP_NAME
+templates.env.globals["brand_tagline"] = _settings.APP_TAGLINE
+templates.env.globals["brand_domain"] = _settings.APP_DOMAIN
+
 # Cache-Busting: Versionsnummer aus mtime der app.css
 _css_path = _os.path.join(_os.path.dirname(__file__), "..", "static", "css", "app.css")
 try:

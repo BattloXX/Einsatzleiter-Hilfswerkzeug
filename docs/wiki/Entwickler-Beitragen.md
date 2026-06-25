@@ -123,7 +123,7 @@ Detaillierte Hinweise: [docs/MIGRATION_RUNBOOK.md](../MIGRATION_RUNBOOK.md)
 
 ## Issues und Bugs
 
-Issues auf GitHub: https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/issues
+Issues auf GitHub: https://github.com/BattloXX/Einsatzcockpit/issues
 
 Bug-Report enthält:
 1. Beschreibung was erwartet wird

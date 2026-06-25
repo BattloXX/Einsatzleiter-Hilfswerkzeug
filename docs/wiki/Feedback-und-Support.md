@@ -6,7 +6,7 @@
 
 Du hast einen **Fehler** gefunden, eine **Idee** für eine neue Funktion oder möchtest etwas diskutieren? Alle Rückmeldungen sind willkommen!
 
-**→ GitHub Issues: [github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/issues](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/issues)**
+**→ GitHub Issues: [github.com/BattloXX/Einsatzcockpit/issues](https://github.com/BattloXX/Einsatzcockpit/issues)**
 
 ---
 
@@ -20,7 +20,7 @@ Ein gutes Bug-Report enthält:
 4. **Umgebung** – Browser, Gerät (PC/Tablet/Handy), Version des Tools.
 5. **Screenshot oder Fehlermeldung** – falls vorhanden (kein Passwort oder sensible Daten abbilden).
 
-**→ [Neues Issue erstellen](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/issues/new?labels=bug&template=bug_report.md)**
+**→ [Neues Issue erstellen](https://github.com/BattloXX/Einsatzcockpit/issues/new?labels=bug&template=bug_report.md)**
 
 ---
 
@@ -33,7 +33,7 @@ Du hast eine Idee für eine neue Funktion oder Verbesserung?
 3. **Kontext** – In welcher Situation tritt das Bedürfnis auf (Einsatzart, Rolle)?
 4. **Alternativlösungen** – Hast du Workarounds gefunden?
 
-**→ [Feature Request erstellen](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/issues/new?labels=enhancement)**
+**→ [Feature Request erstellen](https://github.com/BattloXX/Einsatzcockpit/issues/new?labels=enhancement)**
 
 ---
 
@@ -41,7 +41,7 @@ Du hast eine Idee für eine neue Funktion oder Verbesserung?
 
 Für offene Fragen, allgemeines Feedback oder Rücksprache zu Konzepten:
 
-**→ [GitHub Discussions](https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/discussions)**
+**→ [GitHub Discussions](https://github.com/BattloXX/Einsatzcockpit/discussions)**
 
 ---
 

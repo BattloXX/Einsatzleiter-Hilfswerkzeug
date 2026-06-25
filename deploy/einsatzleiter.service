@@ -1,5 +1,5 @@
 [Unit]
-Description=Einsatzleiter-Hilfswerkzeug FF Wolfurt
+Description=Einsatzcockpit FF Wolfurt
 After=network.target mariadb.service
 Wants=mariadb.service
 

@@ -177,7 +177,7 @@
     const no     = document.getElementById('addrNo').value;
     const city   = document.getElementById('addrCity').value;
     const status = document.getElementById('geocodeStatus');
-    const csrf   = document.cookie.match(/fwwo_csrf=([^;]+)/)?.[1] || '';
+    const csrf   = document.cookie.match(/ec_csrf=([^;]+)/)?.[1] || '';
 
     status.textContent = '…wird gesucht';
     const fd = new FormData();

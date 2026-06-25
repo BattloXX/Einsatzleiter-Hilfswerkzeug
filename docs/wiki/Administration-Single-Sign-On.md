@@ -16,7 +16,7 @@ SSO erlaubt die Anmeldung mit dem **Microsoft-365-Konto** der eigenen Organisati
   ```
   https://<host>/sso/<slug>/callback
   ```
-  Beispiel: `https://app.einsatzleiter.cloud/sso/ff-wolfurt/callback`
+  Beispiel: `https://einsatzcockpit.com/sso/ff-wolfurt/callback`
 - Zugang zum **Microsoft Entra Admin Center**: https://entra.microsoft.com
 
 ---
@@ -26,7 +26,7 @@ SSO erlaubt die Anmeldung mit dem **Microsoft-365-Konto** der eigenen Organisati
 ### Schritt 1 – App-Registrierung anlegen
 
 1. Entra Admin Center → **Identität → Anwendungen → App-Registrierungen → Neue Registrierung**
-2. **Name**: z.B. `Einsatzleiter-Hilfswerkzeug`
+2. **Name**: z.B. `Einsatzcockpit`
 3. **Kontotypen**: „Nur Konten in diesem Organisationsverzeichnis" (Single Tenant)
 4. **Redirect-URI**: Plattform **Web**, Wert = exakte Redirect-URI aus dem Tool (kein Slash am Ende)
 5. **Registrieren**

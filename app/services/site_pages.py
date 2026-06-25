@@ -36,9 +36,8 @@ DEFAULT_HTML: dict[str, str] = {
 <section class="lp-hero">
   <div class="lp-wrap">
     <h1>Digitale Einsatzleitung <span class="hl">in Echtzeit.</span></h1>
-    <p class="lead">Das digitale Hilfswerkzeug für Feuerwehren und Rettungskräfte.
-    Behalten Sie den Überblick, wenn jede Sekunde zählt – mobil, sicher und für den
-    Ernstfall gemacht.</p>
+    <p class="lead">Echtzeit-Führung im Einsatz – das digitale Cockpit für die Einsatzführung.
+    Lage, Kräfte, Aufträge und Atemschutz in Echtzeit auf einem Board – für Feuerwehr, BOS und Gemeinden.</p>
     <p>
       <a href="#features" class="lp-btn lp-btn--primary">Funktionsumfang ansehen</a>
       <a href="#kontakt" class="lp-btn lp-btn--ghost">Kontakt aufnehmen</a>
@@ -75,11 +74,10 @@ DEFAULT_HTML: dict[str, str] = {
 
 <section class="lp-section lp-section--alt" id="about-section">
   <div class="lp-wrap">
-    <h2 style="text-align:left">Über einsatzleiter.cloud</h2>
-    <p>einsatzleiter.cloud ist ein digitales Hilfswerkzeug für die Einsatzleitung von Feuerwehren
-    und Rettungsdiensten. Es entstand aus der Praxis: aus dem Bedürfnis, bei Einsätzen den Überblick
-    zu behalten, Aufträge sauber zu koordinieren und alles rechtssicher zu dokumentieren – ohne
-    Zettelwirtschaft.</p>
+    <h2 style="text-align:left">Über Einsatzcockpit</h2>
+    <p>Einsatzcockpit ist das digitale Cockpit für die Einsatzführung. Es entstand aus der Praxis:
+    aus dem Bedürfnis, bei Einsätzen den Überblick zu behalten, Aufträge sauber zu koordinieren und
+    alles rechtssicher zu dokumentieren – ohne Zettelwirtschaft. Für Feuerwehr, BOS und Gemeinden.</p>
     <p><a href="/about" class="lp-btn lp-btn--ghost">Mehr erfahren</a></p>
   </div>
 </section>
@@ -104,10 +102,10 @@ DEFAULT_HTML: dict[str, str] = {
 """,
     "about": """
 <div class="lp-doc">
-  <h1>Über einsatzleiter.cloud</h1>
-  <p>einsatzleiter.cloud ist ein digitales Hilfswerkzeug für die Einsatzleitung von Feuerwehren und
-  Rettungsdiensten. Es entstand aus der Praxis – aus dem Bedürfnis, bei Einsätzen den Überblick zu
-  behalten, Aufträge sauber zu koordinieren und alles rechtssicher zu dokumentieren.</p>
+  <h1>Über Einsatzcockpit</h1>
+  <p>Einsatzcockpit ist das digitale Cockpit für die Einsatzführung. Es entstand aus der Praxis –
+  aus dem Bedürfnis, bei Einsätzen den Überblick zu behalten, Aufträge sauber zu koordinieren und
+  alles rechtssicher zu dokumentieren. Für Feuerwehr, BOS und Gemeinden.</p>
   <p>Das Werkzeug ist bewusst mobil gedacht, läuft im Einsatzleitwagen genauso wie am Tablet vor Ort
   und synchronisiert alle Informationen in Echtzeit zwischen den Beteiligten.</p>
 
@@ -124,7 +122,7 @@ DEFAULT_HTML: dict[str, str] = {
 <div class="lp-doc">
   <h1>Datenschutzerklärung</h1>
   <p>Der Schutz Ihrer personenbezogenen Daten ist uns wichtig. Nachfolgend informieren wir Sie
-  über die Verarbeitung personenbezogener Daten bei der Nutzung von einsatzleiter.cloud.</p>
+  über die Verarbeitung personenbezogener Daten bei der Nutzung von Einsatzcockpit (einsatzcockpit.com).</p>
 
   <h2>Verantwortlicher</h2>
   <p>Johannes Battlogg<br>E-Mail: <a href="mailto:johannes@battlogg.org">johannes@battlogg.org</a></p>

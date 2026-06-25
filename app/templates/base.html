@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#d42225">
-  <title>{% block title %}Einsatzleiter – FF Wolfurt{% endblock %}</title>
+  <title>{% block title %}{{ brand }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/app.css?v={{ CSS_VERSION }}">
   <link rel="stylesheet" href="/static/css/tooltips.css">
   <style>[x-cloak]{display:none!important}</style>
@@ -35,7 +35,7 @@
       {% set _org_name = _org.name if _org and _org.name else '' %}
       <a href="/" style="display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none">
         {% set _logo_src = _org.logo_path if _org and _org.logo_path else '/static/img/Logo-rot.png' %}
-        <img src="{{ _logo_src }}" alt="einsatzleiter.cloud" class="topnav__logo" onerror="this.style.display='none'">
+        <img src="{{ _logo_src }}" alt="{{ brand }}" class="topnav__logo" onerror="this.style.display='none'">
         {% if _org_name %}
         <span class="topnav__title">{{ _org_name }}</span>
         {% endif %}
@@ -45,7 +45,7 @@
       {% endif %}
     </div>
     <div class="topnav__links">
-      <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Übersicht</a>
+      <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">🎛 Konsole</a>
       <a href="/lage" class="nav-link {% if request.url.path.startswith('/lage') %}active{% endif %}">🚨 Lage</a>
       <a href="/archiv" class="nav-link {% if '/archiv' in request.url.path %}active{% endif %}">Archiv</a>
       <a href="/statistik" class="nav-link {% if '/statistik' in request.url.path %}active{% endif %}">Statistik</a>
@@ -220,7 +220,7 @@
           <li>Mit <strong>„Hinzufügen"</strong> bestätigen.</li>
         </ol>
         <p style="color:var(--text-muted); font-size:.85rem;">
-          Anschließend startet einsatzleiter.cloud wie eine native App ohne Browser-Leiste.
+          Anschließend startet {{ brand }} wie eine native App ohne Browser-Leiste.
         </p>
       </div>
       <div class="modal__footer">

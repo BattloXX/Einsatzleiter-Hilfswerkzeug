@@ -1,7 +1,7 @@
 {
-  "name": "einsatzleiter.cloud",
-  "short_name": "Einsatzleiter",
-  "description": "Einsatzleiter-Hilfswerkzeug fuer Feuerwehr-Einsatzleitung",
+  "name": "Einsatzcockpit",
+  "short_name": "Einsatzcockpit",
+  "description": "Einsatzcockpit – Echtzeit-Führung im Einsatz für Feuerwehr, BOS und Gemeinden.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b1326",

@@ -234,7 +234,7 @@
 {% block scripts %}
 <script>
 function getCsrfToken() {
-  const m = document.cookie.match(/fwwo_csrf=([^;]+)/);
+  const m = document.cookie.match(/ec_csrf=([^;]+)/);
   return m ? decodeURIComponent(m[1]) : '';
 }
 function postAction(url) {

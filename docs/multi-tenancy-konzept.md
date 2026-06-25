@@ -1,4 +1,4 @@
-# Einsatzleiter-Hilfswerkzeug – Multi-Tenancy-Konzept & Claude-Code-Plan
+# Einsatzcockpit – Multi-Tenancy-Konzept & Claude-Code-Plan
 
 **Ziel:** SaaS-fähige Plattform für mehrere unabhängige Einsatzorganisationen (Start: Vorarlberg, später Gemeindeeinsatzleitungen u. a.). Vollständige Mandantentrennung bei Daten, Einsätzen und Medien – mit Ausnahme explizit eingeladener Kooperation (Nachbarwehr, Großschadenslage).
 

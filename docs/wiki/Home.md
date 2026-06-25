@@ -1,4 +1,4 @@
-# Einsatzleiter-Hilfswerkzeug
+# Einsatzcockpit
 
 Digitales Einsatzleiter-Werkzeug für österreichische Feuerwehren — Multi-User, Multi-Organisations-fähig, Echtzeit.
 
@@ -103,7 +103,7 @@ Eine Python-Webapp (FastAPI + HTMX + WebSocket), die ein bisheriges Single-File-
 
 ---
 
-**Repository:** https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug  
-**Issues & Feedback:** https://github.com/BattloXX/Einsatzleiter-Hilfswerkzeug/issues  
+**Repository:** https://github.com/BattloXX/Einsatzcockpit  
+**Issues & Feedback:** https://github.com/BattloXX/Einsatzcockpit/issues  
 **Feuerwehr Wolfurt:** https://www.feuerwehr-wolfurt.at  
 **Migration-Runbook:** [docs/MIGRATION_RUNBOOK.md](../MIGRATION_RUNBOOK.md)
