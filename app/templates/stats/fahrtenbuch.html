@@ -51,6 +51,7 @@
         <option value="maschinist" {% if gruppierung == 'maschinist' %}selected{% endif %}>Je Maschinist</option>
         <option value="ausbildner" {% if gruppierung == 'ausbildner' %}selected{% endif %}>Je Ausbildner</option>
         <option value="gruppenkommandant" {% if gruppierung == 'gruppenkommandant' %}selected{% endif %}>Je Gruppenkommandant</option>
+        <option value="korbmaschinist" {% if gruppierung == 'korbmaschinist' %}selected{% endif %}>Je Korbmaschinist (2. Maschinist/Steiger)</option>
       </select>
     </div>
     <div style="display:flex;gap:.4rem;">
@@ -76,7 +77,7 @@
   <table class="table">
     <thead>
       <tr>
-        <th>{{ gruppierung|capitalize }}</th>
+        <th>{% if gruppierung == 'fahrzeug' %}Fahrzeug{% elif gruppierung == 'maschinist' %}Maschinist{% elif gruppierung == 'ausbildner' %}Ausbildner{% elif gruppierung == 'gruppenkommandant' %}Gruppenkommandant{% elif gruppierung == 'korbmaschinist' %}Korbmaschinist (2. Maschinist){% else %}{{ gruppierung|capitalize }}{% endif %}</th>
         <th style="text-align:right;">Einsatz</th>
         <th style="text-align:right;">Übung</th>
         <th style="text-align:right;">Sonstige</th>

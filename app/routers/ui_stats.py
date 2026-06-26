@@ -191,6 +191,11 @@ def _gruppiere_fahrten(fahrten: list, gruppierung: str, fahrzeuge: list) -> list
                 continue
             key = str(f.gruppenkommandant_member_id or f.gruppenkommandant_name)
             label = f.gruppenkommandant_name or key
+        elif gruppierung == "korbmaschinist":
+            if not f.maschinist2_name and not f.maschinist2_member_id:
+                continue
+            key = str(f.maschinist2_member_id or f.maschinist2_name)
+            label = f.maschinist2_name or key
         else:
             key = "gesamt"
             label = "Gesamt"

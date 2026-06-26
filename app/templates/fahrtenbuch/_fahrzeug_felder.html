@@ -86,7 +86,7 @@
 
 {% if fahrzeug.zweiter_maschinist_pflicht %}
 <div class="form-group" x-data="maschinistAutocomplete('maschinist2', '{{ form_daten.get('maschinist2_name', '') }}', '{{ form_daten.get('maschinist2_member_id', '') }}')">
-  <label class="form-label" for="maschinist2_name">2. Maschinist *</label>
+  <label class="form-label" for="maschinist2_name">2. Maschinist (Korbmaschinist) *</label>
   <input type="hidden" name="maschinist2_member_id" :value="memberId">
   <div style="position:relative;">
     <input type="text" name="maschinist2_name" id="maschinist2_name"

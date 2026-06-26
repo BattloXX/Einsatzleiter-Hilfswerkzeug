@@ -42,6 +42,25 @@
       </div>
     </div>
 
+    {% if fahrt.fahrzeug and fahrt.fahrzeug.zweiter_maschinist_pflicht %}
+    <div class="form-group" x-data="maschinistAutocomplete('maschinist2', '{{ fahrt.maschinist2_name or '' }}', '{{ fahrt.maschinist2_member_id or '' }}')">
+      <label class="form-label">2. Maschinist (Korbmaschinist) *</label>
+      <input type="hidden" name="maschinist2_member_id" :value="memberId">
+      <div style="position:relative;">
+        <input type="text" name="maschinist2_name" id="maschinist2_name"
+               class="form-control"
+               placeholder="Name tippen…" required autocomplete="new-password"
+               x-model="query"
+               hx-get="/fahrtenbuch/hx/maschinist"
+               hx-target="#maschinist2-suggestions"
+               hx-trigger="input changed delay:200ms"
+               hx-include="[name='maschinist2_name']"
+               @focus="open=true" @blur="setTimeout(()=>open=false,150)" @input="open=true">
+        <div id="maschinist2-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
+      </div>
+    </div>
+    {% endif %}
+
     {% if fahrt.fahrzeug and fahrt.fahrzeug.erfasst_km %}
     <div class="form-group">
       <label class="form-label">km-Stand *</label>
