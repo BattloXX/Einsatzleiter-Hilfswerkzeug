@@ -179,12 +179,11 @@ def _gruppiere_fahrten(fahrten: list, gruppierung: str, fahrzeuge: list) -> list
 
         if gruppierung == "fahrzeug":
             entries.append((str(f.fahrzeug_id), f.fahrzeug.code if f.fahrzeug else str(f.fahrzeug_id)))
+            if (f.maschinist2_name or f.maschinist2_member_id) and f.fahrzeug:
+                entries.append(("korb_" + str(f.fahrzeug_id), f.fahrzeug.code + " Korb"))
         elif gruppierung == "maschinist":
             k = str(f.maschinist_member_id or f.maschinist_name)
             entries.append((k, f.maschinist_name or k))
-            if f.maschinist2_name or f.maschinist2_member_id:
-                k2 = "2ma_" + str(f.maschinist2_member_id or f.maschinist2_name)
-                entries.append((k2, (f.maschinist2_name or k2[4:]) + " (2.MA)"))
         elif gruppierung == "ausbildner":
             if not f.ausbildner_name and not f.ausbildner_member_id:
                 continue
