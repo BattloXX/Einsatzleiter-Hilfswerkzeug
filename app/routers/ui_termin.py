@@ -470,6 +470,8 @@ async def teilnahme_bearbeiten(
         teilnahme.notiz = (form.get("notiz") or "").strip() or None
     if "ausgerueckt" in form:
         teilnahme.ausgerueckt = form.get("ausgerueckt") == "1"
+    if "entschuldigt" in form:
+        teilnahme.entschuldigt = form.get("entschuldigt") == "1"
     db.commit()
 
     # Partial-Response: aktualisierte Zeile
@@ -641,6 +643,8 @@ def _build_xlsx(
     cols = ["Nr.", "Name", "Aktiv"]
     if is_einsatz:
         cols += ["Funktion", "Fahrzeug"]
+    else:
+        cols += ["Teilgenommen", "Entschuldigt"]
     cols.append("Notiz")
 
     for ci, col in enumerate(cols, start=1):
@@ -657,6 +661,11 @@ def _build_xlsx(
                 t.funktion.name if t.funktion else "",
                 t.fahrzeug.display_label if t.fahrzeug else "",
             ]
+        else:
+            row_data += [
+                "✓" if t.ausgerueckt else "",
+                "✓" if t.entschuldigt else "",
+            ]
         row_data.append(t.notiz or "")
         for ci, val in enumerate(row_data, start=1):
             ws.cell(row=ri, column=ci, value=val)
@@ -666,6 +675,8 @@ def _build_xlsx(
     widths = [5, 28, 8]
     if is_einsatz:
         widths += [20, 18]
+    else:
+        widths += [14, 14]
     widths.append(30)
     for ci, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(ci)].width = w

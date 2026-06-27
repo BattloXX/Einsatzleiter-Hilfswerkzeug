@@ -9,6 +9,9 @@
       <th style="padding:8px 14px;text-align:center;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;" title="Ausgerueckt">Aus.</th>
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Funktion</th>
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Fahrzeug</th>
+      {% else %}
+      <th style="padding:8px 14px;text-align:center;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;" title="Nimmt teil">Teilg.</th>
+      <th style="padding:8px 14px;text-align:center;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;" title="Entschuldigt">Ents.</th>
       {% endif %}
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Notiz</th>
       {% if can_edit %}
@@ -82,6 +85,39 @@
         <span style="font-size:.85rem;">{{ t.fahrzeug.display_label if t.fahrzeug else '–' }}</span>
         {% endif %}
       </td>
+
+      {% else %}
+      <!-- Nimmt teil Checkbox -->
+      <td style="padding:6px 14px;text-align:center;">
+        <input type="checkbox"
+               {% if t.ausgerueckt %}checked{% endif %}
+               {% if can_edit %}
+               hx-patch="/teilnahme/{{ t.id }}"
+               hx-trigger="change"
+               hx-target="#teilnahme-liste-container"
+               hx-swap="innerHTML"
+               hx-vals="js:{ausgerueckt: event.target.checked ? '1' : '0'}"
+               {% else %}disabled{% endif %}
+               style="width:17px;height:17px;cursor:{% if can_edit %}pointer{% else %}default{% endif %};"
+               title="Nimmt teil"
+               {% if t.entschuldigt %}disabled{% elif not can_edit %}disabled{% endif %}>
+      </td>
+
+      <!-- Entschuldigt Checkbox -->
+      <td style="padding:6px 14px;text-align:center;">
+        <input type="checkbox"
+               {% if t.entschuldigt %}checked{% endif %}
+               {% if can_edit %}
+               hx-patch="/teilnahme/{{ t.id }}"
+               hx-trigger="change"
+               hx-target="#teilnahme-liste-container"
+               hx-swap="innerHTML"
+               hx-vals="js:{entschuldigt: event.target.checked ? '1' : '0'}"
+               {% else %}disabled{% endif %}
+               style="width:17px;height:17px;cursor:{% if can_edit %}pointer{% else %}default{% endif %};"
+               title="Entschuldigt"
+               {% if t.ausgerueckt %}disabled{% elif not can_edit %}disabled{% endif %}>
+      </td>
       {% endif %}
 
       <!-- Notiz -->
@@ -120,6 +156,14 @@
 </table>
 <div style="padding:10px 16px;font-size:.8rem;color:var(--text-muted);">
   Gesamt: <strong>{{ teilnahmen|length }}</strong> Teilnehmer
+  {% if not is_einsatz %}
+  {% set n_teil = teilnahmen|selectattr('ausgerueckt')|list|length %}
+  {% set n_ents = teilnahmen|selectattr('entschuldigt')|list|length %}
+  {% if n_teil or n_ents %}
+  &nbsp;·&nbsp; Teilgenommen: <strong>{{ n_teil }}</strong>
+  &nbsp;·&nbsp; Entschuldigt: <strong>{{ n_ents }}</strong>
+  {% endif %}
+  {% endif %}
 </div>
 {% else %}
 <div style="padding:32px 16px;text-align:center;color:var(--text-muted);font-size:.9rem;">
