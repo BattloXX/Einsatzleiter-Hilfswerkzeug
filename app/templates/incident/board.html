@@ -87,10 +87,6 @@
     }
     .board-tabs { display: none !important; }
   }
-  /* Mannschaft-Panel nur auf Mobile sichtbar */
-  @media (min-width: 769px) {
-    #mobile-mannschaft-panel { display: none !important; }
-  }
 </style>
 {% endblock %}
 
@@ -171,6 +167,9 @@
 
     <a href="/einsatz/{{ incident.id }}/funkjournal" class="btn btn--sm btn--secondary"
        {{ tip('Funkjournal – Sprüche und lagerelevante Einträge') }}>📻 Funk</a>
+
+    <a href="/einsatz/{{ incident.id }}/mannschaft" class="btn btn--sm btn--secondary"
+       {{ tip('Mannschaft – Teilnehmerliste und Einsatzkräfte') }}>👥 Mannschaft</a>
 
     {# ── KI-Dropdown (nur wenn KI aktiv) ─────────────────────────────────── #}
     {% if can_edit and ai_enabled %}
@@ -354,95 +353,6 @@
     </div>
     {% endif %}
 
-    <!-- Mannschaft / Teilnehmer -->
-    <details id="mannschaft-details" style="border-top:1px solid var(--border);">
-      <summary style="padding:8px 14px;cursor:pointer;font-size:.8rem;font-weight:600;
-                      user-select:none;list-style:none;display:flex;align-items:center;gap:6px;"
-               hx-get="/teilnahme/einsatz/{{ incident.id }}/liste"
-               hx-target="#mannschaft-container"
-               hx-trigger="click once"
-               hx-swap="innerHTML">
-        <span>▸</span><span>👥 Mannschaft</span>
-        <span style="margin-left:auto;display:flex;gap:4px;">
-          <a href="/teilnahme/einsatz/{{ incident.id }}/export.pdf"
-             onclick="event.stopPropagation();"
-             title="PDF exportieren"
-             style="font-size:.7rem;color:var(--text-muted);text-decoration:none;"
-             class="btn btn--ghost btn--xs">PDF</a>
-          <a href="/teilnahme/einsatz/{{ incident.id }}/export.xlsx"
-             onclick="event.stopPropagation();"
-             title="Excel exportieren"
-             style="font-size:.7rem;color:var(--text-muted);text-decoration:none;"
-             class="btn btn--ghost btn--xs">Excel</a>
-        </span>
-      </summary>
-      <div id="mannschaft-container" style="padding:0 0 8px;">
-        <div style="padding:8px 14px;font-size:.8rem;color:var(--text-muted);">Aufklappen zum Laden…</div>
-      </div>
-      {% if can_edit %}
-      <div style="padding:4px 14px 10px;">
-        <button type="button"
-                onclick="document.getElementById('mannschaft-auswahl-dialog').showModal()"
-                class="btn btn--sm btn--secondary" style="width:100%;">+ Teilnehmer</button>
-      </div>
-      {% endif %}
-    </details>
-
-    <!-- Mannschaft Auswahl-Dialog -->
-    {% if can_edit %}
-    <dialog id="mannschaft-auswahl-dialog"
-            style="width:min(420px,96vw);max-height:90dvh;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0;overflow:hidden;">
-    <div style="display:flex;flex-direction:column;max-height:90dvh;">
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-        <h3 style="margin:0;font-size:.95rem;font-weight:700;">Mannschaft hinzufügen</h3>
-        <form method="dialog" style="margin:0;display:contents;">
-          <button type="submit" style="background:var(--surface-high);border:none;color:var(--text);font-size:1.2rem;cursor:pointer;padding:6px 10px;border-radius:6px;min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center;">&#215;</button>
-        </form>
-      </div>
-      <div style="padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
-        <input type="text" id="mannschaft-suche" placeholder="Name suchen…"
-               class="form-input" style="width:100%;"
-               hx-get="/teilnahme/einsatz/{{ incident.id }}/auswahl"
-               hx-trigger="keyup changed delay:300ms"
-               hx-target="#mannschaft-auswahl-liste"
-               hx-include="[name='nur_aktiv'],[name='gruppe_ids']"
-               hx-vals='{"container_id": "mannschaft-container", "dialog_id": "mannschaft-auswahl-dialog", "liste_id": "mannschaft-auswahl-liste"}'
-               name="suche">
-        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer;margin-top:6px;">
-          <input type="checkbox" name="nur_aktiv" value="1" checked
-                 hx-get="/teilnahme/einsatz/{{ incident.id }}/auswahl"
-                 hx-trigger="change"
-                 hx-target="#mannschaft-auswahl-liste"
-                 hx-include="#mannschaft-suche,[name='gruppe_ids']"
-                 hx-vals='{"container_id": "mannschaft-container", "dialog_id": "mannschaft-auswahl-dialog", "liste_id": "mannschaft-auswahl-liste"}'>
-          Nur aktive Mitglieder
-        </label>
-      </div>
-      <div id="mannschaft-auswahl-liste" style="flex:1;min-height:0;overflow-y:auto;"
-           hx-get="/teilnahme/einsatz/{{ incident.id }}/auswahl?container_id=mannschaft-container&dialog_id=mannschaft-auswahl-dialog&liste_id=mannschaft-auswahl-liste"
-           hx-trigger="load"
-           hx-swap="innerHTML">
-        <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:.85rem;">Lade…</div>
-      </div>
-      <div style="padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;">
-        <form hx-post="/teilnahme/einsatz/{{ incident.id }}"
-              hx-target="#mannschaft-container"
-              hx-swap="innerHTML"
-              hx-on::after-request="if(event.detail.successful){document.getElementById('mannschaft-auswahl-dialog').close();}"
-              style="display:flex;gap:8px;margin-bottom:6px;">
-          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-          <input type="text" name="freitext_name" placeholder="+ Gast (Freitext)"
-                 class="form-input" style="flex:1;font-size:.82rem;" autocomplete="off">
-          <button type="submit" class="btn btn--secondary btn--sm">Hinzufügen</button>
-        </form>
-        <form method="dialog" style="margin:0;">
-          <button type="submit" class="btn btn--ghost" style="width:100%;font-size:.8rem;">Schliessen</button>
-        </form>
-      </div>
-    </div>
-    </dialog>
-    {% endif %}
-
     <!-- Verlauf -->
     <div class="sidebar-box">
       <div class="sidebar-box__title">Verlauf <a href="/einsatz/{{ incident.id }}/historie" class="link-sm">Vollansicht</a></div>
@@ -536,30 +446,6 @@
     </div>
     {% endif %}
 
-    <!-- Mannschaft-Panel (nur Mobile, data-lane="mannschaft" wird von buildLaneDropdown erkannt) -->
-    {% if can_edit %}
-    <div class="kanban-col" data-lane="mannschaft" id="mobile-mannschaft-panel">
-      <div class="kanban-col__header">
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-            <span class="kanban-col__title">&#128101; Mannschaft</span>
-            <button class="kanban-col__add-btn" type="button"
-                    onclick="document.getElementById('mannschaft-auswahl-dialog').showModal()"
-                    title="Teilnehmer hinzufügen">
-              <span class="kanban-col__add-label">+ Teilnehmer</span>
-              <span class="kanban-col__add-icon" aria-hidden="true">+</span>
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="kanban-col__body" id="mobile-mannschaft-container"
-           hx-get="/teilnahme/einsatz/{{ incident.id }}/liste"
-           hx-trigger="load"
-           hx-swap="innerHTML">
-        <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:.85rem;">Lade&#x2026;</div>
-      </div>
-    </div>
-    {% endif %}
   </div>
 </div>
 
@@ -1295,16 +1181,5 @@ function lageTicker(hints, aiFlags) {
   });
 })();
 
-// Mannschaft-Panel auf Mobile nach Dialog-Close aktualisieren
-(function() {
-  var dlg = document.getElementById('mannschaft-auswahl-dialog');
-  if (!dlg) return;
-  dlg.addEventListener('close', function() {
-    htmx.ajax('GET', '/teilnahme/einsatz/{{ incident.id }}/liste', {
-      target: '#mobile-mannschaft-container',
-      swap: 'innerHTML'
-    });
-  });
-})();
 </script>
 {% endblock %}

@@ -2716,6 +2716,46 @@ async def funkjournal_page(
     })
 
 
+@router.get("/einsatz/{incident_id}/mannschaft", response_class=HTMLResponse)
+async def mannschaft_page(
+    request: Request,
+    incident_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "org_admin", "recorder", "readonly")),
+):
+    user = request.state.user
+    incident = db.get(Incident, incident_id)
+    if not incident or not can_access_incident(user, incident):
+        raise HTTPException(status_code=404)
+
+    from app.routers.ui_termin import _lade_teilnahmen, _load_funktionen, _load_fahrzeuge
+
+    teilnahmen = _lade_teilnahmen(db, "einsatz", incident_id)
+    funktionen = _load_funktionen(db, getattr(user, "org_id", None))
+    fahrzeuge = _load_fahrzeuge(db)
+
+    uas_einsatz_id = None
+    try:
+        from app.models.uas import UASEinsatz as _UASEinsatz
+        _ue = db.query(_UASEinsatz).filter(_UASEinsatz.incident_id == incident_id).first()
+        if _ue:
+            uas_einsatz_id = _ue.id
+    except Exception:
+        pass
+
+    return templates.TemplateResponse(request, "incident/mannschaft.html", {
+        "user": user,
+        "incident": incident,
+        "teilnahmen": teilnahmen,
+        "bezug_typ": "einsatz",
+        "bezug_id": incident_id,
+        "funktionen": funktionen,
+        "fahrzeuge": fahrzeuge,
+        "uas_einsatz_id": uas_einsatz_id,
+        "can_edit": has_role(user, "incident_leader", "admin", "org_admin", "recorder"),
+    })
+
+
 @router.post("/einsatz/{incident_id}/funkjournal")
 async def funkjournal_add(
     request: Request,
