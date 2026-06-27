@@ -180,6 +180,28 @@
   </div>
   {% endif %}
 
+  <!-- Mannschaft -->
+  <div class="detail-box detail-box--full">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <h3 style="margin:0;">Mannschaft</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        {% if can_edit %}
+        <button type="button" class="btn btn--primary btn--sm"
+                onclick="document.getElementById('mannschaft-dialog').showModal()">+ Teilnehmer</button>
+        {% endif %}
+        <a href="/teilnahme/einsatz/{{ incident.id }}/druck" target="_blank" class="btn btn--ghost btn--sm">🖨 Drucken</a>
+        <a href="/teilnahme/einsatz/{{ incident.id }}/export.pdf" class="btn btn--ghost btn--sm">📄 PDF</a>
+        <a href="/teilnahme/einsatz/{{ incident.id }}/export.xlsx" class="btn btn--ghost btn--sm">📊 Excel</a>
+      </div>
+    </div>
+    <div id="mannschaft-container"
+         hx-get="/teilnahme/einsatz/{{ incident.id }}/liste"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:.85rem;">Lade…</div>
+    </div>
+  </div>
+
   <div class="detail-box detail-box--full">
     <h3>Verlauf</h3>
     <div class="log-list">
@@ -194,4 +216,70 @@
     </div>
   </div>
 </div>
+
+{% if can_edit %}
+<dialog id="mannschaft-dialog"
+        style="width:min(480px,96vw);max-height:90vh;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+  <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <h3 style="margin:0;font-size:1rem;font-weight:700;">Teilnehmer hinzufügen</h3>
+    <button type="button" onclick="document.getElementById('mannschaft-dialog').close()"
+            style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:6px 8px;border-radius:4px;line-height:1;min-width:36px;min-height:36px;">&#215;</button>
+  </div>
+  <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="text" id="mannschaft-suche" placeholder="Name suchen..."
+             class="form-input" style="flex:1;"
+             hx-get="/teilnahme/einsatz/{{ incident.id }}/auswahl"
+             hx-trigger="keyup changed delay:300ms"
+             hx-target="#mannschaft-auswahl-liste"
+             hx-include="[name='nur_aktiv'],[name='gruppe_ids']"
+             hx-vals='{"container_id":"mannschaft-container","dialog_id":"mannschaft-dialog","liste_id":"mannschaft-auswahl-liste"}'
+             name="suche">
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;cursor:pointer;">
+      <input type="checkbox" name="nur_aktiv" value="1" checked
+             hx-get="/teilnahme/einsatz/{{ incident.id }}/auswahl"
+             hx-trigger="change"
+             hx-target="#mannschaft-auswahl-liste"
+             hx-include="#mannschaft-suche,[name='gruppe_ids']"
+             hx-vals='{"container_id":"mannschaft-container","dialog_id":"mannschaft-dialog","liste_id":"mannschaft-auswahl-liste"}'>
+      Nur aktive Mitglieder
+    </label>
+  </div>
+  <div id="mannschaft-auswahl-liste" style="flex:1;overflow-y:auto;padding:8px 0;">
+    <div hx-get="/teilnahme/einsatz/{{ incident.id }}/auswahl?container_id=mannschaft-container&dialog_id=mannschaft-dialog&liste_id=mannschaft-auswahl-liste"
+         hx-trigger="load"
+         hx-target="#mannschaft-auswahl-liste">
+      <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:.85rem;">Lade...</div>
+    </div>
+  </div>
+  <div style="padding:10px 16px;border-top:1px solid var(--border);flex-shrink:0;">
+    <form hx-post="/teilnahme/einsatz/{{ incident.id }}"
+          hx-target="#mannschaft-container"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful){document.getElementById('mannschaft-dialog').close();_refreshMannschaft();}"
+          style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <input type="text" name="freitext_name" placeholder="+ Gast / Externer (Freitext)"
+             class="form-input" style="flex:1;" autocomplete="off">
+      <button type="submit" class="btn btn--secondary btn--sm">Hinzufügen</button>
+    </form>
+    <button type="button" onclick="document.getElementById('mannschaft-dialog').close()"
+            class="btn btn--ghost" style="width:100%;font-size:.85rem;">Schliessen</button>
+  </div>
+</dialog>
+
+<script>
+function _refreshMannschaft() {
+  htmx.ajax("GET", "/teilnahme/einsatz/{{ incident.id }}/liste", {
+    target: "#mannschaft-container",
+    swap: "innerHTML"
+  });
+}
+document.getElementById("mannschaft-dialog").addEventListener("click", function(e) {
+  if (e.target === this) this.close();
+});
+document.getElementById("mannschaft-dialog").addEventListener("close", _refreshMannschaft);
+</script>
+{% endif %}
 {% endblock %}

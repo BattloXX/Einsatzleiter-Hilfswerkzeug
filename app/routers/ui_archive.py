@@ -116,10 +116,13 @@ async def archive_detail(incident_id: int, request: Request, db: Session = Depen
             .first()
         )
 
+    can_edit = has_role(user, "incident_leader", "admin", "org_admin", "system_admin", "recorder")
+
     return templates.TemplateResponse(request, "archive/detail.html", {
         "user": user, "incident": incident,
         "ai_enabled": ai_is_enabled(),
         "uas_einsatz": uas_einsatz,
+        "can_edit": can_edit,
     })
 
 
