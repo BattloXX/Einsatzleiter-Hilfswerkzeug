@@ -18,7 +18,7 @@ Kontextwerte:
 """
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, event, or_
+from sqlalchemy import BigInteger, ForeignKey, Integer, event, or_
 from sqlalchemy.orm import Mapped, Session, declared_attr, mapped_column, with_loader_criteria
 
 # Sentinel: unterscheidet "nie gesetzt" von "explizit None (system_admin)"
@@ -43,8 +43,10 @@ class TenantScoped:
 
     @declared_attr
     def org_id(cls) -> Mapped[int | None]:
+        # BigInteger (BIGINT) muss mit fire_dept.id (BIGINT) uebereinstimmen —
+        # MySQL erzwingt exakte Typgleichheit bei FK-Constraints (errno: 150).
         return mapped_column(
-            Integer, ForeignKey("fire_dept.id", ondelete="SET NULL"),
+            BigInteger, ForeignKey("fire_dept.id", ondelete="SET NULL"),
             nullable=True, index=True,
         )
 

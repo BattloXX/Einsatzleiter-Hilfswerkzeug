@@ -31,7 +31,7 @@ def upgrade() -> None:
     op.execute(text("""
         CREATE TABLE IF NOT EXISTS `sms_group` (
             `id`            BIGINT       NOT NULL AUTO_INCREMENT,
-            `org_id`        INT          NULL,
+            `org_id`        BIGINT       NULL,
             `name`          VARCHAR(150) NOT NULL,
             `description`   VARCHAR(500) NULL,
             `display_order` INT          NOT NULL DEFAULT 0,
@@ -58,7 +58,7 @@ def upgrade() -> None:
     op.execute(text("""
         CREATE TABLE IF NOT EXISTS `sms_einsatzinfo_recipient` (
             `id`            BIGINT NOT NULL AUTO_INCREMENT,
-            `org_id`        INT    NULL,
+            `org_id`        BIGINT NULL,
             `alarm_type_id` BIGINT NULL,
             `group_id`      BIGINT NULL,
             `member_id`     BIGINT NULL,
@@ -79,7 +79,7 @@ def upgrade() -> None:
     op.execute(text("""
         CREATE TABLE IF NOT EXISTS `sms_log` (
             `id`                    BIGINT       NOT NULL AUTO_INCREMENT,
-            `org_id`                INT          NULL,
+            `org_id`                BIGINT       NULL,
             `sent_at`               DATETIME     NOT NULL,
             `source`                VARCHAR(20)  NOT NULL DEFAULT 'manual',
             `alarm_type_code`       VARCHAR(10)  NULL,
