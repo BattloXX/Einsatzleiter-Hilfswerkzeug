@@ -84,6 +84,7 @@ def render_incident_pdf(incident: Incident, base_url: str = "") -> bytes:
     primary_org = _resolve_primary_org(incident)
     pseudo_user = SimpleNamespace(org=primary_org)
     teilnahmen = _load_incident_teilnahmen(incident.id)
+    teilnahmen.sort(key=lambda t: (t.funktion.sortierung if t.funktion else 9999, t.hinzugefuegt_am or 0))
     fahrten_km = _load_incident_fahrten_km(incident.id)
 
     html_str = template.render(

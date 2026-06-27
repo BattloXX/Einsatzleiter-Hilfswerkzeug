@@ -217,7 +217,7 @@
     <th style="width:90pt;">Fahrzeug</th>
     <th>Notiz</th>
   </tr>
-  {% for t in teilnahmen|sort(attribute='funktion.sortierung') %}
+  {% for t in teilnahmen %}
   <tr>
     <td>{{ loop.index }}</td>
     <td style="font-weight:500;">
