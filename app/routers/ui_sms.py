@@ -185,17 +185,18 @@ def gruppen_excel_import_redirect():
 async def import_gruppen_excel(
     request: Request,
     file: UploadFile = File(...),
+    target_group_id: int = Form(0),
     db: Session = Depends(get_db),
     _=Depends(require_role("admin")),
 ):
     """Massenimport von Gruppen und Mitgliedschaften aus Excel.
 
     Erwartete Spalten:
-      Gruppenname (required), Nachname (required), Vorname (required),
-      Telefon (optional), E-Mail (optional).
+      Gruppenname (required wenn keine Zielgruppe gewaehlt), Nachname (required),
+      Vorname (required), Telefon (optional), E-Mail (optional).
 
     Personen werden aus den Mitgliedern gesucht; fehlende werden als Mitglieder angelegt.
-    Gruppen werden bei Bedarf angelegt. Mitglieder werden der Gruppe hinzugefuegt.
+    Wenn target_group_id gesetzt: alle Zeilen dieser Gruppe zuordnen (keine Gruppenname-Spalte noetig).
     """
     import io as _io
     import urllib.parse
@@ -238,10 +239,14 @@ async def import_gruppen_excel(
         elif h in _EMAIL_ALIASES:
             col_map.setdefault("email", i)
 
-    missing = [k for k in ("group", "lastname", "firstname") if k not in col_map]
+    # Wenn Zielgruppe gewaehlt, ist Gruppenname-Spalte nicht Pflicht
+    required_cols = ("lastname", "firstname") if target_group_id else ("group", "lastname", "firstname")
+    missing = [k for k in required_cols if k not in col_map]
     if missing:
         found = ", ".join('"' + h + '"' for h in headers[:8] if h)
-        detail = "Gefundene Spalten: " + found + ". Erwartet: Gruppenname, Zuname/Nachname und Vorname."
+        detail = "Gefundene Spalten: " + found + ". Erwartet: Zuname/Nachname und Vorname" + (
+            "" if target_group_id else " sowie Gruppenname (oder Zielgruppe im Formular waehlen)"
+        ) + "."
         return RedirectResponse(
             f"/admin/gruppen?error=missing_columns&error_detail={urllib.parse.quote(detail)}",
             status_code=303,
@@ -249,7 +254,17 @@ async def import_gruppen_excel(
 
     user = request.state.user
     org_id = _require_org(user)
+
+    # Zielgruppe vorab laden (wenn angegeben)
+    target_group: SmsGroup | None = None
+    if target_group_id:
+        target_group = db.get(SmsGroup, target_group_id)
+        if not target_group or target_group.org_id != org_id:
+            return RedirectResponse("/admin/gruppen?error=invalid_group", status_code=303)
+
     group_cache: dict[str, SmsGroup] = {}
+    if target_group:
+        group_cache[target_group.name] = target_group
     members_created = 0
     members_updated = 0
     groups_created = 0
@@ -262,7 +277,10 @@ async def import_gruppen_excel(
             continue
         sp = db.begin_nested()
         try:
-            group_name = str(row[col_map["group"]] or "").strip()
+            if target_group:
+                group_name = target_group.name
+            else:
+                group_name = str(row[col_map["group"]] or "").strip()
             lastname   = str(row[col_map["lastname"]] or "").strip()
             firstname  = str(row[col_map["firstname"]] or "").strip()
             if not group_name or not lastname or not firstname:
