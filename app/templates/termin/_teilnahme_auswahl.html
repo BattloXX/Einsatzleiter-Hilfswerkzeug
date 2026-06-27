@@ -1,0 +1,74 @@
+{% set _container_id = container_id if container_id else "teilnahme-liste-container" %}
+{% set _dialog_id = dialog_id if dialog_id else "auswahl-dialog" %}
+{% set _liste_id = liste_id if liste_id else "auswahl-liste" %}
+{% set _chip_include = "[name='suche'],[name='nur_aktiv'],[name='gruppe_ids']" %}
+{% set _chip_url = "/teilnahme/" ~ bezug_typ ~ "/" ~ bezug_id ~ "/auswahl?container_id=" ~ _container_id ~ "&dialog_id=" ~ _dialog_id ~ "&liste_id=" ~ _liste_id %}
+
+{% if gruppen %}
+<div style="padding:8px 14px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);flex-shrink:0;">
+  {% for g in gruppen %}
+  {% set active = g.id in selected_gruppe_ids %}
+  <label style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                font-size:.78rem;line-height:1.4;transition:background .1s,color .1s;
+                border:1px solid {% if active %}var(--primary){% else %}var(--border){% endif %};
+                background:{% if active %}var(--primary){% else %}var(--surface-high){% endif %};
+                color:{% if active %}#fff{% else %}var(--text){% endif %};">
+    <input type="checkbox" name="gruppe_ids" value="{{ g.id }}"
+           {% if active %}checked{% endif %}
+           style="position:absolute;opacity:0;width:0;height:0;"
+           hx-get="{{ _chip_url }}"
+           hx-trigger="change"
+           hx-target="#{{ _liste_id }}"
+           hx-swap="innerHTML"
+           hx-include="{{ _chip_include }}">
+    {{ g.name }}
+  </label>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if verfuegbare %}
+<form id="auswahl-form"
+      hx-post="/teilnahme/{{ bezug_typ }}/{{ bezug_id }}"
+      hx-target="#{{ _container_id }}"
+      hx-swap="innerHTML"
+      hx-on::after-request="if(event.detail.successful){document.getElementById('{{ _dialog_id }}').close();}"
+      style="display:contents;">
+  <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+
+  {% for m in verfuegbare %}
+  <label style="display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;
+                transition:background .1s;min-height:44px;"
+         onmouseover="this.style.background='var(--surface-high)'"
+         onmouseout="this.style.background=''">
+    <input type="checkbox" name="mitglied_id" value="{{ m.id }}"
+           style="width:18px;height:18px;flex-shrink:0;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:.9rem;font-weight:500;">{{ m.full_name }}</div>
+      {% if member_to_gruppen and m.id in member_to_gruppen %}
+      <div style="font-size:.72rem;color:var(--text-muted);">{{ member_to_gruppen[m.id]|join(", ") }}</div>
+      {% elif not m.active %}
+      <div style="font-size:.75rem;color:var(--text-muted);">Inaktiv</div>
+      {% endif %}
+    </div>
+  </label>
+  {% endfor %}
+
+  <!-- Submit-Button unten -->
+  <div style="position:sticky;bottom:0;padding:10px 16px;background:var(--surface);border-top:1px solid var(--border);">
+    <button type="submit" class="btn btn--primary" style="width:100%;">
+      Auswahl hinzufügen
+    </button>
+  </div>
+</form>
+{% else %}
+<div style="padding:24px 16px;text-align:center;color:var(--text-muted);font-size:.88rem;">
+  {% if selected_gruppe_ids %}
+  Keine Mitglieder in der gewählten Gruppe gefunden.
+  {% elif suche %}
+  Keine Mitglieder gefunden für "{{ suche }}".
+  {% else %}
+  Alle Mitglieder sind bereits als Teilnehmer erfasst.
+  {% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Teilnehmerliste – {{ titel }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  @media print {
+    .topnav, .bottom-nav, .mobile-menu, .no-print { display: none !important; }
+    .main-content { padding: 0 !important; }
+    body { background: white !important; color: black !important; }
+    a { color: black !important; }
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:850px;margin:0 auto;padding:20px;">
+
+  <div class="no-print" style="margin-bottom:16px;display:flex;gap:10px;align-items:center;">
+    <button onclick="window.print()" class="btn btn--primary">🖨 Drucken</button>
+    <a href="javascript:history.back()" class="btn btn--ghost">← Zurück</a>
+  </div>
+
+  <!-- Kopf -->
+  <div style="border-bottom:2px solid #d42225;padding-bottom:12px;margin-bottom:16px;">
+    <h1 style="font-size:1.4rem;font-weight:700;margin:0 0 4px;">Teilnehmerliste</h1>
+    <h2 style="font-size:1.1rem;margin:0 0 8px;font-weight:600;">{{ titel }}</h2>
+    <div style="font-size:.85rem;display:flex;gap:16px;flex-wrap:wrap;">
+      {% if beginn %}<span>Datum: {{ beginn.strftime('%d.%m.%Y %H:%M') }}</span>{% endif %}
+      {% if ort %}<span>Ort: {{ ort }}</span>{% endif %}
+      <span>Erstellt: {{ now.strftime('%d.%m.%Y %H:%M') }}</span>
+    </div>
+  </div>
+
+  <!-- Tabelle -->
+  {% set is_einsatz = bezug_typ == 'einsatz' %}
+  <table style="width:100%;border-collapse:collapse;font-size:.88rem;">
+    <thead>
+      <tr style="background:#d42225;color:white;">
+        <th style="padding:7px 10px;text-align:left;width:40px;">#</th>
+        <th style="padding:7px 10px;text-align:left;">Name</th>
+        {% if is_einsatz %}
+        <th style="padding:7px 10px;text-align:left;">Funktion</th>
+        <th style="padding:7px 10px;text-align:left;">Fahrzeug</th>
+        {% endif %}
+        <th style="padding:7px 10px;text-align:left;">Notiz</th>
+        <th style="padding:7px 10px;text-align:left;width:100px;">Unterschrift</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in teilnahmen %}
+      <tr style="border-bottom:1px solid #ddd;background:{% if loop.index % 2 == 0 %}#f9f9f9{% else %}white{% endif %};">
+        <td style="padding:8px 10px;">{{ loop.index }}</td>
+        <td style="padding:8px 10px;font-weight:500;">
+          {{ t.anzeige_name }}
+          {% if not t.mitglied_id %}<span style="font-size:.75rem;color:#888;">(Gast)</span>{% endif %}
+        </td>
+        {% if is_einsatz %}
+        <td style="padding:8px 10px;">{{ t.funktion.name if t.funktion else '' }}</td>
+        <td style="padding:8px 10px;">{{ t.fahrzeug.display_label if t.fahrzeug else '' }}</td>
+        {% endif %}
+        <td style="padding:8px 10px;color:#555;">{{ t.notiz or '' }}</td>
+        <td style="padding:8px 10px;"></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="margin-top:12px;font-size:.8rem;">
+    Gesamt: <strong>{{ teilnahmen|length }}</strong> Teilnehmer
+  </div>
+
+</div>
+{% endblock %}

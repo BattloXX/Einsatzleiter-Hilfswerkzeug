@@ -100,6 +100,10 @@ _TENANT_TABLE_NAMES: frozenset[str] = frozenset({
     "sms_group",
     "sms_einsatzinfo_recipient",
     "sms_log",
+    # Teilnehmerlisten-Modul (TenantScoped via Mixin)
+    "termin",
+    "funktion",
+    "teilnahme",
 })
 
 

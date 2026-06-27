@@ -3008,4 +3008,3 @@ async def sms_test_send(
         return RedirectResponse("/admin/sms-test?result=no_org", status_code=303)
     ok = await send_sms(user.org_id, to, text)
     return RedirectResponse(f"/admin/sms-test?result={'ok' if ok else 'fail'}&to={quote_plus(to)}", status_code=303)
-    return RedirectResponse("/admin/geraete-login?saved=1", status_code=303)

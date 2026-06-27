@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}{{ termin.titel }} – {{ brand }}{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:16px;">
+
+  <!-- Breadcrumb -->
+  <div style="margin-bottom:16px;">
+    <a href="/termine" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;">← Termine</a>
+  </div>
+
+  <!-- Header-Karte -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:20px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+          <span style="font-size:.75rem;background:var(--surface-high);padding:2px 9px;border-radius:4px;color:var(--text-muted);">
+            {{ termin.typ_label }}
+          </span>
+          <span class="status-pill {{ termin.status_css }}" style="font-size:.75rem;">{{ termin.status_label }}</span>
+        </div>
+        <h1 style="font-size:1.4rem;font-weight:700;margin:0 0 8px;">{{ termin.titel }}</h1>
+        <div style="font-size:.85rem;color:var(--text-muted);display:flex;flex-direction:column;gap:3px;">
+          <span>🗓 {{ termin.beginn.strftime('%d.%m.%Y %H:%M') }}{% if termin.ende %} – {{ termin.ende.strftime('%H:%M') }}{% endif %}</span>
+          {% if termin.ort %}<span>📍 {{ termin.ort }}</span>{% endif %}
+          {% if termin.beschreibung %}<span style="margin-top:4px;color:var(--text);">{{ termin.beschreibung }}</span>{% endif %}
+        </div>
+      </div>
+      {% if can_edit %}
+      <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;">
+        <a href="/termine/{{ termin.id }}/bearbeiten" class="btn btn--ghost btn--sm">Bearbeiten</a>
+        <form method="post" action="/termine/{{ termin.id }}/loeschen"
+              onsubmit="return confirm('Termin und alle Teilnahmen löschen?')"
+              style="display:inline;">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+          <button type="submit" class="btn btn--danger btn--sm">Löschen</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Teilnehmer-Bereich -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <h2 style="font-size:1rem;font-weight:700;margin:0;">
+        👥 Teilnehmer
+        <span id="teilnehmer-count" style="font-size:.8rem;font-weight:400;color:var(--text-muted);">({{ teilnahmen|length }})</span>
+      </h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        {% if can_edit %}
+        <button type="button" class="btn btn--primary btn--sm"
+                onclick="document.getElementById('auswahl-dialog').showModal()">
+          + Teilnehmer
+        </button>
+        {% endif %}
+        <a href="/teilnahme/{{ termin.typ }}/{{ termin.id }}/druck" target="_blank"
+           class="btn btn--ghost btn--sm">🖨 Drucken</a>
+        <a href="/teilnahme/{{ termin.typ }}/{{ termin.id }}/export.pdf"
+           class="btn btn--ghost btn--sm">📄 PDF</a>
+        <a href="/teilnahme/{{ termin.typ }}/{{ termin.id }}/export.xlsx"
+           class="btn btn--ghost btn--sm">📊 Excel</a>
+      </div>
+    </div>
+
+    <!-- Teilnahme-Liste (HTMX-Container) -->
+    <div id="teilnahme-liste-container">
+      {% include "termin/_teilnahme_liste.html" %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Auswahl-Dialog (Bottom-Sheet / Modal) -->
+{% if can_edit %}
+<dialog id="auswahl-dialog" style="width:min(480px,96vw);max-height:90vh;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+  <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <h3 style="margin:0;font-size:1rem;font-weight:700;">Teilnehmer hinzufügen</h3>
+    <button type="button" onclick="document.getElementById('auswahl-dialog').close()"
+            style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
+  </div>
+
+  <!-- Suche + Filter -->
+  <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="text" id="suche-input" placeholder="Name suchen…"
+             class="form-input" style="flex:1;"
+             hx-get="/teilnahme/{{ termin.typ }}/{{ termin.id }}/auswahl"
+             hx-trigger="keyup changed delay:300ms"
+             hx-target="#auswahl-liste"
+             hx-include="[name='nur_aktiv'],[name='gruppe_ids']"
+             name="suche">
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;cursor:pointer;">
+      <input type="checkbox" name="nur_aktiv" value="1" checked
+             hx-get="/teilnahme/{{ termin.typ }}/{{ termin.id }}/auswahl"
+             hx-trigger="change"
+             hx-target="#auswahl-liste"
+             hx-include="#suche-input,[name='gruppe_ids']">
+      Nur aktive Mitglieder
+    </label>
+  </div>
+
+  <!-- Auswahl-Liste -->
+  <div id="auswahl-liste" style="flex:1;overflow-y:auto;padding:8px 0;">
+    <div hx-get="/teilnahme/{{ termin.typ }}/{{ termin.id }}/auswahl"
+         hx-trigger="load"
+         hx-target="#auswahl-liste">
+      <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:.85rem;">Lade…</div>
+    </div>
+  </div>
+
+  <!-- Freitext-Bereich -->
+  <div style="padding:10px 16px;border-top:1px solid var(--border);flex-shrink:0;">
+    <form hx-post="/teilnahme/{{ termin.typ }}/{{ termin.id }}"
+          hx-target="#teilnahme-liste-container"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful){document.getElementById('auswahl-dialog').close();_refreshAuswahlListe();}"
+          style="display:flex;gap:8px;">
+      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      <input type="text" name="freitext_name" placeholder="+ Gast / Externer (Freitext)"
+             class="form-input" style="flex:1;" autocomplete="off">
+      <button type="submit" class="btn btn--secondary btn--sm">Hinzufügen</button>
+    </form>
+  </div>
+</dialog>
+
+<script>
+function _refreshAuswahlListe() {
+  htmx.ajax("GET", "/teilnahme/{{ termin.typ }}/{{ termin.id }}/auswahl", {
+    target: "#auswahl-liste",
+    swap: "innerHTML"
+  });
+}
+// Dialog-Cleanup: Auswahlliste beim Öffnen neu laden
+document.getElementById("auswahl-dialog").addEventListener("click", function(e) {
+  if (e.target === this) this.close();
+});
+document.addEventListener("DOMContentLoaded", function() {
+  document.getElementById("auswahl-dialog").addEventListener("close", _refreshAuswahlListe);
+});
+</script>
+{% endif %}
+
+{% endblock %}

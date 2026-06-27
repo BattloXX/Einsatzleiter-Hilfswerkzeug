@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{% if termin %}{{ termin.titel }} bearbeiten{% else %}Neuer Termin{% endif %} – {{ brand }}{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;margin:0 auto;padding:16px;">
+
+  <div style="margin-bottom:20px;">
+    <a href="{% if termin %}/termine/{{ termin.id }}{% else %}/termine{% endif %}"
+       style="color:var(--text-muted);font-size:.85rem;text-decoration:none;">← Zurück</a>
+    <h1 style="font-size:1.25rem;font-weight:700;margin:8px 0 0;">
+      {% if termin %}Termin bearbeiten{% else %}Neuer Termin{% endif %}
+    </h1>
+  </div>
+
+  <form method="post"
+        action="{% if termin %}/termine/{{ termin.id }}{% else %}/termine{% endif %}"
+        style="display:flex;flex-direction:column;gap:16px;">
+    <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+
+    <!-- Typ -->
+    <div>
+      <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Typ</label>
+      <div style="display:flex;gap:10px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.9rem;">
+          <input type="radio" name="typ" value="uebung"
+                 {% if (termin and termin.typ == 'uebung') or (not termin and default_typ == 'uebung') %}checked{% endif %}>
+          Übung
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.9rem;">
+          <input type="radio" name="typ" value="veranstaltung"
+                 {% if (termin and termin.typ == 'veranstaltung') or (not termin and default_typ == 'veranstaltung') %}checked{% endif %}>
+          Veranstaltung
+        </label>
+      </div>
+    </div>
+
+    <!-- Titel -->
+    <div>
+      <label for="titel" style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Titel *</label>
+      <input type="text" id="titel" name="titel" required
+             value="{% if termin %}{{ termin.titel }}{% endif %}"
+             placeholder="z.B. Jahresübung 2026"
+             class="form-input"
+             style="width:100%;">
+    </div>
+
+    <!-- Beginn + Ende -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div>
+        <label for="beginn" style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Beginn *</label>
+        <input type="datetime-local" id="beginn" name="beginn" required
+               value="{% if termin %}{{ termin.beginn.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+               class="form-input" style="width:100%;">
+      </div>
+      <div>
+        <label for="ende" style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Ende</label>
+        <input type="datetime-local" id="ende" name="ende"
+               value="{% if termin and termin.ende %}{{ termin.ende.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+               class="form-input" style="width:100%;">
+      </div>
+    </div>
+
+    <!-- Ort -->
+    <div>
+      <label for="ort" style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Ort</label>
+      <input type="text" id="ort" name="ort"
+             value="{% if termin and termin.ort %}{{ termin.ort }}{% endif %}"
+             placeholder="z.B. Feuerwehrhaus Wolfurt"
+             class="form-input" style="width:100%;">
+    </div>
+
+    <!-- Status -->
+    <div>
+      <label for="status" style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Status</label>
+      <select id="status" name="status" class="form-select" style="width:100%;">
+        {% for val, lbl in [('geplant','Geplant'),('laufend','Laufend'),('abgeschlossen','Abgeschlossen'),('abgesagt','Abgesagt')] %}
+        <option value="{{ val }}" {% if termin and termin.status == val %}selected{% elif not termin and val == 'geplant' %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Beschreibung -->
+    <div>
+      <label for="beschreibung" style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Beschreibung</label>
+      <textarea id="beschreibung" name="beschreibung" rows="3"
+                class="form-input" style="width:100%;resize:vertical;">{% if termin and termin.beschreibung %}{{ termin.beschreibung }}{% endif %}</textarea>
+    </div>
+
+    <!-- Buttons -->
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:4px;">
+      <a href="{% if termin %}/termine/{{ termin.id }}{% else %}/termine{% endif %}"
+         class="btn btn--ghost">Abbrechen</a>
+      <button type="submit" class="btn btn--primary">
+        {% if termin %}Speichern{% else %}Anlegen{% endif %}
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

@@ -199,6 +199,34 @@
 </table>
 {% endif %}
 
+{% if teilnahmen %}
+<h2>Mannschaft / Teilnehmer <span style="font-size:9pt;font-weight:normal;color:#666;">({{ teilnahmen|length }})</span></h2>
+<table>
+  <tr>
+    <th style="width:24pt;">#</th>
+    <th>Name</th>
+    <th style="width:100pt;">Funktion</th>
+    <th style="width:90pt;">Fahrzeug</th>
+    <th>Notiz</th>
+  </tr>
+  {% for t in teilnahmen|sort(attribute='funktion.sortierung') %}
+  <tr>
+    <td>{{ loop.index }}</td>
+    <td style="font-weight:500;">
+      {{ t.anzeige_name }}
+      {% if not t.mitglied_id %}<span style="font-size:7.5pt;color:#888;"> (Gast)</span>{% endif %}
+    </td>
+    <td>{{ t.funktion.name if t.funktion else '' }}</td>
+    <td>{{ t.fahrzeug.display_label if t.fahrzeug else '' }}</td>
+    <td style="color:#555;">{{ t.notiz or '' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<div style="font-size:8pt;color:#666;margin:4pt 0 12pt;">
+  Gesamt: {{ teilnahmen|length }} Teilnehmer
+</div>
+{% endif %}
+
 {% if incident.breathing_troops %}
 <div class="page-break"></div>
 <h2>Atemschutz-Protokoll</h2>

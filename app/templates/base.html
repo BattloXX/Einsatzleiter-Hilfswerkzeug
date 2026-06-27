@@ -52,6 +52,7 @@
       {% if is_fahrtenbuch %}
       <a href="/verwaltung/fahrten" class="nav-link {% if '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path %}active{% endif %}">Fahrtenbuch</a>
       {% endif %}
+      <a href="/termine" class="nav-link {% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">Termine</a>
       <a href="/medien" class="nav-link {% if request.url.path.startswith('/medien') %}active{% endif %}">Medien</a>
       {% if WEATHER_ENABLED %}
       <a href="/wetter" class="nav-link {% if request.url.path.startswith('/wetter') %}active{% endif %}">🌦 Wetter</a>
@@ -153,6 +154,7 @@
       {% if is_fahrtenbuch %}
       <a href="/verwaltung/fahrten" class="mobile-menu__link {% if '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path %}active{% endif %}">🚒 Fahrtenbuch</a>
       {% endif %}
+      <a href="/termine" class="mobile-menu__link {% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">📅 Termine</a>
       <a href="/medien" class="mobile-menu__link {% if request.url.path.startswith('/medien') %}active{% endif %}">🖼️ Medien</a>
       {% if WEATHER_ENABLED %}
       <a href="/wetter" class="mobile-menu__link {% if request.url.path.startswith('/wetter') %}active{% endif %}">🌦 Wetter</a>
