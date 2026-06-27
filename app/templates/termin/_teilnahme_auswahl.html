@@ -59,7 +59,7 @@
     <button type="submit" class="btn btn--primary" style="width:100%;">
       Auswahl hinzufügen
     </button>
-    <button type="button" onclick="document.getElementById('{{ _dialog_id }}').close()"
+    <button type="button" onclick="this.closest('dialog').close()"
             class="btn btn--ghost" style="width:100%;font-size:.85rem;">Schliessen</button>
   </div>
 </form>
@@ -73,8 +73,9 @@
   Alle Mitglieder sind bereits als Teilnehmer erfasst.
   {% endif %}
   <div style="margin-top:16px;">
-    <button type="button" onclick="document.getElementById('{{ _dialog_id }}').close()"
-            class="btn btn--ghost" style="font-size:.85rem;">Schliessen</button>
+    <form method="dialog" style="margin:0;">
+      <button type="submit" class="btn btn--ghost" style="font-size:.85rem;">Schliessen</button>
+    </form>
   </div>
 </div>
 {% endif %}
