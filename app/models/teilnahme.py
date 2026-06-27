@@ -89,6 +89,7 @@ class Teilnahme(TenantScoped, Base):
         BigInteger, ForeignKey("vehicle_master.id", ondelete="SET NULL"), nullable=True
     )
     notiz: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    ausgerueckt: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     hinzugefuegt_von: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )

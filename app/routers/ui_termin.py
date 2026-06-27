@@ -468,6 +468,8 @@ async def teilnahme_bearbeiten(
         teilnahme.fahrzeug_id = int(v) if v else None
     if "notiz" in form:
         teilnahme.notiz = (form.get("notiz") or "").strip() or None
+    if "ausgerueckt" in form:
+        teilnahme.ausgerueckt = form.get("ausgerueckt") == "1"
     db.commit()
 
     # Partial-Response: aktualisierte Zeile

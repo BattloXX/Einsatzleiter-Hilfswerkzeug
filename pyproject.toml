@@ -29,6 +29,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     # PDF
     "weasyprint>=62",
+    "xhtml2pdf>=0.2.17",
     # Web Push
     "pywebpush>=2.0",
     # QR Code

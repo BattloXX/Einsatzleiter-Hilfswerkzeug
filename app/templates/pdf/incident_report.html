@@ -92,15 +92,23 @@
 
 <h2>Fahrzeuge</h2>
 <table>
-  <tr><th>Fahrzeug</th><th>Organisation</th><th>Spalte</th><th>Gruppenkommandant</th></tr>
+  <tr><th>Fahrzeug</th><th>Organisation</th><th>Spalte</th><th>Gruppenkommandant</th>{% if fahrten_km %}<th style="width:55pt;text-align:right;">km</th>{% endif %}</tr>
   {% for v in incident.vehicles %}
+  {% set _km_row = fahrten_km|selectattr('label','equalto',v.vehicle_master.display_label)|first if fahrten_km else none %}
   <tr>
     <td>{{ v.vehicle_master.display_label }}</td>
     <td>{{ v.vehicle_master.dept.name }}</td>
     <td>{{ v.column.title if v.column else '–' }}</td>
     <td>{{ v.commander.full_name if v.commander else '–' }}</td>
+    {% if fahrten_km %}<td style="text-align:right;">{% if _km_row %}{{ _km_row.km }}{% else %}–{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}
+  {% if fahrten_km and fahrten_km|sum(attribute='km') > 0 %}
+  <tr>
+    <td colspan="4" style="font-weight:700;text-align:right;color:#555;">Gesamt km</td>
+    <td style="font-weight:700;text-align:right;">{{ fahrten_km|sum(attribute='km') }}</td>
+  </tr>
+  {% endif %}
 </table>
 
 <h2>Aufträge</h2>

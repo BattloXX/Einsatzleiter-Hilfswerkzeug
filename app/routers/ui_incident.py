@@ -693,6 +693,31 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
             or bool(_org_settings.weather_enabled)
         )
     )
+
+    # Fahrtenbuch-Km je Fahrzeug für diesen Einsatz
+    fahrten_km: list[dict] = []
+    try:
+        from app.models.fahrtenbuch import Fahrt, FahrtStatus
+        _fahrten = (
+            db.query(Fahrt)
+            .filter(
+                Fahrt.incident_id == incident_id,
+                Fahrt.status == FahrtStatus.aktiv,
+            )
+            .all()
+        )
+        _km_by_vehicle: dict[int, dict] = {}
+        for _f in _fahrten:
+            if _f.fahrzeug_id not in _km_by_vehicle:
+                _vm = _f.fahrzeug if hasattr(_f, "fahrzeug") else None
+                _label = _vm.display_label if _vm else f"Fahrzeug #{_f.fahrzeug_id}"
+                _km_by_vehicle[_f.fahrzeug_id] = {"label": _label, "km": 0}
+            if _f.km_delta:
+                _km_by_vehicle[_f.fahrzeug_id]["km"] += _f.km_delta
+        fahrten_km = [v for v in _km_by_vehicle.values() if v["km"] > 0]
+    except Exception:
+        fahrten_km = []
+
     return templates.TemplateResponse(request, "incident/board.html", {
         "user": user, "incident": incident,
         "alarm_types": alarm_types, "lage_hints": lage_hints, "lage_hints_ai": lage_hints_ai,
@@ -708,6 +733,7 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
         "weather_enabled": _weather_enabled,
         "uas_einsatz_id": uas_einsatz_id,
         "can_start_uas": can_start_uas,
+        "fahrten_km": fahrten_km,
     })
 
 

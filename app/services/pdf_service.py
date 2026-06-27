@@ -55,15 +55,41 @@ def _load_incident_teilnahmen(incident_id: int) -> list:
         db.close()
 
 
+def _load_incident_fahrten_km(incident_id: int) -> list[dict]:
+    """Liefert [{label, km}] je Fahrzeug aus dem Fahrtenbuch für diesen Einsatz."""
+    try:
+        from app.models.fahrtenbuch import Fahrt, FahrtStatus
+        db = SessionLocal()
+        try:
+            fahrten = db.query(Fahrt).filter(
+                Fahrt.incident_id == incident_id,
+                Fahrt.status == FahrtStatus.aktiv,
+            ).all()
+            km_by: dict[int, dict] = {}
+            for f in fahrten:
+                if f.fahrzeug_id not in km_by:
+                    label = f.fahrzeug.display_label if f.fahrzeug else f"Fahrzeug #{f.fahrzeug_id}"
+                    km_by[f.fahrzeug_id] = {"label": label, "km": 0}
+                if f.km_delta:
+                    km_by[f.fahrzeug_id]["km"] += f.km_delta
+            return [v for v in km_by.values() if v["km"] > 0]
+        finally:
+            db.close()
+    except Exception:
+        return []
+
+
 def render_incident_pdf(incident: Incident, base_url: str = "") -> bytes:
     template = templates.env.get_template("pdf/incident_report.html")
     primary_org = _resolve_primary_org(incident)
     pseudo_user = SimpleNamespace(org=primary_org)
     teilnahmen = _load_incident_teilnahmen(incident.id)
+    fahrten_km = _load_incident_fahrten_km(incident.id)
 
     html_str = template.render(
         incident=incident,
         teilnahmen=teilnahmen,
+        fahrten_km=fahrten_km,
         now=datetime.now(UTC),
         base_url=base_url,
         user=pseudo_user,
@@ -104,7 +130,7 @@ def render_teilnahme_pdf(
     user,
     base_url: str = "",
 ) -> bytes:
-    """Teilnehmerliste als A4-PDF (WeasyPrint)."""
+    """Teilnehmerliste als A4-PDF (WeasyPrint wenn GTK verfügbar, sonst xhtml2pdf)."""
     template = templates.env.get_template("pdf/teilnahme_report.html")
     html_str = template.render(
         teilnahmen=teilnahmen,
@@ -116,7 +142,13 @@ def render_teilnahme_pdf(
         now=datetime.now(UTC),
         base_url=base_url,
     )
-    from weasyprint import HTML  # noqa: PLC0415 – lazy: GTK not available on Windows
-    buf = io.BytesIO()
-    HTML(string=html_str, base_url=base_url or ".").write_pdf(buf)
-    return buf.getvalue()
+    try:
+        from weasyprint import HTML  # noqa: PLC0415 – lazy: GTK not available on Windows
+        buf = io.BytesIO()
+        HTML(string=html_str, base_url=base_url or ".").write_pdf(buf)
+        return buf.getvalue()
+    except OSError:
+        from xhtml2pdf import pisa  # noqa: PLC0415
+        buf = io.BytesIO()
+        pisa.CreatePDF(io.StringIO(html_str), dest=buf)
+        return buf.getvalue()

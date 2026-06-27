@@ -6,6 +6,7 @@
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">#</th>
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Name</th>
       {% if is_einsatz %}
+      <th style="padding:8px 14px;text-align:center;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;" title="Ausgerueckt">Aus.</th>
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Funktion</th>
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Fahrzeug</th>
       {% endif %}
@@ -27,6 +28,21 @@
       </td>
 
       {% if is_einsatz %}
+      <!-- Ausgerueckt Checkbox -->
+      <td style="padding:6px 14px;text-align:center;">
+        <input type="checkbox"
+               {% if t.ausgerueckt %}checked{% endif %}
+               {% if can_edit %}
+               hx-patch="/teilnahme/{{ t.id }}"
+               hx-trigger="change"
+               hx-target="#teilnahme-liste-container"
+               hx-swap="innerHTML"
+               hx-vals="js:{ausgerueckt: event.target.checked ? '1' : '0'}"
+               {% else %}disabled{% endif %}
+               style="width:17px;height:17px;cursor:{% if can_edit %}pointer{% else %}default{% endif %};"
+               title="Ausgerueckt">
+      </td>
+
       <!-- Funktion Inline-Dropdown -->
       <td style="padding:6px 14px;">
         {% if can_edit %}
