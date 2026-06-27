@@ -1,0 +1,52 @@
+{# HTMX-Partial: GitHub-Update-Status – wird in #github-update-box geswapped #}
+{% if github.get('error') %}
+<div class="alert alert-danger" style="margin-bottom:0;">
+  GitHub nicht erreichbar: <code style="font-size:.85rem;">{{ github.error }}</code>
+</div>
+{% elif github.has_update %}
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+  <span class="badge badge-warning" style="font-size:.9rem;padding:4px 10px;">
+    Update verfügbar: v{{ github.latest_tag }}
+  </span>
+  {% if github.release_name and github.release_name != 'v' + github.latest_tag %}
+  <span style="color:var(--color-text-muted);font-size:.88rem;">{{ github.release_name }}</span>
+  {% endif %}
+</div>
+{% if github.release_notes %}
+<pre style="font-size:.78rem;max-height:120px;overflow:auto;background:var(--surface-low,#f3f4f6);padding:8px 10px;border-radius:4px;white-space:pre-wrap;margin-bottom:12px;border:1px solid var(--border);">{{ github.release_notes }}</pre>
+{% endif %}
+{% if github.download_url %}
+<form hx-post="/admin/system/update/github"
+      hx-target="#github-update-box"
+      hx-swap="innerHTML"
+      onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Wird heruntergeladen…'">
+  <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+  <button type="submit" class="btn btn-danger">Von GitHub herunterladen &amp; einspielen</button>
+  <span class="text-muted" style="font-size:.8rem;margin-left:8px;">Aktuell: v{{ github.current_version }}</span>
+</form>
+{% else %}
+<p class="text-muted" style="font-size:.87rem;margin:0;">
+  Kein ZIP-Asset im Release – bitte manuell herunterladen und über das Formular unten einspielen.
+</p>
+{% endif %}
+{% else %}
+<p style="margin:0;color:var(--color-success,#16a34a);font-size:.93rem;">
+  v{{ github.current_version }} ist aktuell{% if github.latest_tag %} (GitHub: v{{ github.latest_tag }}){% endif %}.
+</p>
+{% endif %}
+
+{% if update_result is defined %}
+{% if update_result.success %}
+<div class="alert alert-success" style="margin-top:12px;margin-bottom:0;">
+  <strong>Update erfolgreich!</strong><br>
+  Dateien aktualisiert: {{ update_result.files_updated }},
+  geschützt übersprungen: {{ update_result.files_skipped }},
+  Migrationen: {{ update_result.migrations_applied }},
+  Server-Reload: {{ 'Ja' if update_result.server_reloaded else 'Manuell erforderlich' }}
+</div>
+{% else %}
+<div class="alert alert-danger" style="margin-top:12px;margin-bottom:0;">
+  <strong>Fehler:</strong> {{ update_result.message }}
+</div>
+{% endif %}
+{% endif %}

@@ -37,6 +37,31 @@
   {% endif %}
 {% endif %}
 
+<div class="card mb-4">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h2>Automatisches Update von GitHub</h2>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="htmx-indicator" id="github-spinner"
+            style="font-size:.82rem;color:var(--color-text-muted);">Prüfe…</span>
+      <button class="btn btn-outline btn--sm"
+              hx-get="/admin/system/update/check-github"
+              hx-target="#github-update-box"
+              hx-swap="innerHTML"
+              hx-indicator="#github-spinner">
+        Auf Updates prüfen
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div id="github-update-box">
+      <p class="text-muted" style="margin:0;font-size:.9rem;">
+        Auf „Auf Updates prüfen" klicken um GitHub auf verfügbare Releases zu prüfen.<br>
+        Das Update wird dann automatisch heruntergeladen und eingespielt.
+      </p>
+    </div>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-header"><h2>Release-ZIP hochladen</h2></div>
   <div class="card-body">

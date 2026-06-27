@@ -222,3 +222,65 @@ def get_current_version() -> str:
     except Exception:
         pass
     return "unbekannt"
+
+
+def check_github_release(repo: str = "BattloXX/Einsatzcockpit") -> dict:
+    """Prüft GitHub auf verfügbare Releases und vergleicht mit der aktuellen Version."""
+    import json as _json
+    import urllib.request as _req
+
+    current = get_current_version()
+    try:
+        url = f"https://api.github.com/repos/{repo}/releases/latest"
+        request = _req.Request(url, headers={"User-Agent": "Einsatzcockpit-Updater/1.0"})
+        with _req.urlopen(request, timeout=10) as resp:
+            data = _json.loads(resp.read())
+
+        tag = data.get("tag_name", "").lstrip("v")
+        assets = data.get("assets", [])
+        # Eigenes Release-ZIP bevorzugen; Fallback: GitHub-Quellcode-ZIP (immer verfügbar)
+        zip_url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".zip")), None)
+        download_url = zip_url or data.get("zipball_url")
+
+        return {
+            "current_version": current,
+            "latest_tag": tag,
+            "download_url": download_url,
+            "has_update": bool(tag) and tag != current,
+            "release_name": data.get("name", ""),
+            "release_notes": (data.get("body") or "")[:500],
+        }
+    except Exception as exc:
+        return {
+            "current_version": current,
+            "latest_tag": None,
+            "download_url": None,
+            "has_update": False,
+            "error": str(exc)[:200],
+        }
+
+
+def download_and_apply_github_update(download_url: str) -> dict:
+    """Lädt das Release-ZIP von GitHub herunter und spielt es ein.
+
+    Folgt Weiterleitungen (zipball_url leitet auf CDN um). Schreibt in eine temporäre
+    Datei, ruft apply_update() auf und löscht die Datei anschließend.
+    """
+    import urllib.request as _req
+
+    tmp_path: Path | None = None
+    try:
+        request = _req.Request(download_url, headers={"User-Agent": "Einsatzcockpit-Updater/1.0"})
+        with _req.urlopen(request, timeout=120) as resp:
+            data = resp.read()
+
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+            tmp.write(data)
+            tmp_path = Path(tmp.name)
+
+        return apply_update(tmp_path)
+    except Exception as exc:
+        return {"success": False, "message": f"Download fehlgeschlagen: {exc}"}
+    finally:
+        if tmp_path:
+            tmp_path.unlink(missing_ok=True)

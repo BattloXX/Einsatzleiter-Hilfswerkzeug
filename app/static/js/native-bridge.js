@@ -9,8 +9,9 @@
  *   ELNative.keepAwake(on)              – Bildschirm aktiv halten (oder freigeben)
  *   ELNative.startLocation()            – Hintergrund-GPS starten
  *   ELNative.stopLocation()             – Hintergrund-GPS stoppen
- *   ELNative.scanQr(onResult, onError)  – QR-Scanner öffnen; onResult(url) bei Erfolg,
- *                                         onError(msg) bei Fehler
+ *   ELNative.scanQr(onResult, onError)  – QR-Scanner öffnen
+ *   ELNative.setBatterySaver(on)        – Energiesparmodus manuell setzen
+ *   ELNative.batterySaverActive         – getter: aktueller Energiesparmodus-Status
  *   ELNative.isNative                   – getter, jedes Mal frisch gegen window.Capacitor geprüft
  */
 (function () {
@@ -18,13 +19,58 @@
 
   // Lazy helper — wird bei jedem Aufruf frisch ausgewertet.
   // Capacitor v7 setzt window.Capacitor.isNativePlatform() (Funktion), NICHT isNative (Property).
-  // isNative existiert in v7 nicht und ist immer undefined/falsy.
   function _isNative() {
     return !!(
       window.Capacitor &&
       typeof window.Capacitor.isNativePlatform === 'function' &&
       window.Capacitor.isNativePlatform()
     );
+  }
+
+  // ─── GPS-Intervalle & Energiesparmodus ──────────────────────────────────────
+  const _GPS_NORMAL_DISTANCE   = 20;              // Mindestbewegung (m) – Normalmodus
+  const _GPS_BATTERY_DISTANCE  = 100;             // Mindestbewegung (m) – Energiesparmodus
+  const _GPS_NORMAL_INTERVAL   = 3  * 60 * 1000; // Periodischer Fallback-Ping – Normal
+  const _GPS_BATTERY_INTERVAL  = 10 * 60 * 1000; // Periodischer Fallback-Ping – Energiesparen
+  const _DUTY_NORMAL_INTERVAL  = 60_000;          // Dienst-Status-Poll – Normal
+  const _DUTY_BATTERY_INTERVAL = 120_000;         // Dienst-Status-Poll – Energiesparen
+
+  let _batterySaver = false;
+
+  function _effectiveDistanceFilter() { return _batterySaver ? _GPS_BATTERY_DISTANCE : _GPS_NORMAL_DISTANCE; }
+  function _effectiveGpsInterval()    { return _batterySaver ? _GPS_BATTERY_INTERVAL  : _GPS_NORMAL_INTERVAL; }
+
+  function _setBatterySaver(on) {
+    const was = _batterySaver;
+    _batterySaver = !!on;
+    if (was === _batterySaver) return;
+
+    // GPS-Tracking mit neuen Parametern neustarten wenn aktiv
+    if (_locationWatch !== null) {
+      stopLocation();
+      startLocation();
+    }
+
+    // Dienst-Status-Poll-Intervall anpassen
+    _startDutyPoll();
+
+    // Im Energiesparmodus: Bildschirm darf schlafen
+    if (_batterySaver && _isNative()) keepAwake(false);
+
+    console.log('[ELNative] Energiesparmodus:', _batterySaver ? 'aktiv' : 'inaktiv');
+  }
+
+  async function _initBattery() {
+    if (!('getBattery' in navigator)) return;
+    try {
+      const bat = await navigator.getBattery();
+      function _check() {
+        _setBatterySaver(!bat.charging && bat.level < 0.20);
+      }
+      _check();
+      bat.addEventListener('chargingchange', _check);
+      bat.addEventListener('levelchange', _check);
+    } catch (_) {}
   }
 
   // ─── FCM-Token registrieren ─────────────────────────────────────────────────
@@ -107,6 +153,7 @@
 
   function startLocation() {
     if (!_isNative()) return;
+    if (_locationWatch !== null) return; // Bereits aktiv – kein doppelter Watcher
     try {
       const { BackgroundGeolocation } = window.Capacitor.Plugins;
       if (!BackgroundGeolocation) return;
@@ -116,7 +163,7 @@
           backgroundTitle: 'Einsatzcockpit',
           requestPermissions: true,
           stale: false,
-          distanceFilter: 20,
+          distanceFilter: _effectiveDistanceFilter(),
         },
         function callback(loc, err) {
           if (err) return;
@@ -124,7 +171,7 @@
         },
       ).then((id) => { _locationWatch = id; });
 
-      // Periodischer Fallback alle 3 Minuten: aktuelle Position holen und senden wenn verändert
+      // Periodischer Fallback: aktuelle Position holen und senden wenn verändert
       if (!_periodicGpsInterval) {
         _periodicGpsInterval = setInterval(() => {
           if (!_locationWatch) return;
@@ -133,7 +180,7 @@
             () => {},
             { timeout: 10000, maximumAge: 30000 },
           );
-        }, 3 * 60 * 1000);
+        }, _effectiveGpsInterval());
       }
     } catch (e) {
       console.warn('[ELNative] BackgroundGeolocation Fehler:', e);
@@ -216,25 +263,39 @@
       const resp = await fetch('/api/v1/device/duty-state', {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
-      if (!resp.ok) return;
+      if (!resp.ok) return; // Netzwerkfehler: vorherigen Zustand behalten
       const data = await resp.json();
       if (data.should_track) startLocation();
       else stopLocation();
-    } catch (_) {}
+    } catch (_) {} // Netzwerkfehler: kein Stopp des Trackings
   }
 
-  // Alle 60 Sekunden prüfen (nur wenn Tab sichtbar)
-  setInterval(() => {
-    if (document.visibilityState === 'visible') _pollDutyState();
-  }, 60_000);
+  let _dutyPollId = null;
+  function _startDutyPoll() {
+    if (_dutyPollId) clearInterval(_dutyPollId);
+    _dutyPollId = setInterval(() => {
+      if (document.visibilityState === 'visible') _pollDutyState();
+    }, _batterySaver ? _DUTY_BATTERY_INTERVAL : _DUTY_NORMAL_INTERVAL);
+  }
 
   // ─── Initialisierung ─────────────────────────────────────────────────────────
-  // Warten bis DOM bereit – Capacitor-Bridge ist dann sicher injiziert.
   function _init() {
     if (_isNative()) {
       _registerFcmToken();
+      _initBattery();
       _pollDutyState();
     }
+
+    // Duty-Status-Poll starten (No-Op wenn nicht nativ)
+    _startDutyPoll();
+
+    // Sofort neu pollen wenn Netzwerk wiederkehrt (z. B. nach Tunnelausfahrt)
+    window.addEventListener('online', () => { if (_isNative()) _pollDutyState(); });
+
+    // Sofort neu pollen wenn App aus dem Hintergrund kommt
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && _isNative()) _pollDutyState();
+    });
   }
 
   if (document.readyState === 'loading') {
@@ -250,5 +311,7 @@
     startLocation,
     stopLocation,
     scanQr,
+    setBatterySaver(on) { _setBatterySaver(on); },
+    get batterySaverActive() { return _batterySaver; },
   };
 })();

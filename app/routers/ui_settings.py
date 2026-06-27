@@ -15,7 +15,7 @@ from app.db import get_db
 from app.models.master import BOS_VALUES, FireDept, OrgSettings, SeedTemplate, SystemSettings
 from app.models.user import User
 from app.services.seed_service import apply_seed_profile, copy_default_prompts, list_profiles
-from app.services.update_service import apply_update, get_current_version
+from app.services.update_service import apply_update, check_github_release, download_and_apply_github_update, get_current_version
 
 router = APIRouter(prefix="/admin")
 
@@ -1218,6 +1218,35 @@ async def apply_system_update(
     return templates.TemplateResponse(request, "admin/system_update.html", {
         "user": user,
         "version": get_current_version(),
+        "update_result": result,
+    })
+
+
+@router.get("/system/update/check-github", response_class=HTMLResponse)
+def check_github_update(request: Request, user: User = Depends(require_system_admin)):
+    """HTMX-Partial: GitHub auf neuere Releases prüfen."""
+    github = check_github_release()
+    return templates.TemplateResponse(request, "admin/_github_update.html", {
+        "user": user,
+        "github": github,
+    })
+
+
+@router.post("/system/update/github", response_class=HTMLResponse)
+def apply_github_update(request: Request, user: User = Depends(require_system_admin)):
+    """HTMX-Partial: Release von GitHub herunterladen und einspielen (def → Threadpool)."""
+    github = check_github_release()
+    if not github.get("download_url"):
+        return templates.TemplateResponse(request, "admin/_github_update.html", {
+            "user": user,
+            "github": github,
+            "update_result": {"success": False, "message": "Kein Download-Link im aktuellen Release gefunden."},
+        })
+    result = download_and_apply_github_update(github["download_url"])
+    github_after = check_github_release()
+    return templates.TemplateResponse(request, "admin/_github_update.html", {
+        "user": user,
+        "github": github_after,
         "update_result": result,
     })
 
