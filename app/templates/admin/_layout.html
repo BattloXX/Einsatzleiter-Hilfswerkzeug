@@ -195,6 +195,11 @@
                {{ tip('Mannschaftsliste mit Qualifikationen') }}>
               <span class="admin-nav__icon">👥</span>Mitglieder
             </a>
+            <a href="/admin/gruppen"
+               class="admin-nav__item {% if '/admin/gruppen' in request.url.path %}is-active{% endif %}"
+               {{ tip('Benannte Empfaengergruppen (fuer SMS-Versand, Benachrichtigungen, etc.)') }}>
+              <span class="admin-nav__icon">🫂</span>Gruppen
+            </a>
             <a href="/admin/qualifikationen"
                class="admin-nav__item {% if '/admin/qualifikationen' in request.url.path %}is-active{% endif %}"
                {{ tip('AGT, GK, MA u.a. — Codes für Mitglieder') }}>
@@ -234,11 +239,6 @@
                class="admin-nav__item {% if '/admin/verleih' in request.url.path %}is-active{% endif %}"
                {{ tip('Geräteverleih Artikelstammdaten und Stücklisten') }}>
               <span class="admin-nav__icon">📦</span>Geräteverleih
-            </a>
-            <a href="/admin/gruppen"
-               class="admin-nav__item {% if '/admin/gruppen' in request.url.path %}is-active{% endif %}"
-               {{ tip('Gruppen: Benannte Empfaengergruppen (fuer SMS-Versand, Benachrichtigungen, etc.)') }}>
-              <span class="admin-nav__icon">👥</span>Gruppen
             </a>
             <a href="/admin/einsatzinfo-sms"
                class="admin-nav__item {% if '/admin/einsatzinfo-sms' in request.url.path %}is-active{% endif %}"

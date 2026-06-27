@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -172,6 +172,179 @@ async def sms_group_set_members(
         "saved": "1",
         "error": None,
     })
+
+
+# ── Gruppen Excel-Import ──────────────────────────────────────────────────────
+
+@router.get("/gruppen/excel-import")
+def gruppen_excel_import_redirect():
+    return RedirectResponse("/admin/gruppen", status_code=303)
+
+
+@router.post("/gruppen/excel-import")
+async def import_gruppen_excel(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    """Massenimport von Gruppen und Mitgliedschaften aus Excel.
+
+    Erwartete Spalten:
+      Gruppenname (required), Nachname (required), Vorname (required),
+      Telefon (optional), E-Mail (optional).
+
+    Personen werden aus den Mitgliedern gesucht; fehlende werden als Mitglieder angelegt.
+    Gruppen werden bei Bedarf angelegt. Mitglieder werden der Gruppe hinzugefuegt.
+    """
+    import io as _io
+    import urllib.parse
+    try:
+        import openpyxl
+    except ImportError:
+        return RedirectResponse("/admin/gruppen?error=openpyxl_missing", status_code=303)
+
+    raw = await file.read()
+    if not raw:
+        return RedirectResponse("/admin/gruppen?error=empty_file", status_code=303)
+
+    try:
+        wb = openpyxl.load_workbook(_io.BytesIO(raw), read_only=True, data_only=True)
+        ws = wb.active
+    except Exception:
+        return RedirectResponse("/admin/gruppen?error=invalid_excel", status_code=303)
+
+    _GROUP_ALIASES     = {"gruppenname", "gruppe", "group", "grp"}
+    _LASTNAME_ALIASES  = {"nachname", "lastname", "name", "zuname", "familienname"}
+    _FIRSTNAME_ALIASES = {"vorname", "firstname", "rufname"}
+    _PHONE_ALIASES     = {"telefon", "phone", "tel", "mobil", "handy", "mobiltelefon", "telefonnummer"}
+    _EMAIL_ALIASES     = {"e-mail", "email", "mail"}
+
+    try:
+        header_row = next(ws.iter_rows(max_row=1))
+    except StopIteration:
+        return RedirectResponse("/admin/gruppen?error=empty_sheet", status_code=303)
+    headers = [str(c.value or "").strip().lower() for c in header_row]
+    col_map: dict[str, int] = {}
+    for i, h in enumerate(headers):
+        if h in _GROUP_ALIASES:
+            col_map.setdefault("group", i)
+        elif h in _LASTNAME_ALIASES:
+            col_map.setdefault("lastname", i)
+        elif h in _FIRSTNAME_ALIASES:
+            col_map.setdefault("firstname", i)
+        elif h in _PHONE_ALIASES:
+            col_map.setdefault("phone", i)
+        elif h in _EMAIL_ALIASES:
+            col_map.setdefault("email", i)
+
+    missing = [k for k in ("group", "lastname", "firstname") if k not in col_map]
+    if missing:
+        found = ", ".join('"' + h + '"' for h in headers[:8] if h)
+        detail = "Gefundene Spalten: " + found + ". Erwartet: Gruppenname, Zuname/Nachname und Vorname."
+        return RedirectResponse(
+            f"/admin/gruppen?error=missing_columns&error_detail={urllib.parse.quote(detail)}",
+            status_code=303,
+        )
+
+    user = request.state.user
+    org_id = _require_org(user)
+    group_cache: dict[str, SmsGroup] = {}
+    members_created = 0
+    members_updated = 0
+    groups_created = 0
+    memberships_added = 0
+    skipped = 0
+    row_errors = 0
+
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row:
+            continue
+        sp = db.begin_nested()
+        try:
+            group_name = str(row[col_map["group"]] or "").strip()
+            lastname   = str(row[col_map["lastname"]] or "").strip()
+            firstname  = str(row[col_map["firstname"]] or "").strip()
+            if not group_name or not lastname or not firstname:
+                skipped += 1
+                sp.commit()
+                continue
+            _ph = "phone" in col_map and col_map["phone"] < len(row) and row[col_map["phone"]]
+            phone = str(row[col_map["phone"]] if _ph else "").strip() or None
+            _em = "email" in col_map and col_map["email"] < len(row) and row[col_map["email"]]
+            email = str(row[col_map["email"]] if _em else "").strip().lower() or None
+
+            # Mitglied suchen oder anlegen
+            member = db.query(Member).filter(
+                Member.org_id == org_id,
+                Member.lastname == lastname,
+                Member.firstname == firstname,
+            ).first()
+            if member:
+                if phone:
+                    member.phone = phone
+                if email:
+                    member.email = email
+                member.active = True
+                members_updated += 1
+            else:
+                member = Member(
+                    lastname=lastname, firstname=firstname,
+                    phone=phone, email=email,
+                    org_id=org_id, active=True,
+                )
+                db.add(member)
+                db.flush()
+                members_created += 1
+
+            # Gruppe suchen oder anlegen (Cache pro Import-Lauf)
+            grp = group_cache.get(group_name)
+            if grp is None:
+                grp = db.query(SmsGroup).filter(
+                    SmsGroup.org_id == org_id,
+                    SmsGroup.name == group_name,
+                ).first()
+                if grp is None:
+                    grp = SmsGroup(
+                        org_id=org_id, name=group_name,
+                        display_order=0, created_at=datetime.now(UTC),
+                    )
+                    db.add(grp)
+                    db.flush()
+                    groups_created += 1
+                group_cache[group_name] = grp
+
+            # Mitgliedschaft idempotent anlegen
+            already = db.query(SmsGroupMember).filter_by(
+                sms_group_id=grp.id, member_id=member.id
+            ).first()
+            if not already:
+                db.add(SmsGroupMember(sms_group_id=grp.id, member_id=member.id))
+                memberships_added += 1
+
+            sp.commit()
+        except Exception:
+            sp.rollback()
+            row_errors += 1
+
+    if members_created or members_updated or groups_created or memberships_added:
+        db.commit()
+        write_audit(db, "admin.sms_group.excel_import", org_id=org_id, user_id=user.id,
+                    payload={
+                        "members_created": members_created,
+                        "members_updated": members_updated,
+                        "groups_created": groups_created,
+                        "memberships_added": memberships_added,
+                        "skipped": skipped,
+                        "row_errors": row_errors,
+                    })
+    return RedirectResponse(
+        f"/admin/gruppen?saved=1"
+        f"&members_created={members_created}&members_updated={members_updated}"
+        f"&groups_created={groups_created}&memberships_added={memberships_added}"
+        f"&skipped={skipped}&row_errors={row_errors}",
+        status_code=303,
+    )
 
 
 # ── Einsatzinfo-SMS-Konfiguration ─────────────────────────────────────────────

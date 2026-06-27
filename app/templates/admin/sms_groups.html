@@ -10,13 +10,49 @@
       <h1>Gruppen</h1>
       <p class="page-header__sub">Benannte Empfaengergruppen verwalten (werden fuer SMS-Versand, Benachrichtigungen und andere Funktionen verwendet).</p>
     </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn--secondary" onclick="document.getElementById('gruppenImportModal').showModal()">Excel importieren</button>
+    </div>
   </div>
 
   {% if saved %}
-  <div class="alert alert--success">Aenderungen gespeichert.</div>
+  <div class="alert alert--success">
+    Gespeichert.
+    {% if request.query_params.get('members_created') is not none and request.query_params.get('groups_created') is not none %}
+    {{ request.query_params.get('groups_created') }} Gruppe(n) angelegt,
+    {{ request.query_params.get('members_created') }} Mitglied(er) neu angelegt,
+    {{ request.query_params.get('members_updated', '0') }} aktualisiert,
+    {{ request.query_params.get('memberships_added', '0') }} Mitgliedschaften hinzugefuegt.
+    {% if request.query_params.get('skipped') and request.query_params.get('skipped') != '0' %}
+    {{ request.query_params.get('skipped') }} Zeile(n) uebersprungen.
+    {% endif %}
+    {% if request.query_params.get('row_errors') and request.query_params.get('row_errors') != '0' %}
+    <br><strong>{{ request.query_params.get('row_errors') }} Zeile(n) mit Fehlern</strong> wurden uebersprungen.
+    {% endif %}
+    {% endif %}
+  </div>
   {% endif %}
-  {% if error == 'empty' %}
+  {% if request.query_params.get('error') == 'missing_columns' %}
+  <div class="alert alert--danger">
+    Excel-Datei ungueltig: Pflicht-Spalten nicht erkannt.
+    {% if request.query_params.get('error_detail') %}
+    {{ request.query_params.get('error_detail') }}
+    {% else %}
+    Erwartet: Spalte mit Gruppenname, Zuname/Nachname und Vorname.
+    {% endif %}
+  </div>
+  {% elif request.query_params.get('error') == 'invalid_excel' %}
+  <div class="alert alert--danger">Ungueltige Excel-Datei. Bitte .xlsx-Format verwenden.</div>
+  {% elif request.query_params.get('error') == 'empty_sheet' %}
+  <div class="alert alert--danger">Excel-Datei ist leer – keine Kopfzeile gefunden.</div>
+  {% elif request.query_params.get('error') == 'empty_file' %}
+  <div class="alert alert--danger">Keine Datei hochgeladen.</div>
+  {% elif request.query_params.get('error') == 'openpyxl_missing' %}
+  <div class="alert alert--danger">Excel-Modul (openpyxl) nicht installiert. Admin kontaktieren.</div>
+  {% elif request.query_params.get('error') == 'empty' %}
   <div class="alert alert--danger">Name darf nicht leer sein.</div>
+  {% elif request.query_params.get('error') %}
+  <div class="alert alert--danger">Fehler: {{ request.query_params.get('error') }}</div>
   {% endif %}
 
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;align-items:start;">
@@ -119,6 +155,39 @@
 
   </div>
 </div>
+
+<!-- Excel-Import Modal -->
+<dialog class="modal" id="gruppenImportModal">
+  <form method="post" action="/admin/gruppen/excel-import" enctype="multipart/form-data" class="modal__content">
+    <div class="modal__header">
+      <h3>Gruppen aus Excel importieren</h3>
+      <button type="button" onclick="this.closest('dialog').close()" class="modal__close">x</button>
+    </div>
+    <div class="modal__body">
+      <p style="margin-bottom:8px;font-size:.85rem;color:var(--text-muted);">
+        Excel-Datei (.xlsx) mit den Spalten <strong>Gruppenname</strong>, <strong>Vorname</strong>
+        und <strong>Zuname/Nachname</strong> sowie optional <strong>Telefon</strong> und <strong>E-Mail</strong>.
+      </p>
+      <ul style="margin:0 0 12px 0;padding-left:18px;font-size:.82rem;color:var(--text-muted);line-height:1.7;">
+        <li><strong>Personen</strong> werden aus den Mitgliedern gesucht (Vor- und Nachname).</li>
+        <li><strong>Fehlende Mitglieder</strong> werden automatisch angelegt.</li>
+        <li><strong>Bestehende Mitglieder</strong> (gleicher Name) werden bei Bedarf mit Telefon/E-Mail aktualisiert.</li>
+        <li><strong>Gruppen</strong> werden bei Bedarf angelegt (bestehende Gruppen bleiben unveraendert).</li>
+        <li><strong>Mitgliedschaften</strong> werden additiv hinzugefuegt – bestehende Zuweisungen bleiben erhalten.</li>
+      </ul>
+      <div class="form-group">
+        <label class="form-label">Excel-Datei (.xlsx)</label>
+        <input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+               class="form-input" required>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button type="button" onclick="this.closest('dialog').close()" class="btn btn--ghost">Abbrechen</button>
+      <button type="submit" class="btn btn--primary">Importieren</button>
+    </div>
+  </form>
+</dialog>
+
 {% endblock %}
 
 {% block scripts %}
