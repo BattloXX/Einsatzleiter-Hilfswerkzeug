@@ -140,6 +140,9 @@ class Settings(BaseSettings):
     WEATHER_STATION_INGEST_ENABLED: bool = True
     # Aufbewahrungsdauer der Zeitreihe in Tagen; ältere Messwerte werden täglich gelöscht.
     WEATHER_READING_RETENTION_DAYS: int = 365
+    # Aufbewahrungsdauer der GPS-Positionshistorie (vehicle_position) in Tagen.
+    # Positionen abgeschlossener Lagen + Archiv werden behalten; nur sehr alte Daten werden entfernt.
+    VEHICLE_POSITION_RETENTION_DAYS: int = 90
     # Mindestabstand zwischen zwei akzeptierten Pushes je Station (Flood-Schutz).
     WEATHER_INGEST_MIN_INTERVAL_S: int = 60
 

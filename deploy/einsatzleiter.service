@@ -11,13 +11,18 @@ WorkingDirectory=/home/clp-einsatz/htdocs/einsatzleiter
 EnvironmentFile=/home/clp-einsatz/htdocs/einsatzleiter/.env
 ExecStart=/home/clp-einsatz/htdocs/einsatzleiter/.venv/bin/gunicorn \
     -k uvicorn.workers.UvicornWorker \
-    -w 1 \
+    -w 2 \
     --bind 127.0.0.1:8092 \
     --timeout 120 \
     --keep-alive 5 \
     --access-logfile - \
     --error-logfile - \
     app.main:app
+# Worker-Hinweis: Mit -w 2+ müssen WebSocket-Clients per NGINX ip_hash
+# immer zum selben Worker geroutet werden (Sticky Sessions), damit WS-Broadcasts
+# alle Clients erreichen. Ohne ip_hash oder Redis: -w 1 verwenden.
+# Empfohlene Formel: -w (2 × CPU-Kerne). Die DB-Pool-Größe (pool_size=10/max_overflow=20
+# in db.py) deckt 2 Worker mit je ~40 anyio-Threads problemlos ab.
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

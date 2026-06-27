@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import UTC, datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
@@ -718,6 +718,13 @@ class CrossMarkerMedia(Base):
 class VehiclePosition(Base):
     """GPS- oder manuell erfasste Fahrzeugpositionen (Positionshistorie)."""
     __tablename__ = "vehicle_position"
+
+    __table_args__ = (
+        # Composite-Index für die "letzte Position je Fahrzeug"-Query
+        # (max(received_at) GROUP BY vehicle_id WHERE incident_id = X)
+        Index("ix_vehpos_incident_vehicle_received",
+              "incident_id", "vehicle_id", "received_at"),
+    )
 
     id:             Mapped[int] = mapped_column(BigInteger, primary_key=True)
     incident_id:    Mapped[int | None] = mapped_column(

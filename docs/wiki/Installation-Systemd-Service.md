@@ -69,10 +69,14 @@ sudo systemctl stop einsatzleiter
 
 ## Anzahl Worker anpassen
 
-Für 2 CPU-Kerne sind 2 Worker optimal. Formel: `2 × CPU-Kerne + 1`.  
-Worker-Zahl in `/etc/systemd/system/einsatzleiter.service` anpassen → `daemon-reload` → `restart`.
+Empfehlung: **`-w 2`** (Standard-Template) auf einem Einzelserver mit NGINX `ip_hash`.  
+Formel allgemein: `2 × CPU-Kerne`. Wert in `/etc/systemd/system/einsatzleiter.service` anpassen → `daemon-reload` → `restart`.
 
-> **Hinweis WebSockets:** Mit mehreren Workern muss ein Shared-State für WebSocket-Verbindungen vorhanden sein (Redis Pub/Sub). Bei einem einzelnen Server und 2 Workern funktioniert es ohne Redis, wenn NGINX alle WebSocket-Verbindungen an denselben Worker weiterleitet (Sticky Sessions via `ip_hash`). Einfachste Lösung für Einzelserver: `-w 1`.
+> **Hinweis WebSockets:** Mit mehreren Workern müssen WebSocket-Verbindungen per NGINX `ip_hash`
+> (Sticky Sessions) immer zum selben Worker geleitet werden – sonst kommen Live-Updates (Board,
+> Lagekarte) nicht bei allen Clients an. Wenn NGINX nicht auf `ip_hash` gestellt werden kann:
+> `-w 1` verwenden. Die Render-Performance bleibt trotzdem gut, da GET-Endpoints den
+> anyio-Threadpool (bis zu 40 parallele Threads) nutzen.
 
 ---
 

@@ -176,7 +176,7 @@ async def set_duty(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/duty-state")
-async def get_duty_state(request: Request, db: Session = Depends(get_db)):
+def get_duty_state(request: Request, db: Session = Depends(get_db)):
     """Gibt zurück, ob für das Gerät aktuell ein aktiver Einsatz vorliegt.
 
     Die App nutzt diesen Endpoint, um Standort-Tracking automatisch zu steuern.

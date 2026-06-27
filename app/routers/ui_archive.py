@@ -9,12 +9,13 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.permissions import can_access_incident, has_role
 from app.core.templating import templates
 from app.db import get_db
-from app.models.incident import Incident, IncidentOrg
+from app.models.incident import Incident, IncidentOrg, IncidentVehicle
+from app.models.master import VehicleMaster
 from app.services.ai_service import AIServiceError, generate_report_draft
 from app.services.ai_service import is_enabled as ai_is_enabled
 from app.services.pdf_service import render_incident_pdf
@@ -29,6 +30,30 @@ def _load_incident_with_orgs(incident_id: int, db: Session) -> Incident | None:
     return (
         db.query(Incident)
         .options(selectinload(Incident.collaborating_orgs))
+        .filter(Incident.id == incident_id)
+        .first()
+    )
+
+
+def _load_archive_incident(incident_id: int, db: Session) -> Incident | None:
+    """Vollständiger Archiv-Loader mit Eager-Loading aller Archiv/PDF-Relationen.
+
+    Vermeidet N+1 beim Rendern der Archiv-Detailseite und des PDF-Exports.
+    """
+    return (
+        db.query(Incident)
+        .options(
+            selectinload(Incident.collaborating_orgs),
+            selectinload(Incident.columns),
+            selectinload(Incident.vehicles)
+                .joinedload(IncidentVehicle.vehicle_master)
+                .joinedload(VehicleMaster.dept),
+            selectinload(Incident.tasks),
+            selectinload(Incident.messages),
+            selectinload(Incident.rescued_persons),
+            selectinload(Incident.breathing_troops),
+            selectinload(Incident.log_entries),
+        )
         .filter(Incident.id == incident_id)
         .first()
     )
@@ -73,7 +98,7 @@ _AI_ROLES = ("incident_leader", "recorder", "org_admin", "system_admin")
 
 
 @router.get("/archiv", response_class=HTMLResponse)
-async def archive_list(request: Request, db: Session = Depends(get_db)):
+def archive_list(request: Request, db: Session = Depends(get_db)):
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
@@ -95,17 +120,15 @@ async def archive_list(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/archiv/{incident_id}", response_class=HTMLResponse)
-async def archive_detail(incident_id: int, request: Request, db: Session = Depends(get_db)):
+def archive_detail(incident_id: int, request: Request, db: Session = Depends(get_db)):
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
-    incident = _load_incident_with_orgs(incident_id, db)
+    incident = _load_archive_incident(incident_id, db)
     if not incident:
         raise HTTPException(404)
     if not can_access_incident(user, incident):
         raise _deny_access(user, incident)
-    db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons",
-                           "breathing_troops", "log_entries"])
 
     uas_einsatz = None
     if getattr(request.state, "uas_module_enabled", False):
@@ -127,17 +150,15 @@ async def archive_detail(incident_id: int, request: Request, db: Session = Depen
 
 
 @router.get("/archiv/{incident_id}/pdf")
-async def download_pdf(incident_id: int, request: Request, db: Session = Depends(get_db)):
+def download_pdf(incident_id: int, request: Request, db: Session = Depends(get_db)):
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
-    incident = _load_incident_with_orgs(incident_id, db)
+    incident = _load_archive_incident(incident_id, db)
     if not incident:
         raise HTTPException(404)
     if not can_access_incident(user, incident):
         raise _deny_access(user, incident)
-    db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons",
-                           "breathing_troops", "log_entries"])
     pdf_bytes = render_incident_pdf(incident, base_url=str(request.base_url))
     filename = f"einsatz_{incident.id}_{incident.alarm_type_code}.pdf"
     return Response(

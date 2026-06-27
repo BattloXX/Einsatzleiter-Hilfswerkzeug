@@ -322,7 +322,7 @@ async def lage_neu_create(
 # ── Board ────────────────────────────────────────────────────────────────────
 
 @router.get("/lage/{lage_id}", response_class=HTMLResponse)
-async def lage_board(
+def lage_board(
     request: Request,
     lage_id: int,
     show_abgebrochen: bool = False,

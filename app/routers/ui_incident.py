@@ -9,7 +9,7 @@ import qrcode
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.config import settings
 from app.core.permissions import can_access_incident, has_role, require_role
@@ -87,6 +87,7 @@ from app.services.incident_service import (
     update_column_card_order,
     update_task,
 )
+from app.services.pdf_service import load_fahrten_km
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -160,6 +161,29 @@ def _incident_or_404(incident_id: int, db: Session):
     return inc
 
 
+def _load_board_incident(incident_id: int, db: Session) -> Incident | None:
+    """Lädt einen Einsatz mit allen Board-Relationen eager (vermeidet N+1 beim Rendern).
+
+    vehicle_master + commander sind bereits lazy='joined'; hier zusätzlich dept
+    (Org-Farbe/Kürzel/BOS pro Karte) sowie task/message-Medien in je einer Query,
+    statt pro Karte einzeln nachzuladen.
+    """
+    return (
+        db.query(Incident)
+        .options(
+            selectinload(Incident.columns),
+            selectinload(Incident.vehicles)
+                .joinedload(IncidentVehicle.vehicle_master)
+                .joinedload(VehicleMaster.dept),
+            selectinload(Incident.tasks).selectinload(Task.media),
+            selectinload(Incident.messages).selectinload(Message.media),
+            selectinload(Incident.rescued_persons),
+        )
+        .filter(Incident.id == incident_id)
+        .first()
+    )
+
+
 _visible_incidents_q = visible_incidents_q
 
 
@@ -214,7 +238,7 @@ def _entity_logs(db: Session, incident_id: int, entity_type: str, entity_id: int
 # ── Dashboard / Index ──────────────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request, db: Session = Depends(get_db)):
+def index(request: Request, db: Session = Depends(get_db)):
     user = getattr(request.state, "user", None)
     if not user:
         # Nicht angemeldet → öffentliche Startseite (Funktionsumfang, Kontakt).
@@ -575,15 +599,16 @@ async def alarm_regenerate_ki(
 # ── Einsatz-Board ─────────────────────────────────────────────────────────────
 
 @router.get("/einsatz/{incident_id}", response_class=HTMLResponse)
-async def incident_board(incident_id: int, request: Request, db: Session = Depends(get_db)):
+def incident_board(incident_id: int, request: Request, db: Session = Depends(get_db)):
     from fastapi import HTTPException
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
-    incident = _incident_or_404(incident_id, db)
+    incident = _load_board_incident(incident_id, db)
+    if not incident:
+        raise HTTPException(404, "Einsatz nicht gefunden")
     if not can_access_incident(user, incident):
         raise HTTPException(403, "Kein Zugriff auf diesen Einsatz")
-    db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons"])
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
     _at_board = (
         get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code)
@@ -694,29 +719,8 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
         )
     )
 
-    # Fahrtenbuch-Km je Fahrzeug für diesen Einsatz
-    fahrten_km: list[dict] = []
-    try:
-        from app.models.fahrtenbuch import Fahrt, FahrtStatus
-        _fahrten = (
-            db.query(Fahrt)
-            .filter(
-                Fahrt.incident_id == incident_id,
-                Fahrt.status == FahrtStatus.aktiv,
-            )
-            .all()
-        )
-        _km_by_vehicle: dict[int, dict] = {}
-        for _f in _fahrten:
-            if _f.fahrzeug_id not in _km_by_vehicle:
-                _vm = _f.fahrzeug if hasattr(_f, "fahrzeug") else None
-                _label = _vm.display_label if _vm else f"Fahrzeug #{_f.fahrzeug_id}"
-                _km_by_vehicle[_f.fahrzeug_id] = {"label": _label, "km": 0}
-            if _f.km_delta:
-                _km_by_vehicle[_f.fahrzeug_id]["km"] += _f.km_delta
-        fahrten_km = [v for v in _km_by_vehicle.values() if v["km"] > 0]
-    except Exception:
-        fahrten_km = []
+    # Fahrtenbuch-Km je Fahrzeug für diesen Einsatz (joinedload, DRY via pdf_service)
+    fahrten_km = load_fahrten_km(incident_id, db=db)
 
     return templates.TemplateResponse(request, "incident/board.html", {
         "user": user, "incident": incident,
@@ -738,7 +742,7 @@ async def incident_board(incident_id: int, request: Request, db: Session = Depen
 
 
 @router.get("/einsatz/{incident_id}/dashboard", response_class=HTMLResponse)
-async def incident_dashboard(
+def incident_dashboard(
     incident_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -747,8 +751,10 @@ async def incident_dashboard(
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    incident = _incident_or_404(incident_id, db)
-    db.refresh(incident, ["columns", "vehicles", "tasks", "messages", "rescued_persons"])
+    incident = _load_board_incident(incident_id, db)
+    if not incident:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Einsatz nicht gefunden")
 
     col_by_id = {c.id: c for c in incident.columns}
 
@@ -1890,7 +1896,7 @@ def _enrich_history(changes, db, incident_id: int) -> list[dict]:
 
 
 @router.get("/einsatz/{incident_id}/historie", response_class=HTMLResponse)
-async def incident_history(incident_id: int, request: Request, db: Session = Depends(get_db)):
+def incident_history(incident_id: int, request: Request, db: Session = Depends(get_db)):
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login", status_code=302)
