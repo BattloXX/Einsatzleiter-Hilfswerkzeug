@@ -1,9 +1,9 @@
 """Kachelmann Wetter (Plus-API) client — premium primary weather source.
 
-Aktiv nur wenn ein API-Key gepflegt ist (Systemeinstellung `kachelmann_api_key`
-oder ENV `KACHELMANN_API_KEY`). Liefert Ist-Werte und Vorhersage in denselben
-Dataclasses wie `weather_service` (CurrentWeather, ForecastResult), damit Router
-und Templates unverändert bleiben. Quelle wird mit `source="kachelmann"` markiert.
+Aktiv nur wenn ein API-Key in OrgSettings.kachelmann_api_key gesetzt ist.
+Liefert Ist-Werte und Vorhersage in denselben Dataclasses wie `weather_service`
+(CurrentWeather, ForecastResult), damit Router und Templates unverändert bleiben.
+Quelle wird mit `source="kachelmann"` markiert.
 
 Robustheit: Alle HTTP-/Parsing-Fehler werden geloggt und als None zurückgegeben —
 weather_service fällt dann still auf ZAMG/GeoSphere zurück. Niemals Exception nach
@@ -34,71 +34,64 @@ logger = logging.getLogger("einsatzleiter.weather")
 
 _SOURCE = "kachelmann"
 
-# ── API-Key-Lookup (Systemeinstellung → ENV), kurz gecacht ────────────────────
+# ── API-Key-Lookup (OrgSettings), per Org gecacht ─────────────────────────────
 
 _KEY_CACHE_TTL = 60.0   # s
-_key_cache: tuple[str | None, float] | None = None
+_key_cache: dict[int | None, tuple[str | None, float]] = {}
 
 
-def _get_api_key() -> str | None:
-    """Liest `kachelmann_api_key` aus SystemSettings, Fallback ENV. 60 s gecacht.
-
-    Muster analog `ai_service._get_ai_cfg()`.
-    """
-    global _key_cache
+def _get_api_key(org_id: int | None) -> str | None:
+    """Liest `kachelmann_api_key` aus OrgSettings der jeweiligen Org. 60 s gecacht."""
     now = time.monotonic()
-    if _key_cache is not None and now - _key_cache[1] < _KEY_CACHE_TTL:
-        return _key_cache[0]
+    cached = _key_cache.get(org_id)
+    if cached is not None and now - cached[1] < _KEY_CACHE_TTL:
+        return cached[0]
 
     value: str | None = None
-    from_db = False
-    try:
-        from app.core.tenant import set_tenant_context
-        from app.db import SessionLocal
-        from app.models.master import SystemSettings as _SS
-        db = SessionLocal()
-        set_tenant_context(db, None)
+    if org_id is not None:
         try:
-            row = db.get(_SS, "kachelmann_api_key")
-            value = (row.value or "").strip() if row and row.value else None
-            from_db = value is not None
-        finally:
-            db.close()
-    except Exception as exc:
-        # DB nicht erreichbar o.ä. — nicht fatal, ENV-Fallback greift.
-        logger.warning("Kachelmann-Key konnte nicht aus den Systemeinstellungen gelesen werden: %s", exc)
-        value = None
-
-    if not value:
-        value = (settings.KACHELMANN_API_KEY or "").strip() or None
-        if value:
-            logger.info("Kachelmann-Key aus Umgebungsvariable KACHELMANN_API_KEY verwendet.")
+            from app.db import SessionLocal
+            from app.models.master import OrgSettings as _OS
+            db = SessionLocal()
+            try:
+                row = db.query(_OS).filter(_OS.org_id == org_id).first()
+                raw = (row.kachelmann_api_key or "").strip() if row else ""
+                value = raw or None
+            finally:
+                db.close()
+        except Exception as exc:
+            logger.warning("Kachelmann-Key konnte nicht aus OrgSettings gelesen werden (org=%s): %s", org_id, exc)
 
     if value is None:
-        logger.debug("Kein Kachelmann-API-Key gesetzt – Wetterdaten kommen von ZAMG/GeoSphere.")
-    elif from_db:
-        logger.debug("Kachelmann-Key aus Systemeinstellungen geladen.")
+        logger.debug("Kein Kachelmann-API-Key fuer Org %s – Wetterdaten kommen von ZAMG/GeoSphere.", org_id)
+    else:
+        logger.debug("Kachelmann-Key aus OrgSettings geladen (org=%s).", org_id)
 
-    _key_cache = (value, now)
+    _key_cache[org_id] = (value, now)
     return value
 
 
-def reset_key_cache() -> None:
-    """Erzwingt erneutes Einlesen des Keys (z.B. nach Speichern in den Settings)."""
-    global _key_cache
-    _key_cache = None
+def reset_key_cache(org_id: int | None = None) -> None:
+    """Erzwingt erneutes Einlesen des Keys (z.B. nach Speichern in den Settings).
+
+    Ohne org_id: gesamten Cache leeren.
+    """
+    if org_id is None:
+        _key_cache.clear()
+    else:
+        _key_cache.pop(org_id, None)
 
 
-def is_configured() -> bool:
-    """True wenn ein Kachelmann-API-Key vorhanden ist."""
-    return _get_api_key() is not None
+def is_configured(org_id: int | None) -> bool:
+    """True wenn ein Kachelmann-API-Key fuer die Org vorhanden ist."""
+    return _get_api_key(org_id) is not None
 
 
 # ── HTTP-Client ───────────────────────────────────────────────────────────────
 
-async def _get(path: str, params: dict | None = None) -> dict | None:
+async def _get(path: str, org_id: int | None, params: dict | None = None) -> dict | None:
     """Single GET gegen die Kachelmann-API. Gibt JSON-dict oder None zurück."""
-    api_key = _get_api_key()
+    api_key = _get_api_key(org_id)
     if not api_key:
         return None
     url = f"{settings.KACHELMANN_BASE_URL}{path}"
@@ -178,9 +171,9 @@ def _norm_wind_ms(val: float | None) -> float | None:
 
 # ── Ist-Werte ─────────────────────────────────────────────────────────────────
 
-async def fetch_current(lat: float, lng: float) -> CurrentWeather | None:
+async def fetch_current(lat: float, lng: float, org_id: int | None = None) -> CurrentWeather | None:
     """Aktuelle Bedingungen von Kachelmann (`/current/{lat}/{lon}`)."""
-    data = await _get(f"/current/{lat}/{lng}")
+    data = await _get(f"/current/{lat}/{lng}", org_id)
     if not data:
         return None
     return _parse_current(data)
@@ -219,14 +212,15 @@ def _parse_current(data: dict) -> CurrentWeather | None:
 # ── Vorhersage ────────────────────────────────────────────────────────────────
 
 async def fetch_forecast(
-    lat: float, lng: float, horizons: tuple[int, ...] = (6, 12, 24)
+    lat: float, lng: float, horizons: tuple[int, ...] = (6, 12, 24),
+    org_id: int | None = None,
 ) -> ForecastResult | None:
     """Mehrhorizont-Vorhersage von Kachelmann.
 
     Pfad: `/forecast/{lat}/{lon}/{details}/{steps}` (Reihenfolge: lat, lon, Detailgrad,
     Zeitschritt). `advanced` liefert u.a. Niederschlag, `1h` = stündliche Auflösung.
     """
-    data = await _get(f"/forecast/{lat}/{lng}/advanced/1h")
+    data = await _get(f"/forecast/{lat}/{lng}/advanced/1h", org_id)
     if not data:
         return None
     return _parse_forecast(data, horizons)

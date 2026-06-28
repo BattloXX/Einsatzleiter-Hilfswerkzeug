@@ -1838,8 +1838,6 @@ async def save_system_settings(
         # KI / Anthropic
         "ai_enabled", "ai_api_key", "ai_model_default", "ai_model_fast",
         "ai_max_tokens", "ai_timeout",
-        # Wetter / Kachelmann (Plus-API)
-        "kachelmann_api_key",
         # Einsatz-Funktionen
         "breathing_enabled",
         # Großschadenslage – Funktionen
@@ -1874,12 +1872,6 @@ async def save_system_settings(
                                   updated_by_user_id=request.state.user.id))
     write_audit(db, "admin.system_settings.updated", user_id=request.state.user.id)
     db.commit()
-    # Kachelmann-Key-Cache invalidieren, damit Änderung sofort greift
-    try:
-        from app.services import kachelmann_service
-        kachelmann_service.reset_key_cache()
-    except Exception:
-        pass
     return RedirectResponse("/admin/system-einstellungen?saved=1", status_code=303)
 
 

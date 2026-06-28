@@ -32,20 +32,42 @@ def _reset_key_cache():
 
 # ── _get_api_key ──────────────────────────────────────────────────────────────
 
-def test_is_configured_false_without_key(monkeypatch):
-    monkeypatch.setattr(kachelmann_service.settings, "KACHELMANN_API_KEY", "")
-    # SystemSettings-Lookup wird übersprungen → nur ENV-Fallback (leer) zählt
-    with patch("app.db.SessionLocal", side_effect=RuntimeError("no db")):
-        kachelmann_service.reset_key_cache()
-        assert kachelmann_service.is_configured() is False
+def test_is_configured_false_without_org():
+    # org_id=None → kein DB-Lookup → kein Key
+    kachelmann_service.reset_key_cache()
+    assert kachelmann_service.is_configured(None) is False
 
 
-def test_get_api_key_env_fallback(monkeypatch):
-    monkeypatch.setattr(kachelmann_service.settings, "KACHELMANN_API_KEY", "env-key-123")
+def test_is_configured_false_when_db_fails():
     with patch("app.db.SessionLocal", side_effect=RuntimeError("no db")):
         kachelmann_service.reset_key_cache()
-        assert kachelmann_service._get_api_key() == "env-key-123"
-        assert kachelmann_service.is_configured() is True
+        assert kachelmann_service.is_configured(42) is False
+
+
+def test_get_api_key_reads_from_org_settings():
+    org_settings_mock = MagicMock()
+    org_settings_mock.kachelmann_api_key = "org-key-abc"
+    mock_db = MagicMock()
+    mock_db.query.return_value.filter.return_value.first.return_value = org_settings_mock
+    mock_db.__enter__ = MagicMock(return_value=mock_db)
+    mock_db.__exit__ = MagicMock(return_value=False)
+    with patch("app.db.SessionLocal", return_value=mock_db):
+        kachelmann_service.reset_key_cache(99)
+        assert kachelmann_service._get_api_key(99) == "org-key-abc"
+        assert kachelmann_service.is_configured(99) is True
+
+
+def test_get_api_key_none_when_field_empty():
+    org_settings_mock = MagicMock()
+    org_settings_mock.kachelmann_api_key = ""
+    mock_db = MagicMock()
+    mock_db.query.return_value.filter.return_value.first.return_value = org_settings_mock
+    mock_db.__enter__ = MagicMock(return_value=mock_db)
+    mock_db.__exit__ = MagicMock(return_value=False)
+    with patch("app.db.SessionLocal", return_value=mock_db):
+        kachelmann_service.reset_key_cache(7)
+        assert kachelmann_service._get_api_key(7) is None
+        assert kachelmann_service.is_configured(7) is False
 
 
 # ── fetch_current ─────────────────────────────────────────────────────────────
@@ -63,7 +85,7 @@ async def test_fetch_current_parses_flat_response():
     cm, _ = _patch_client(_mock_httpx_response(data))
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), cm as mock_cls:
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), cm as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
         result = await kachelmann_service.fetch_current(LAT, LNG)
@@ -83,7 +105,7 @@ async def test_fetch_current_normalizes_kmh_wind():
     data = {"temperature": 10.0, "windSpeed": 54.0}   # >40 → als km/h interpretiert
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), \
             patch("httpx.AsyncClient") as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -97,7 +119,7 @@ async def test_fetch_current_nested_data_key():
     data = {"data": {"temp": 7.0, "wind": 3.0}}
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), \
             patch("httpx.AsyncClient") as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -109,7 +131,7 @@ async def test_fetch_current_nested_data_key():
 
 @pytest.mark.asyncio
 async def test_fetch_current_none_without_key():
-    with patch.object(kachelmann_service, "_get_api_key", return_value=None):
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: None):
         result = await kachelmann_service.fetch_current(LAT, LNG)
     assert result is None
 
@@ -120,7 +142,7 @@ async def test_fetch_current_none_on_http_error():
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(side_effect=httpx.HTTPStatusError(
         "401", request=MagicMock(), response=MagicMock(status_code=401)))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), \
             patch("httpx.AsyncClient") as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -133,7 +155,7 @@ async def test_fetch_current_none_on_unexpected_shape():
     data = {"foo": "bar"}   # keine verwertbaren Felder
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), \
             patch("httpx.AsyncClient") as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -156,7 +178,7 @@ async def test_fetch_forecast_accumulates_precipitation():
     data = {"hourly": hourly}
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), \
             patch("httpx.AsyncClient") as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -189,7 +211,7 @@ async def test_fetch_current_real_wrapped_shape():
     }
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), \
             patch("httpx.AsyncClient") as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -217,7 +239,7 @@ async def test_fetch_forecast_real_data_shape():
     data = {"lat": 47.46, "lon": 9.75, "resolution": "SUPER_HIGH", "data": rows}
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), \
             patch("httpx.AsyncClient") as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -240,7 +262,7 @@ async def test_fetch_forecast_none_on_empty():
     data = {"hourly": []}
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=_mock_httpx_response(data))
-    with patch.object(kachelmann_service, "_get_api_key", return_value="k"), \
+    with patch.object(kachelmann_service, "_get_api_key", side_effect=lambda org_id: "k"), \
             patch("httpx.AsyncClient") as mock_cls:
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=None)

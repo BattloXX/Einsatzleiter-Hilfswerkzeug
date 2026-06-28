@@ -628,21 +628,25 @@
 </section>
 
 {# ── Kachelmann Wetter API ───────────────────────────────────────────────── #}
+{% if request.query_params.get('kachelmann_ok') %}
+<div class="alert alert--success" style="margin-bottom:1rem;">&#x2705; {{ request.query_params.get('kachelmann_ok') | replace('+', ' ') }}</div>
+{% endif %}
+{% if request.query_params.get('kachelmann_error') %}
+<div class="alert alert--error" style="margin-bottom:1rem;">&#x26A0; {{ request.query_params.get('kachelmann_error') | replace('+', ' ') }}</div>
+{% endif %}
 <section class="card mb-4" id="kachelmann">
   <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
     <h2>&#x1F327; Kachelmann Wetter API</h2>
-    <span class="badge badge--muted" style="font-size:.72rem;">Systemweit &bull; Nowcast-Quelle</span>
+    <span class="badge badge--muted" style="font-size:.72rem;">Je Organisation &bull; Nowcast-Quelle</span>
   </div>
   <div class="card-body">
 
     <div class="alert" style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:4px;padding:.6rem .9rem;font-size:.82rem;color:var(--text-primary);margin-bottom:1.25rem;">
-      Der Kachelmann-API-Key liefert den 15-min-Niederschlags-Nowcast. <strong>Ohne Key</strong> wird
-      ZAMG/GeoSphere genutzt. Der Key &uuml;berschreibt die Umgebungsvariable
-      <code style="background:rgba(255,255,255,.1);padding:0 4px;border-radius:3px;">KACHELMANN_API_KEY</code>.
+      Der Kachelmann-API-Key liefert Ist-Werte und Vorhersage (15-min-Nowcast). <strong>Ohne Key</strong> wird
+      ZAMG/GeoSphere genutzt. Der Key gilt nur f&uuml;r diese Organisation.
       Dokumentation: <a href="https://api.kachelmannwetter.com/v02/_doc.html" target="_blank" rel="noopener"
          style="color:var(--link);">api.kachelmannwetter.com</a>
       (kostenpflichtiges &bdquo;Plus&ldquo;-Abo erforderlich).
-      <strong>Diese Einstellung gilt systemweit f&uuml;r alle Organisationen.</strong>
     </div>
 
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1.25rem;">
@@ -658,16 +662,16 @@
       </span>
     </div>
 
-    {% if is_sysadmin %}
     <form method="post" action="/admin/settings/wetter/kachelmann">
       <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      {% if is_sysadmin and org %}<input type="hidden" name="org_id" value="{{ org.id }}">{% endif %}
       <fieldset style="border:1px solid var(--border);border-radius:6px;padding:.75rem 1rem;">
-        <legend style="font-size:.80rem;font-weight:600;color:var(--text-muted);padding:0 6px;">API-Key &auml;ndern (nur Systemadmin)</legend>
+        <legend style="font-size:.80rem;font-weight:600;color:var(--text-muted);padding:0 6px;">API-Key &auml;ndern</legend>
         <div style="display:grid;grid-template-columns:1fr auto auto;gap:.5rem;align-items:end;">
           <div>
             <label style="font-size:.78rem;font-weight:600;display:block;margin-bottom:3px;">Kachelmann API-Key</label>
             <input type="password" name="kachelmann_api_key" class="form-control"
-                   placeholder="{% if kachelmann_is_configured %}(bestehender Key – leer lassen = keine &Auml;nderung){% else %}API-Key eingeben…{% endif %}"
+                   placeholder="{% if kachelmann_is_configured %}(bestehender Key &ndash; leer lassen = keine &Auml;nderung){% else %}API-Key eingeben&hellip;{% endif %}"
                    autocomplete="new-password">
             <small class="form-hint">Leer lassen = bestehender Key bleibt. Wert &bdquo;__clear__&ldquo; = Key l&ouml;schen.</small>
           </div>
@@ -677,16 +681,12 @@
         </div>
       </fieldset>
     </form>
-    <form method="post" action="/admin/system-einstellungen/test-kachelmann" style="margin-top:.75rem;">
+    <form method="post" action="/admin/settings/wetter/test-kachelmann" style="margin-top:.75rem;">
       <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+      {% if is_sysadmin and org %}<input type="hidden" name="org_id" value="{{ org.id }}">{% endif %}
       <button type="submit" class="btn btn--secondary btn--sm">&#x1F50C; Verbindung testen</button>
       <small class="form-hint" style="display:inline;margin-left:.5rem;">Verwendet den <em>gespeicherten</em> Key (zuerst speichern, dann testen).</small>
     </form>
-    {% else %}
-    <p style="font-size:.83rem;color:var(--text-muted);">
-      Den API-Key kann nur ein Systemadministrator &auml;ndern.
-    </p>
-    {% endif %}
 
   </div>
 </section>

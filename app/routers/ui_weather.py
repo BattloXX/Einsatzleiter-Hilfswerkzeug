@@ -483,12 +483,13 @@ async def _render_weather_panel(
     extra_ctx: dict,
     abfluss_views: list[dict] | None = None,
     station_views: list[dict] | None = None,
+    org_id: int | None = None,
 ) -> HTMLResponse:
     """Shared rendering logic for all weather panel endpoints."""
     nowcast, current, forecast, warnings = await asyncio.gather(
         weather_service.get_nowcast(lat, lng),
-        weather_service.get_current(lat, lng),
-        weather_service.get_forecast(lat, lng),
+        weather_service.get_current(lat, lng, org_id=org_id),
+        weather_service.get_forecast(lat, lng, org_id=org_id),
         weather_service.get_warnings(lat, lng),
         return_exceptions=True,
     )
@@ -593,7 +594,7 @@ async def gsl_wetter_panel(
 
     return await _render_weather_panel(
         request, lat, lng, focus_label, {"lage_id": lage_id},
-        abfluss_views=abfluss_views, station_views=station_views,
+        abfluss_views=abfluss_views, station_views=station_views, org_id=lage.org_id,
     )
 
 
@@ -762,7 +763,7 @@ async def einsatz_wetter_panel(
 
     return await _render_weather_panel(
         request, lat, lng, focus_label, {"incident_id": incident_id},
-        abfluss_views=abfluss_views, station_views=station_views,
+        abfluss_views=abfluss_views, station_views=station_views, org_id=org_id,
     )
 
 
@@ -823,10 +824,11 @@ async def wetter_index(
     # Trigger cache warm-up in background (panel HTMX will use it)
     _ = has_cached(lat, lng)
 
+    _menu_org_id = getattr(user, "org_id", None)
     nowcast, current, forecast, warnings = await asyncio.gather(
         weather_service.get_nowcast(lat, lng),
-        weather_service.get_current(lat, lng),
-        weather_service.get_forecast(lat, lng),
+        weather_service.get_current(lat, lng, org_id=_menu_org_id),
+        weather_service.get_forecast(lat, lng, org_id=_menu_org_id),
         weather_service.get_warnings(lat, lng),
         return_exceptions=True,
     )
@@ -914,7 +916,8 @@ async def wetter_panel(
         )
 
     return await _render_weather_panel(request, lat, lng, focus_label, {},
-                                       abfluss_views=abfluss_views, station_views=station_views)
+                                       abfluss_views=abfluss_views, station_views=station_views,
+                                       org_id=getattr(user, "org_id", None))
 
 
 # ── 24-h-Sparkline (lazy HTMX) ───────────────────────────────────────────────
@@ -1031,7 +1034,7 @@ async def weather_infoscreen(
     if lat is not None and lng is not None:
         results = await asyncio.gather(
             weather_service.get_warnings(lat, lng),
-            weather_service.get_current(lat, lng),
+            weather_service.get_current(lat, lng, org_id=org.id),
             weather_service.get_nowcast(lat, lng),
             weather_service.get_daily_forecast(lat, lng),
             return_exceptions=True,

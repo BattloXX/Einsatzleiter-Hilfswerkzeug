@@ -368,25 +368,25 @@ async def _openmeteo_nowcast(lat: float, lng: float) -> NowcastResult | None:
 
 # ── Current conditions ────────────────────────────────────────────────────────
 
-async def get_current(lat: float, lng: float) -> CurrentWeather | None:
+async def get_current(lat: float, lng: float, org_id: int | None = None) -> CurrentWeather | None:
     """Current weather conditions (temperature, wind, gust, humidity).
 
-    Primary: Kachelmann (wenn API-Key gesetzt), sonst GeoSphere NWP t=0.
+    Primary: Kachelmann (wenn org-spezifischer API-Key gesetzt), sonst GeoSphere NWP t=0.
     Fallback: GeoSphere NWP → Open-Meteo current.
     """
     if not settings.WEATHER_ENABLED:
         return None
 
     from app.services import kachelmann_service
-    use_kachelmann = kachelmann_service.is_configured()
-    key = _cache_key("current_k" if use_kachelmann else "current", lat, lng)
+    use_kachelmann = kachelmann_service.is_configured(org_id)
+    key = _cache_key(f"current_k{org_id}" if use_kachelmann else "current", lat, lng)
     cached = _cache_get(key)
     if cached is not None:
         return cached
 
     result: CurrentWeather | None = None
     if use_kachelmann:
-        result = await kachelmann_service.fetch_current(lat, lng)
+        result = await kachelmann_service.fetch_current(lat, lng, org_id=org_id)
     if result is None:
         result = await _fetch_current_from_nwp(lat, lng)
     if result is None and settings.WEATHER_FALLBACK_OPENMETEO:
@@ -472,25 +472,27 @@ async def get_forecast(
     lat: float,
     lng: float,
     horizons: tuple[int, ...] = (6, 12, 24),
+    org_id: int | None = None,
 ) -> ForecastResult | None:
     """NWP multi-horizon forecast: accumulated precipitation, wind, temperature.
 
-    Primary: GeoSphere NWP. Fallback: Open-Meteo hourly.
+    Primary: Kachelmann (wenn org-spezifischer Key gesetzt), sonst GeoSphere NWP.
+    Fallback: Open-Meteo hourly.
     horizons: list of hours from now (default +6, +12, +24).
     """
     if not settings.WEATHER_ENABLED:
         return None
 
     from app.services import kachelmann_service
-    use_kachelmann = kachelmann_service.is_configured()
-    key = _cache_key("nwp_k" if use_kachelmann else "nwp", lat, lng)
+    use_kachelmann = kachelmann_service.is_configured(org_id)
+    key = _cache_key(f"nwp_k{org_id}" if use_kachelmann else "nwp", lat, lng)
     cached = _cache_get(key)
     if cached is not None:
         return cached
 
     result: ForecastResult | None = None
     if use_kachelmann:
-        result = await kachelmann_service.fetch_forecast(lat, lng, horizons)
+        result = await kachelmann_service.fetch_forecast(lat, lng, horizons, org_id=org_id)
     if result is None:
         result = await _fetch_geosphere_nwp(lat, lng, horizons)
     if result is None and settings.WEATHER_FALLBACK_OPENMETEO:

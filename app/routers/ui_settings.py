@@ -483,7 +483,7 @@ def _weather_settings_context(request, db, user, org_id, **extra) -> dict:
         "weather_db_enabled": bool(app_settings.WEATHER_DATABASE_URL),
         "public_base_url": base_url,
         "dashboard_url": f"{base_url}/wetter/infoscreen/DASHBOARD_TOKEN",
-        "kachelmann_is_configured": kachelmann_service.is_configured(),
+        "kachelmann_is_configured": kachelmann_service.is_configured(effective_org_id),
         "dashboard_qr": None,
         "alert_rules": alert_rules,
         "alert_logs": alert_logs,
@@ -624,43 +624,87 @@ async def weather_infoscreen_hours_save(
     )
 
 
-# ── Kachelmann API-Key (systemweit, nur system_admin) ────────────────────────
+# ── Kachelmann API-Key (je Org, org_admin) ───────────────────────────────────
 
 @router.post("/settings/wetter/kachelmann")
 async def weather_kachelmann_save(
     request: Request,
     db=Depends(get_db),
-    user: User = Depends(require_role("system_admin")),
+    user: User = Depends(require_role("org_admin", "admin", "system_admin")),
     kachelmann_api_key: str = Form(""),
+    org_id: int | None = Form(None),
 ):
-    from datetime import UTC, datetime
+    is_sysadmin = has_role(user, "system_admin")
+    effective_org_id = org_id if (is_sysadmin and org_id) else user.org_id
 
-    from app.models.master import SystemSettings
+    org_settings = (
+        db.query(OrgSettings).filter(OrgSettings.org_id == effective_org_id).first()
+        if effective_org_id else None
+    )
+    if not org_settings:
+        return RedirectResponse("/admin/settings/wetter?saved=1#kachelmann", status_code=303)
 
     key_val = kachelmann_api_key.strip()
-    if key_val and key_val != "__clear__":
-        existing = db.get(SystemSettings, "kachelmann_api_key")
-        if existing:
-            existing.value = key_val
-            existing.updated_at = datetime.now(UTC)
-            existing.updated_by_user_id = user.id
-        else:
-            db.add(SystemSettings(key="kachelmann_api_key", value=key_val,
-                                  updated_by_user_id=user.id))
-        db.commit()
-    elif key_val == "__clear__":
-        existing = db.get(SystemSettings, "kachelmann_api_key")
-        if existing:
-            existing.value = ""
-            db.commit()
+    if key_val == "__clear__":
+        org_settings.kachelmann_api_key = None
+    elif key_val:
+        org_settings.kachelmann_api_key = key_val
+    db.commit()
 
     try:
         from app.services import kachelmann_service
-        kachelmann_service.reset_key_cache()
+        kachelmann_service.reset_key_cache(effective_org_id)
     except Exception:
         pass
 
-    return RedirectResponse("/admin/settings/wetter?saved=1#kachelmann", status_code=303)
+    org_id_param = effective_org_id if is_sysadmin else None
+    redirect = f"/admin/settings/wetter?saved=1{'&org_id=' + str(org_id_param) if org_id_param else ''}#kachelmann"
+    return RedirectResponse(redirect, status_code=303)
+
+
+@router.post("/settings/wetter/test-kachelmann", response_class=HTMLResponse)
+async def weather_kachelmann_test(
+    request: Request,
+    db=Depends(get_db),
+    user: User = Depends(require_role("org_admin", "admin", "system_admin")),
+    org_id: int | None = Form(None),
+):
+    """Testet den Kachelmann-API-Key der Org mit dem Org-Standort."""
+    import asyncio as _aio
+
+    from app.models.master import FireDept
+    from app.services import kachelmann_service
+
+    is_sysadmin = has_role(user, "system_admin")
+    effective_org_id = org_id if (is_sysadmin and org_id) else user.org_id
+
+    kachelmann_service.reset_key_cache(effective_org_id)
+    if not kachelmann_service.is_configured(effective_org_id):
+        return RedirectResponse("/admin/settings/wetter?kachelmann_error=Kein+API-Key+gesetzt#kachelmann", status_code=303)
+
+    lat, lng = 47.4664, 9.7416
+    org = db.get(FireDept, effective_org_id) if effective_org_id else None
+    if org and org.fallback_lat and org.fallback_lng:
+        lat, lng = org.fallback_lat, org.fallback_lng
+
+    try:
+        result = await kachelmann_service.fetch_current(lat, lng, org_id=effective_org_id)
+    except Exception:
+        result = None
+
+    org_id_param = effective_org_id if is_sysadmin else None
+    base = f"/admin/settings/wetter{'?org_id=' + str(org_id_param) if org_id_param else '?'}"
+    if result is not None:
+        msg = "Verbindung+OK"
+        if result.temperature_c is not None:
+            msg = f"Verbindung+OK+%28{result.temperature_c:.0f}%C2%B0C%29"
+        sep = "&" if "?" in base else "?"
+        return RedirectResponse(f"{base}{sep}kachelmann_ok={msg}#kachelmann", status_code=303)
+    sep = "&" if "?" in base else "?"
+    return RedirectResponse(
+        f"{base}{sep}kachelmann_error=Keine+Daten+erhalten+%E2%80%93+Key%2FAbo+pr%C3%BCfen#kachelmann",
+        status_code=303,
+    )
 
 
 # ── Wetterwarnungen ──────────────────────────────────────────────────────────

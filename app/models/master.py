@@ -381,6 +381,9 @@ class OrgSettings(Base):
     # Pegel-/Abflusskonfiguration: JSON-Array [{hzbnr, name, beschreibung}]
     abfluss_stationen: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Kachelmann Plus-API: Key je Org (kostenpflichtiges Abo); NULL = ZAMG/GeoSphere
+    kachelmann_api_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
     # Fahrtenbuch-Konfiguration je Org
     fahrtenbuch_modul_aktiv: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     fahrtenbuch_token: Mapped[str | None] = mapped_column(String(40), unique=True, index=True, nullable=True)
