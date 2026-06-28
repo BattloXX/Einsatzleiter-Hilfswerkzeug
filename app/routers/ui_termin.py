@@ -17,6 +17,7 @@ from app.db import get_db
 from app.models.master import Member, VehicleMaster
 from app.models.sms import SmsGroup, SmsGroupMember
 from app.models.teilnahme import Funktion, Teilnahme, Termin
+from app.models.user import DeviceToken
 
 router = APIRouter()
 logger = logging.getLogger("einsatzleiter.termin")
@@ -397,6 +398,16 @@ async def teilnahme_hinzufuegen(
     mitglied_ids = form.getlist("mitglied_id")
     freitext = (form.get("freitext_name") or "").strip()
 
+    # Fahrzeug vom Tablet-Device automatisch ermitteln (nur bei Einsatz)
+    device_fahrzeug_id: int | None = None
+    if bezug_typ == "einsatz" and getattr(user, "is_device", False):
+        device_token = db.query(DeviceToken).filter(
+            DeviceToken.user_id == user.id,
+            DeviceToken.revoked_at == None,  # noqa: E711
+        ).first()
+        if device_token and device_token.vehicle_master_id:
+            device_fahrzeug_id = device_token.vehicle_master_id
+
     # Mehrfach-Insert Mitglieder
     for mid in mitglied_ids:
         try:
@@ -418,6 +429,7 @@ async def teilnahme_hinzufuegen(
                 mitglied_id=mid_int,
                 ausgerueckt=(status == "teilgenommen"),
                 entschuldigt=(status == "entschuldigt"),
+                fahrzeug_id=device_fahrzeug_id,
                 hinzugefuegt_von=user.id,
                 hinzugefuegt_am=datetime.now(UTC),
             ))
@@ -430,6 +442,7 @@ async def teilnahme_hinzufuegen(
             bezug_id=bezug_id,
             mitglied_id=None,
             freitext_name=freitext,
+            fahrzeug_id=device_fahrzeug_id,
             hinzugefuegt_von=user.id,
             hinzugefuegt_am=datetime.now(UTC),
         ))

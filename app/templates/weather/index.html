@@ -331,8 +331,7 @@
               <svg width="100%" height="40" viewBox="0 0 {{ av.sparkline.width }} {{ av.sparkline.height }}"
                    preserveAspectRatio="none" style="overflow:visible;opacity:.85;">
                 <polyline points="{{ av.sparkline.points }}"
-                          fill="none" stroke="{{ av.stufe_farbe }}"
-                          stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"
+                          fill="none" style="stroke:{{ av.stufe_farbe }};stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;"
                           vector-effect="non-scaling-stroke"/>
               </svg>
             </div>

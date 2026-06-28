@@ -198,6 +198,11 @@ async def _build_abfluss_views(org_id: int | None, db: Session) -> list[dict]:
             stufe, label, farbe = 0, "–", "var(--text-muted)"
             wert = None
             ts_str = None
+        sl = abfluss_service.sparkline_data(st)
+        if not sl.get("points"):
+            db_sl = _build_infoscreen_abfluss_history(org_id, st.hzbnr, 24, width=120, height=24)
+            if db_sl:
+                sl = db_sl
         views.append({
             "hzbnr":             st.hzbnr,
             "name":              st.name,
@@ -206,7 +211,7 @@ async def _build_abfluss_views(org_id: int | None, db: Session) -> list[dict]:
             "stufe":             stufe,
             "stufe_label":       label,
             "stufe_farbe":       farbe,
-            "sparkline":         abfluss_service.sparkline_data(st),
+            "sparkline":         sl,
             "naechste_hq":       _next_hq_label(wert, st.hq_werte),
             "zeitstempel_label": ts_str,
             "fehler":            st.letzter_fehler,
