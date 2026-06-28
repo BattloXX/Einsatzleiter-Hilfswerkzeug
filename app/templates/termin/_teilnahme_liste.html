@@ -10,10 +10,10 @@
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Funktion</th>
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Fahrzeug</th>
       {% else %}
-      <th style="padding:8px 14px;text-align:center;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;" title="Nimmt teil">Teilg.</th>
-      <th style="padding:8px 14px;text-align:center;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;" title="Entschuldigt">Ents.</th>
+      <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Status</th>
       {% endif %}
       <th style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Notiz</th>
+      <th class="col-desktop" style="padding:8px 14px;text-align:left;font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Hinzugefügt</th>
       {% if can_edit %}
       <th style="width:40px;"></th>
       {% endif %}
@@ -31,7 +31,7 @@
       </td>
 
       {% if is_einsatz %}
-      <!-- Ausgerueckt Checkbox -->
+      <!-- Ausgerueckt Checkbox (Einsatz: bleibt editierbar) -->
       <td style="padding:6px 14px;text-align:center;">
         <input type="checkbox"
                {% if t.ausgerueckt %}checked{% endif %}
@@ -87,36 +87,15 @@
       </td>
 
       {% else %}
-      <!-- Nimmt teil Checkbox -->
-      <td style="padding:6px 14px;text-align:center;">
-        <input type="checkbox"
-               {% if t.ausgerueckt %}checked{% endif %}
-               {% if can_edit %}
-               hx-patch="/teilnahme/{{ t.id }}"
-               hx-trigger="change"
-               hx-target="#teilnahme-liste-container"
-               hx-swap="innerHTML"
-               hx-vals="js:{ausgerueckt: event.target.checked ? '1' : '0'}"
-               {% else %}disabled{% endif %}
-               style="width:17px;height:17px;cursor:{% if can_edit %}pointer{% else %}default{% endif %};"
-               title="Nimmt teil"
-               {% if t.entschuldigt %}disabled{% elif not can_edit %}disabled{% endif %}>
-      </td>
-
-      <!-- Entschuldigt Checkbox -->
-      <td style="padding:6px 14px;text-align:center;">
-        <input type="checkbox"
-               {% if t.entschuldigt %}checked{% endif %}
-               {% if can_edit %}
-               hx-patch="/teilnahme/{{ t.id }}"
-               hx-trigger="change"
-               hx-target="#teilnahme-liste-container"
-               hx-swap="innerHTML"
-               hx-vals="js:{entschuldigt: event.target.checked ? '1' : '0'}"
-               {% else %}disabled{% endif %}
-               style="width:17px;height:17px;cursor:{% if can_edit %}pointer{% else %}default{% endif %};"
-               title="Entschuldigt"
-               {% if t.ausgerueckt %}disabled{% elif not can_edit %}disabled{% endif %}>
+      <!-- Status-Badge (Übung/Veranstaltung: read-only, gesetzt beim Hinzufügen) -->
+      <td style="padding:6px 14px;">
+        {% if t.ausgerueckt %}
+        <span class="status-pill status-pill--green" style="font-size:.72rem;padding:2px 8px;">Teilg.</span>
+        {% elif t.entschuldigt %}
+        <span class="status-pill status-pill--yellow" style="font-size:.72rem;padding:2px 8px;">Entsch.</span>
+        {% else %}
+        <span style="font-size:.8rem;color:var(--text-muted);">–</span>
+        {% endif %}
       </td>
       {% endif %}
 
@@ -137,6 +116,18 @@
         {% endif %}
       </td>
 
+      <!-- Hinzugefügt von (nur Desktop) -->
+      <td class="col-desktop" style="padding:6px 14px;">
+        {% if t.hinzugefuegt_von_user %}
+        <span style="font-size:.72rem;color:var(--text-muted);line-height:1.4;display:block;">
+          {{ t.hinzugefuegt_von_user.display_name }}<br>
+          {{ t.hinzugefuegt_am.strftime('%d.%m. %H:%M') }}
+        </span>
+        {% else %}
+        <span style="font-size:.72rem;color:var(--text-muted);">{{ t.hinzugefuegt_am.strftime('%d.%m. %H:%M') }}</span>
+        {% endif %}
+      </td>
+
       {% if can_edit %}
       <td style="padding:6px 10px;text-align:right;">
         <button type="button"
@@ -147,7 +138,7 @@
                 style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px 6px;border-radius:4px;transition:color .12s;"
                 onmouseover="this.style.color='var(--red,#d42225)'"
                 onmouseout="this.style.color='var(--text-muted)'"
-                title="Entfernen">×</button>
+                title="Entfernen">&#215;</button>
       </td>
       {% endif %}
     </tr>

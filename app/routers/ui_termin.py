@@ -403,6 +403,7 @@ async def teilnahme_hinzufuegen(
             mid_int = int(mid)
         except (ValueError, TypeError):
             continue
+        status = (form.get(f"s_{mid_int}") or "").strip()
         exists = db.query(Teilnahme).filter(
             Teilnahme.org_id == org_id,
             Teilnahme.bezug_typ == bezug_typ,
@@ -415,6 +416,8 @@ async def teilnahme_hinzufuegen(
                 bezug_typ=bezug_typ,
                 bezug_id=bezug_id,
                 mitglied_id=mid_int,
+                ausgerueckt=(status == "teilgenommen"),
+                entschuldigt=(status == "entschuldigt"),
                 hinzugefuegt_von=user.id,
                 hinzugefuegt_am=datetime.now(UTC),
             ))

@@ -3,6 +3,7 @@
 {% set _liste_id = liste_id if liste_id else "auswahl-liste" %}
 {% set _chip_include = "[name='suche'],[name='nur_aktiv'],[name='gruppe_ids']" %}
 {% set _chip_url = "/teilnahme/" ~ bezug_typ ~ "/" ~ bezug_id ~ "/auswahl?container_id=" ~ _container_id ~ "&dialog_id=" ~ _dialog_id ~ "&liste_id=" ~ _liste_id %}
+{% set _is_einsatz = bezug_typ == 'einsatz' %}
 
 {% if gruppen %}
 <div style="padding:8px 14px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);flex-shrink:0;">
@@ -37,12 +38,13 @@
   <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
 
   {% for m in verfuegbare %}
-  <label style="display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;
-                transition:background .1s;min-height:44px;"
-         onmouseover="this.style.background='var(--surface-high)'"
-         onmouseout="this.style.background=''">
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;min-height:44px;cursor:pointer;transition:background .1s;"
+       onmouseover="this.style.background='var(--surface-high)'"
+       onmouseout="this.style.background=''"
+       onclick="var cb=this.querySelector('input[type=checkbox]');cb.checked=!cb.checked;">
     <input type="checkbox" name="mitglied_id" value="{{ m.id }}"
-           style="width:18px;height:18px;flex-shrink:0;">
+           style="width:18px;height:18px;flex-shrink:0;cursor:pointer;"
+           onclick="event.stopPropagation()">
     <div style="flex:1;min-width:0;">
       <div style="font-size:.9rem;font-weight:500;">{{ m.full_name }}</div>
       {% if member_to_gruppen and m.id in member_to_gruppen %}
@@ -51,7 +53,21 @@
       <div style="font-size:.75rem;color:var(--text-muted);">Inaktiv</div>
       {% endif %}
     </div>
-  </label>
+    {% if not _is_einsatz %}
+    <div style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation()">
+      <label class="teiln-status-lbl teiln-status-lbl--teilg">
+        <input type="radio" name="s_{{ m.id }}" value="teilgenommen"
+               style="position:absolute;opacity:0;width:0;height:0;">
+        Teilg.
+      </label>
+      <label class="teiln-status-lbl teiln-status-lbl--entsch">
+        <input type="radio" name="s_{{ m.id }}" value="entschuldigt"
+               style="position:absolute;opacity:0;width:0;height:0;">
+        Entsch.
+      </label>
+    </div>
+    {% endif %}
+  </div>
   {% endfor %}
 
   <!-- Submit-Button unten -->

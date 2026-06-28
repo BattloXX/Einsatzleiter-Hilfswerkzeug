@@ -12,6 +12,7 @@ from app.db import Base
 
 if TYPE_CHECKING:
     from app.models.master import Member, VehicleMaster
+    from app.models.user import User
 
 
 class Termin(TenantScoped, Base):
@@ -108,6 +109,9 @@ class Teilnahme(TenantScoped, Base):
     )
     fahrzeug: Mapped[VehicleMaster | None] = relationship(  # type: ignore[name-defined]
         "VehicleMaster", lazy="joined", foreign_keys="[Teilnahme.fahrzeug_id]"
+    )
+    hinzugefuegt_von_user: Mapped["User | None"] = relationship(  # type: ignore[name-defined]
+        "User", lazy="joined", foreign_keys="[Teilnahme.hinzugefuegt_von]"
     )
 
     @property

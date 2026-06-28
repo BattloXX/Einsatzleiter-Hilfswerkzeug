@@ -1262,6 +1262,21 @@ body.dnd-active .board-tabs { box-shadow: 0 0 0 2px var(--primary, #2563eb); }
   .lage-page__body { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
 }
 
+/* ── Teilnahme-Modul ─────────────────────────────────────────── */
+.status-pill--green  { background: rgba(24,169,87,.2); color: var(--green); }
+.status-pill--blue   { background: rgba(30,115,242,.2); color: var(--blue); }
+.status-pill--red    { background: rgba(183,25,33,.2); color: var(--red-light); }
+.status-pill--muted  { background: var(--surface-high); color: var(--text-muted); }
+.status-pill--yellow { background: rgba(242,176,46,.2); color: var(--yellow); }
+/* Status-Auswahl-Pills im Hinzufügen-Dialog */
+.teiln-status-lbl { display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;border:1px solid var(--border);font-size:.72rem;cursor:pointer;color:var(--text-muted);user-select:none;white-space:nowrap; }
+.teiln-status-lbl:has(input:checked) { color:#fff; }
+.teiln-status-lbl--teilg:has(input:checked) { background:var(--green);border-color:var(--green); }
+.teiln-status-lbl--entsch:has(input:checked) { background:var(--yellow);border-color:var(--yellow);color:#111; }
+/* Desktop-only Spalte in Teilnahme-Tabelle */
+.col-desktop { display:none; }
+@media (min-width:901px) { .col-desktop { display:table-cell; } }
+
 /* ── Lage Mobile Burger-Navigation ───────────────────────────────── */
 /* Lage-ctx-bar als Containing-Block für das absolute Dropdown */
 .lage-ctx-bar { position: relative; }
