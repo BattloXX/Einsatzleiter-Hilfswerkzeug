@@ -48,6 +48,7 @@
         <th style="padding:7px 10px;text-align:center;width:80px;">Ents.</th>
         {% endif %}
         <th style="padding:7px 10px;text-align:left;">Notiz</th>
+        <th style="padding:7px 10px;text-align:left;width:110px;">Hinzugef. von</th>
         <th style="padding:7px 10px;text-align:left;width:100px;">Unterschrift</th>
       </tr>
     </thead>
@@ -67,6 +68,10 @@
         <td style="padding:8px 10px;text-align:center;">{% if t.entschuldigt %}✓{% endif %}</td>
         {% endif %}
         <td style="padding:8px 10px;color:#555;">{{ t.notiz or '' }}</td>
+        <td style="padding:8px 10px;font-size:.78rem;color:#555;line-height:1.4;">
+          {{ t.hinzugefuegt_von_user.display_name if t.hinzugefuegt_von_user else '–' }}<br>
+          {{ t.hinzugefuegt_am.strftime('%d.%m.%Y %H:%M') }}
+        </td>
         <td style="padding:8px 10px;"></td>
       </tr>
       {% endfor %}

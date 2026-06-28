@@ -647,7 +647,7 @@ def _build_xlsx(
         cols += ["Funktion", "Fahrzeug"]
     else:
         cols += ["Teilgenommen", "Entschuldigt"]
-    cols.append("Notiz")
+    cols += ["Notiz", "Hinzugefügt von", "Hinzugefügt am"]
 
     for ci, col in enumerate(cols, start=1):
         cell = ws.cell(row=1, column=ci, value=col)
@@ -669,6 +669,8 @@ def _build_xlsx(
                 "✓" if t.entschuldigt else "",
             ]
         row_data.append(t.notiz or "")
+        row_data.append(t.hinzugefuegt_von_user.display_name if t.hinzugefuegt_von_user else "")
+        row_data.append(t.hinzugefuegt_am.strftime("%d.%m.%Y %H:%M"))
         for ci, val in enumerate(row_data, start=1):
             ws.cell(row=ri, column=ci, value=val)
 
@@ -679,7 +681,7 @@ def _build_xlsx(
         widths += [20, 18]
     else:
         widths += [14, 14]
-    widths.append(30)
+    widths += [30, 22, 16]
     for ci, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(ci)].width = w
 
