@@ -9,7 +9,7 @@ import qrcode
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.core.permissions import can_access_incident, has_role, require_role
@@ -611,7 +611,7 @@ def incident_board(incident_id: int, request: Request, db: Session = Depends(get
         raise HTTPException(403, "Kein Zugriff auf diesen Einsatz")
     alarm_types = db.query(AlarmType).order_by(AlarmType.code).all()
     _at_board = (
-        get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code)
+        get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code)  # type: ignore[arg-type]
         if incident.alarm_type_code else None
     )
     from sqlalchemy import exists as _exists
@@ -622,7 +622,7 @@ def incident_board(incident_id: int, request: Request, db: Session = Depends(get
     ) if _at_board else None
     lage_hints = (
         db.query(LageHint)
-        .filter(or_(~_has_any_alarm, _has_matching))
+        .filter(or_(~_has_any_alarm, _has_matching))  # type: ignore[arg-type]
         .order_by(LageHint.display_order)
         .all()
     ) if _at_board else (
@@ -784,7 +784,7 @@ def incident_dashboard(
 
     started_at_iso = incident.started_at.strftime("%Y-%m-%dT%H:%M:%SZ")
     _at_board2 = (
-        get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code)
+        get_alarm_type_by_code(db, incident.primary_org_id, incident.alarm_type_code)  # type: ignore[arg-type]
         if incident.alarm_type_code else None
     )
     from sqlalchemy import exists as _exists2
@@ -795,7 +795,7 @@ def incident_dashboard(
     ) if _at_board2 else None
     lage_hints = (
         db.query(LageHint)
-        .filter(or_(~_has_any2, _has_match2))
+        .filter(or_(~_has_any2, _has_match2))  # type: ignore[arg-type]
         .order_by(LageHint.display_order)
         .all()
     ) if _at_board2 else (

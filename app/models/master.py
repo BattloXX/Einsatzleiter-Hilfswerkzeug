@@ -482,7 +482,7 @@ class SeedTemplate(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     profile: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     profile_label: Mapped[str] = mapped_column(String(100), nullable=False)
-    # type: alarm_type | task_suggestion | message_suggestion | lage_hint | default_message
+    # Werte: alarm_type | task_suggestion | message_suggestion | lage_hint | default_message
     type: Mapped[str] = mapped_column(String(30), nullable=False)
     data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON object
     display_order: Mapped[int] = mapped_column(Integer, default=0)

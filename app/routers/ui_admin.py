@@ -1774,7 +1774,7 @@ async def save_default_message_alarms(
     user = request.state.user
     db.query(DefaultMessageAlarm).filter(DefaultMessageAlarm.default_message_id == mid).delete()
     for i, code in enumerate(alarm_type_codes):
-        at = get_alarm_type_by_code(db, user.org_id, code)
+        at = get_alarm_type_by_code(db, user.org_id, code)  # type: ignore[arg-type]
         if not at:
             continue
         due_min = form.get(f"due_min_{code}", "5")
@@ -1921,7 +1921,7 @@ async def test_kachelmann_api(
     from app.services import kachelmann_service
 
     kachelmann_service.reset_key_cache()
-    if not kachelmann_service.is_configured():
+    if not kachelmann_service.is_configured(None):
         return RedirectResponse(
             "/admin/system-einstellungen?kachelmann_error=Kein+API-Key+gesetzt", status_code=303
         )
@@ -2148,7 +2148,7 @@ async def backup_restore(
         for at in data.get("alarm_types", []):
             if not _target_org_id:
                 continue
-            obj = get_alarm_type_by_code(db, _target_org_id, at["code"])
+            obj = get_alarm_type_by_code(db, _target_org_id, at["code"])  # type: ignore[assignment]
             if not obj:
                 db.add(AlarmType(org_id=_target_org_id, **{k: v for k, v in at.items() if k != "org_id"}))
             else:

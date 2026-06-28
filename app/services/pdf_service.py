@@ -67,6 +67,7 @@ def load_fahrten_km(incident_id: int, db=None) -> list[dict]:
     """
     try:
         from sqlalchemy.orm import joinedload as _jl
+
         from app.models.fahrtenbuch import Fahrt, FahrtStatus
         own_db = db is None
         if own_db:
@@ -106,8 +107,9 @@ def _load_pdf_context(incident: Incident) -> tuple:
     Gibt (primary_org, teilnahmen, fahrten_km) zurück.
     """
     from sqlalchemy.orm import joinedload as _jl
-    from app.models.teilnahme import Teilnahme
+
     from app.models.fahrtenbuch import Fahrt, FahrtStatus
+    from app.models.teilnahme import Teilnahme
 
     db = SessionLocal()
     set_tenant_context(db, None)

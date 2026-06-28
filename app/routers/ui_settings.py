@@ -15,7 +15,12 @@ from app.db import get_db
 from app.models.master import BOS_VALUES, FireDept, OrgSettings, SeedTemplate, SystemSettings
 from app.models.user import User
 from app.services.seed_service import apply_seed_profile, copy_default_prompts, list_profiles
-from app.services.update_service import apply_update, check_github_release, download_and_apply_github_update, get_current_version
+from app.services.update_service import (
+    apply_update,
+    check_github_release,
+    download_and_apply_github_update,
+    get_current_version,
+)
 
 router = APIRouter(prefix="/admin")
 
@@ -670,7 +675,6 @@ async def weather_kachelmann_test(
     org_id: int | None = Form(None),
 ):
     """Testet den Kachelmann-API-Key der Org mit dem Org-Standort."""
-    import asyncio as _aio
 
     from app.models.master import FireDept
     from app.services import kachelmann_service
@@ -680,7 +684,10 @@ async def weather_kachelmann_test(
 
     kachelmann_service.reset_key_cache(effective_org_id)
     if not kachelmann_service.is_configured(effective_org_id):
-        return RedirectResponse("/admin/settings/wetter?kachelmann_error=Kein+API-Key+gesetzt#kachelmann", status_code=303)
+        return RedirectResponse(
+            "/admin/settings/wetter?kachelmann_error=Kein+API-Key+gesetzt#kachelmann",
+            status_code=303,
+        )
 
     lat, lng = 47.4664, 9.7416
     org = db.get(FireDept, effective_org_id) if effective_org_id else None

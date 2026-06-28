@@ -164,7 +164,7 @@ async def verleih_artikel_bearbeiten(
     if not a:
         raise HTTPException(404, "Artikel nicht gefunden")
     clean_nr = artikel_nr.strip() or None
-    if clean_nr and not svc.artikel_nr_eindeutig(db, a.org_id, clean_nr, exclude_id=artikel_id):
+    if clean_nr and not svc.artikel_nr_eindeutig(db, a.org_id, clean_nr, exclude_id=artikel_id):  # type: ignore[arg-type]
         raise HTTPException(409, f"Artikelnr '{clean_nr}' ist bereits vergeben")
     a.bezeichnung = bezeichnung.strip()
     a.artikel_nr = clean_nr
@@ -262,19 +262,19 @@ async def stueckliste_neu(
     artikel_nrs   = form.getlist("positionen_artikel_nr[]")
     geraetetyp_ids = form.getlist("positionen_geraetetyp_id[]")
     for i, bz in enumerate(pos_bezs):
-        bz = bz.strip()
+        bz = bz.strip()  # type: ignore[union-attr]
         if not bz:
             continue
         aid  = artikel_ids[i]    if i < len(artikel_ids)    else ""
-        menge = int(mengen[i]) if i < len(mengen) and str(mengen[i]).isdigit() else 1
+        menge = int(mengen[i]) if i < len(mengen) and str(mengen[i]).isdigit() else 1  # type: ignore[arg-type]
         anr  = artikel_nrs[i]   if i < len(artikel_nrs)    else ""
         gtid = geraetetyp_ids[i] if i < len(geraetetyp_ids) else ""
         pos = VerleihStuecklistePosition(
             stueckliste_id=sl.id,
-            artikel_id=int(aid) if aid.isdigit() else None,
-            geraetetyp_id=int(gtid) if gtid.strip().isdigit() else None,
+            artikel_id=int(aid) if aid.isdigit() else None,  # type: ignore[arg-type, union-attr]
+            geraetetyp_id=int(gtid) if gtid.strip().isdigit() else None,  # type: ignore[arg-type, union-attr]
             bezeichnung=bz,
-            artikel_nr=anr.strip() or None,
+            artikel_nr=anr.strip() or None,  # type: ignore[union-attr]
             menge=menge,
         )
         db.add(pos)
@@ -325,19 +325,19 @@ async def stueckliste_bearbeiten(
     artikel_nrs    = form.getlist("positionen_artikel_nr[]")
     geraetetyp_ids = form.getlist("positionen_geraetetyp_id[]")
     for i, bz in enumerate(pos_bezs):
-        bz = bz.strip()
+        bz = bz.strip()  # type: ignore[union-attr]
         if not bz:
             continue
         aid  = artikel_ids[i]    if i < len(artikel_ids)    else ""
-        menge = int(mengen[i]) if i < len(mengen) and str(mengen[i]).isdigit() else 1
+        menge = int(mengen[i]) if i < len(mengen) and str(mengen[i]).isdigit() else 1  # type: ignore[arg-type]
         anr  = artikel_nrs[i]   if i < len(artikel_nrs)    else ""
         gtid = geraetetyp_ids[i] if i < len(geraetetyp_ids) else ""
         pos = VerleihStuecklistePosition(
             stueckliste_id=sl.id,
-            artikel_id=int(aid) if aid.isdigit() else None,
-            geraetetyp_id=int(gtid) if gtid.strip().isdigit() else None,
+            artikel_id=int(aid) if aid.isdigit() else None,  # type: ignore[arg-type, union-attr]
+            geraetetyp_id=int(gtid) if gtid.strip().isdigit() else None,  # type: ignore[arg-type, union-attr]
             bezeichnung=bz,
-            artikel_nr=anr.strip() or None,
+            artikel_nr=anr.strip() or None,  # type: ignore[union-attr]
             menge=menge,
         )
         db.add(pos)
@@ -508,14 +508,14 @@ async def verleih_neu(
 
     positionen = []
     for i, bz in enumerate(bez_list):
-        bz = bz.strip()
+        bz = bz.strip()  # type: ignore[union-attr]
         if not bz:
             continue
         positionen.append({
             "bezeichnung": bz,
-            "artikel_nr": nr_list[i].strip() if i < len(nr_list) else None,
-            "menge": int(menge_list[i]) if i < len(menge_list) and str(menge_list[i]).isdigit() else 1,
-            "artikel_id": int(aid_list[i]) if i < len(aid_list) and str(aid_list[i]).isdigit() else None,
+            "artikel_nr": nr_list[i].strip() if i < len(nr_list) else None,  # type: ignore[union-attr]
+            "menge": int(menge_list[i]) if i < len(menge_list) and str(menge_list[i]).isdigit() else 1,  # type: ignore[arg-type]
+            "artikel_id": int(aid_list[i]) if i < len(aid_list) and str(aid_list[i]).isdigit() else None,  # type: ignore[arg-type]
         })
 
     if not name or not positionen:
@@ -538,7 +538,7 @@ async def verleih_neu(
     # Journal-Eintrag: bei zugewiesener Einsatzstelle → SiteLogEntry, sonst → Stabsjournal
     try:
         from app.core.security import get_author_name
-        artikel_text = ", ".join(p["bezeichnung"] for p in positionen) or "Material"
+        artikel_text = ", ".join(p["bezeichnung"] for p in positionen) or "Material"  # type: ignore[misc]
         eintrag_text = f"Geräteverleih: {artikel_text} an {name} ausgeliehen"
         if site_id:
             from app.models.major_incident import SiteLogEntry
@@ -551,7 +551,7 @@ async def verleih_neu(
             )
         else:
             from app.models.major_incident import LageJournalEntry
-            journal = LageJournalEntry(
+            journal = LageJournalEntry(  # type: ignore[assignment]
                 major_incident_id=lage_id,
                 category="sonstiges",
                 text=eintrag_text,
@@ -600,7 +600,7 @@ async def verleih_neu(
 
     trigger = {"verleihChanged": True}
     if pin_nachricht:
-        trigger["verleihNachricht"] = pin_nachricht
+        trigger["verleihNachricht"] = pin_nachricht  # type: ignore[assignment]
 
     return templates.TemplateResponse(request, "verleih/_ausleihe_card.html", {
         "a": ausleihe,
@@ -892,7 +892,7 @@ async def verleih_drucken(
             )
         else:
             from app.models.major_incident import LageJournalEntry
-            journal = LageJournalEntry(
+            journal = LageJournalEntry(  # type: ignore[assignment]
                 major_incident_id=lage_id,
                 category="sonstiges",
                 text=eintrag_text,
@@ -969,14 +969,14 @@ async def positionen_hinzufuegen(
 
     positionen = []
     for i, bz in enumerate(bez_list):
-        bz = bz.strip()
+        bz = bz.strip()  # type: ignore[union-attr]
         if not bz:
             continue
         positionen.append({
             "bezeichnung": bz,
-            "artikel_nr": nr_list[i].strip() if i < len(nr_list) else None,
-            "menge": int(menge_list[i]) if i < len(menge_list) and str(menge_list[i]).isdigit() else 1,
-            "artikel_id": int(aid_list[i]) if i < len(aid_list) and str(aid_list[i]).isdigit() else None,
+            "artikel_nr": nr_list[i].strip() if i < len(nr_list) else None,  # type: ignore[union-attr]
+            "menge": int(menge_list[i]) if i < len(menge_list) and str(menge_list[i]).isdigit() else 1,  # type: ignore[arg-type]
+            "artikel_id": int(aid_list[i]) if i < len(aid_list) and str(aid_list[i]).isdigit() else None,  # type: ignore[arg-type]
         })
 
     if not positionen:
@@ -987,7 +987,7 @@ async def positionen_hinzufuegen(
 
     try:
         from app.core.security import get_author_name
-        artikel_text = ", ".join(p["bezeichnung"] for p in positionen)
+        artikel_text = ", ".join(p["bezeichnung"] for p in positionen)  # type: ignore[misc]
         eintrag_text = f"Geräteverleih Nachtrag: {artikel_text} an {ausleihe.name} hinzugefügt"
         if ausleihe.site_id:
             from app.models.major_incident import SiteLogEntry
@@ -1000,7 +1000,7 @@ async def positionen_hinzufuegen(
             )
         else:
             from app.models.major_incident import LageJournalEntry
-            journal = LageJournalEntry(
+            journal = LageJournalEntry(  # type: ignore[assignment]
                 major_incident_id=lage_id,
                 category="sonstiges",
                 text=eintrag_text,

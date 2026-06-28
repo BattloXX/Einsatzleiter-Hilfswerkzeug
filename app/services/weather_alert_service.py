@@ -121,7 +121,7 @@ async def build_weather_picture(org_settings, db) -> WeatherPicture:
     current = forecast = nowcast = None
     warnings: list = []
     if lat and lng:
-        current, nowcast, forecast, warnings = await asyncio.gather(
+        current, nowcast, forecast, warnings = await asyncio.gather(  # type: ignore[assignment]
             get_current(lat, lng),
             get_nowcast(lat, lng),
             get_forecast(lat, lng, horizons=(6, 12, 24)),

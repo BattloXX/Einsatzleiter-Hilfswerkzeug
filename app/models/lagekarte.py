@@ -38,6 +38,8 @@ class LagekarteToken(Base):
     def is_active(self) -> bool:
         if self.revoked_at is not None:
             return False
-        if self.expires_at is not None and self.expires_at < datetime.now(UTC):
-            return False
+        if self.expires_at is not None:
+            exp = self.expires_at if self.expires_at.tzinfo else self.expires_at.replace(tzinfo=UTC)
+            if exp < datetime.now(UTC):
+                return False
         return True

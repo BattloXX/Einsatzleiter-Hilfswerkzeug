@@ -38,7 +38,7 @@ def uas_index(
     _guard: None = Depends(require_uas_enabled),
 ):
     from app.services.uas_compliance import compliance_dashboard
-    dashboard = compliance_dashboard(user.org_id, db)
+    dashboard = compliance_dashboard(user.org_id, db)  # type: ignore[arg-type]
     return templates.TemplateResponse(request, "uas/index.html", {
         "user": user,
         "dashboard": dashboard,
@@ -154,7 +154,7 @@ def einsaetze_csv_export(
         "Einsatzgrund", "Tetra-Rufname", "Gesamteinsatzleiter", "Anzahl Fluege",
     ])
     for e in einsaetze:
-        inc = incidents.get(e.incident_id)
+        inc = incidents.get(e.incident_id)  # type: ignore[assignment]
         alarm_str = e.alarmierung_at.strftime("%d.%m.%Y %H:%M") if e.alarmierung_at else ""
         addr = ""
         if inc:
@@ -1989,8 +1989,8 @@ def geraet_pdf_wartungsbuch(
     if not device:
         raise HTTPException(404)
     wartungen = db.query(UASWartung).filter(
-        UASWartung.uas_device_id == geraet_id, UASWartung.org_id == user.org_id
-    ).order_by(UASWartung.faellig_am).all()
+        UASWartung.uas_device_id == geraet_id, UASWartung.org_id == user.org_id  # type: ignore[attr-defined]
+    ).order_by(UASWartung.faellig_am).all()  # type: ignore[attr-defined]
     pdf = wartungsbuch_pdf(wartungen, device)
     return _Response(content=pdf, media_type="application/pdf",
                      headers={"Content-Disposition": f"attachment; filename=wartungsbuch_geraet{geraet_id}.pdf"})
@@ -2128,7 +2128,7 @@ async def flug_medien_hinzufuegen(
     await store_upload_for_uas_medien(
         file=datei,
         flug_id=flug_id,
-        org_id=user.org_id,
+        org_id=user.org_id,  # type: ignore[arg-type]
         user=user,
         db=db,
         begruendung=begruendung,

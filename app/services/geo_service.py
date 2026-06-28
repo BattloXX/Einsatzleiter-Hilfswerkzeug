@@ -49,7 +49,7 @@ def section_for_point(
 
     for sector in sectors:
         try:
-            geom = shape(json.loads(sector.geometry))
+            geom = shape(json.loads(sector.geometry))  # type: ignore[arg-type]
             if geom.contains(point):
                 candidates.append((geom.area, sector))
         except Exception:

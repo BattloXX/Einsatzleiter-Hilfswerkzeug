@@ -47,8 +47,8 @@ def resolve_weather_focus(lage: MajorIncident) -> WeatherFocus | None:
     best = max(groups.values(), key=_score)
     ort_name = best[0].ort or "unbekannt"
     return WeatherFocus(
-        lat=statistics.mean(s.lat for s in best),
-        lng=statistics.mean(s.lng for s in best),
+        lat=statistics.mean(s.lat for s in best),  # type: ignore[arg-type, type-var]
+        lng=statistics.mean(s.lng for s in best),  # type: ignore[arg-type, type-var]
         label=f"{ort_name} ({len(best)} Einsatzstelle{'n' if len(best) != 1 else ''})",
         site_count=len(best),
     )

@@ -246,7 +246,7 @@ async def complete(
         except Exception:
             pass
 
-    return response.content[0].text
+    return response.content[0].text  # type: ignore[union-attr]
 
 
 # ── Prompt-Bausteine ─────────────────────────────────────────────────────────

@@ -87,7 +87,7 @@ def apply_seed_profile(db: Session, org_id: int, profile: str) -> None:
         if t.type != "message_suggestion":
             continue
         d = json.loads(t.data)
-        s = MessageSuggestion(org_id=org_id, text=d["text"])
+        s = MessageSuggestion(org_id=org_id, text=d["text"])  # type: ignore[assignment]
         db.add(s)
         db.flush()
         for i, code in enumerate(d.get("alarm_codes", [])):

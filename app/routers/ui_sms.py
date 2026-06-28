@@ -150,7 +150,7 @@ async def sms_group_set_members(
         raise HTTPException(status_code=404)
 
     form = await request.form()
-    selected_ids = {int(v) for k, v in form.multi_items() if k == "member_id"}
+    selected_ids = {int(v) for k, v in form.multi_items() if k == "member_id"}  # type: ignore[arg-type]
 
     # Alle bestehenden Eintraege loeschen und neu anlegen
     db.query(SmsGroupMember).filter(SmsGroupMember.sms_group_id == group_id).delete()
@@ -464,8 +464,8 @@ async def einsatzinfo_sms_save_basis(
     org_id = _require_org(user)
 
     form = await request.form()
-    group_ids = {int(v) for k, v in form.multi_items() if k == "group_id"}
-    member_ids = {int(v) for k, v in form.multi_items() if k == "member_id"}
+    group_ids = {int(v) for k, v in form.multi_items() if k == "group_id"}  # type: ignore[arg-type]
+    member_ids = {int(v) for k, v in form.multi_items() if k == "member_id"}  # type: ignore[arg-type]
 
     # Basis-Eintraege loeschen und neu anlegen
     db.query(SmsEinsatzinfoRecipient).filter(
@@ -505,8 +505,8 @@ async def einsatzinfo_sms_save_stichwort(
 
     # Empfaenger-Eintraege ersetzen
     form = await request.form()
-    group_ids = {int(v) for k, v in form.multi_items() if k == "group_id"}
-    member_ids = {int(v) for k, v in form.multi_items() if k == "member_id"}
+    group_ids = {int(v) for k, v in form.multi_items() if k == "group_id"}  # type: ignore[arg-type]
+    member_ids = {int(v) for k, v in form.multi_items() if k == "member_id"}  # type: ignore[arg-type]
 
     db.query(SmsEinsatzinfoRecipient).filter(
         SmsEinsatzinfoRecipient.org_id == org_id,
@@ -585,13 +585,13 @@ async def sms_send_execute(
     phones: dict[str, str] = {}  # normalisierte Nummer → Anzeigename
 
     if target_type == "adhoc":
-        adhoc_raw = (form.get("adhoc_number") or "").strip()
+        adhoc_raw = (form.get("adhoc_number") or "").strip()  # type: ignore[union-attr]
         if adhoc_raw:
             norm = _strip_re.sub("", adhoc_raw)
             phones[norm] = adhoc_raw
     else:
-        group_ids = [int(v) for k, v in form.multi_items() if k == "group_id"]
-        member_ids = [int(v) for k, v in form.multi_items() if k == "member_id"]
+        group_ids = [int(v) for k, v in form.multi_items() if k == "group_id"]  # type: ignore[arg-type]
+        member_ids = [int(v) for k, v in form.multi_items() if k == "member_id"]  # type: ignore[arg-type]
 
         # Gruppen expandieren
         if group_ids:

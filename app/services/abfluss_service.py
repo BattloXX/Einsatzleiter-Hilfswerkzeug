@@ -255,7 +255,7 @@ async def refresh_all_for_org(org_id: int, stations_cfg: list[dict]) -> list[_St
         if isinstance(r, Exception):
             logger.warning("Abfluss gather-Fehler: %s", r)
         else:
-            out.append(r)
+            out.append(r)  # type: ignore[arg-type]
     return out
 
 

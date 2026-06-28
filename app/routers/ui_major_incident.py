@@ -749,7 +749,7 @@ async def site_einheit_zuweisen(
     db.add(SiteLogEntry(
         incident_site_id=site_id,
         kind="resource",
-        text=f"Einheit disponiert: {einheit.label}",
+        text=f"Einheit disponiert: {einheit.label}",  # type: ignore[union-attr]
         user_id=user.id,
         author_name=get_author_name(request),
     ))
@@ -789,7 +789,7 @@ async def site_einheit_freigeben(
     db.add(SiteLogEntry(
         incident_site_id=site_id,
         kind="resource",
-        text=f"Einheit freigegeben: {einheit.label}",
+        text=f"Einheit freigegeben: {einheit.label}",  # type: ignore[union-attr]
         user_id=user.id,
         author_name=get_author_name(request),
     ))
@@ -884,7 +884,7 @@ async def site_einheit_disponieren(
     db.add(SiteLogEntry(
         incident_site_id=site_id,
         kind="resource",
-        text=f"Einheit disponiert: {einheit.label}",
+        text=f"Einheit disponiert: {einheit.label}",  # type: ignore[union-attr]
         user_id=user.id,
         author_name=get_author_name(request),
     ))
@@ -920,7 +920,7 @@ async def site_einheit_vor_ort(
         db.add(SiteLogEntry(
             incident_site_id=site_id,
             kind="resource",
-            text=f"Einheit verlegt (Abzug bestätigt): {einheit.label}",
+            text=f"Einheit verlegt (Abzug bestätigt): {einheit.label}",  # type: ignore[union-attr]
             user_id=user.id,
             author_name=get_author_name(request),
         ))
@@ -960,7 +960,7 @@ async def site_einheit_vor_ort(
     db.add(SiteLogEntry(
         incident_site_id=site_id,
         kind="resource",
-        text=f"Einheit vor Ort: {einheit.label}",
+        text=f"Einheit vor Ort: {einheit.label}",  # type: ignore[union-attr]
         user_id=user.id,
         author_name=get_author_name(request),
     ))
@@ -998,7 +998,7 @@ async def site_einheit_abziehen(
     db.add(SiteLogEntry(
         incident_site_id=site_id,
         kind="resource",
-        text=f"Einheit abgezogen: {einheit.label}",
+        text=f"Einheit abgezogen: {einheit.label}",  # type: ignore[union-attr]
         user_id=user.id,
         author_name=get_author_name(request),
     ))
@@ -1756,9 +1756,9 @@ async def lage_dashboard(
             "lng": s.lng,
             "phase": s.phase.value,
             "color": (
-                "#ef4444" if SITE_PRIORITY_COLOR.get(s.priority) == "red"
-                else "#f97316" if SITE_PRIORITY_COLOR.get(s.priority) == "orange"
-                else "#eab308" if SITE_PRIORITY_COLOR.get(s.priority) == "yellow"
+                "#ef4444" if SITE_PRIORITY_COLOR.get(s.priority) == "red"  # type: ignore[arg-type]
+                else "#f97316" if SITE_PRIORITY_COLOR.get(s.priority) == "orange"  # type: ignore[arg-type]
+                else "#eab308" if SITE_PRIORITY_COLOR.get(s.priority) == "yellow"  # type: ignore[arg-type]
                 else "#6b7280"
             ),
         }
@@ -2614,9 +2614,9 @@ async def _save_citizen_photo(file: UploadFile) -> str | None:
     try:
         from PIL import Image, ImageOps  # type: ignore
         img = Image.open(io.BytesIO(data))
-        img = ImageOps.exif_transpose(img)
+        img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
         if img.mode not in ("RGB", "L"):
-            img = img.convert("RGB")
+            img = img.convert("RGB")  # type: ignore[assignment]
         img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
         dest = Path("app_storage/citizen_media")
         dest.mkdir(parents=True, exist_ok=True)

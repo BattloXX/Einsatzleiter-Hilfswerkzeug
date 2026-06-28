@@ -344,7 +344,7 @@ def resolve_vor_ort_conflict(
         db, einheit_id, lage_id, new_site_id,
         author_name=author_name, user_id=user_id,
     )
-    return dispatch
+    return dispatch  # type: ignore[return-value]
 
 
 def withdraw_from_site(

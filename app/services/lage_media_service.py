@@ -71,9 +71,9 @@ async def upload_site_media(
         raise HTTPException(status_code=500, detail="Pillow nicht verfügbar")
 
     img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)
+    img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
     if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")
+        img = img.convert("RGB")  # type: ignore[assignment]
     img.thumbnail(
         (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
         Image.Resampling.LANCZOS,
@@ -125,9 +125,9 @@ def copy_citizen_photo_to_site(
         from app.config import settings as _s
         data = citizen_photo_path.read_bytes()
         img = Image.open(io.BytesIO(data))
-        img = ImageOps.exif_transpose(img)
+        img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
         if img.mode not in ("RGB", "L"):
-            img = img.convert("RGB")
+            img = img.convert("RGB")  # type: ignore[assignment]
         img.thumbnail((_s.MEDIA_IMAGE_MAX_WIDTH, _s.MEDIA_IMAGE_MAX_HEIGHT), Image.Resampling.LANCZOS)
         dest = _site_dir(site_id, org_id)
         uid = uuid.uuid4().hex
@@ -208,9 +208,9 @@ async def upload_journal_media(
         raise HTTPException(status_code=500, detail="Pillow nicht verfügbar")
 
     img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)
+    img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
     if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")
+        img = img.convert("RGB")  # type: ignore[assignment]
     img.thumbnail(
         (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
         Image.Resampling.LANCZOS,
@@ -299,9 +299,9 @@ async def upload_cross_media(
         raise HTTPException(status_code=500, detail="Pillow nicht verfügbar")
 
     img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)
+    img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
     if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")
+        img = img.convert("RGB")  # type: ignore[assignment]
     img.thumbnail(
         (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
         Image.Resampling.LANCZOS,

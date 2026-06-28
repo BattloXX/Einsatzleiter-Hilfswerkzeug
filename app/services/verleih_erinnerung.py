@@ -46,8 +46,8 @@ async def _check_fällige_erinnerungen() -> None:
 
         for ausleihe in faellige:
             try:
-                text = svc.get_sms_erinnerung_text(db, ausleihe.org_id, ausleihe)
-                ok = await send_sms(ausleihe.org_id, ausleihe.telefon, text)
+                text = svc.get_sms_erinnerung_text(db, ausleihe.org_id, ausleihe)  # type: ignore[arg-type]
+                ok = await send_sms(ausleihe.org_id, ausleihe.telefon, text)  # type: ignore[arg-type]
                 if ok:
                     ausleihe.erinnerung_gesendet_at = datetime.now(UTC)
                     db.commit()

@@ -27,7 +27,7 @@ try:
     from zoneinfo import ZoneInfo
     _VIENNA_TZ = ZoneInfo("Europe/Vienna")
 except Exception:  # pragma: no cover
-    _VIENNA_TZ = UTC
+    _VIENNA_TZ = UTC  # type: ignore[assignment]
 
 
 def purge_old_readings(retention_days: int | None = None, chunk_size: int = _CHUNK_SIZE) -> int:

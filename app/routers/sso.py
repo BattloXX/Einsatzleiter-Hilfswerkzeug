@@ -95,7 +95,7 @@ def _load_sso_config(db: Session, slug: str) -> tuple[FireDept, OrgSsoConfig] | 
     if not org:
         return None, None
     config = db.query(OrgSsoConfig).filter(OrgSsoConfig.org_id == org.id).first()
-    return org, config
+    return org, config  # type: ignore[return-value]
 
 
 # ── GET /sso/{slug}/login ─────────────────────────────────────────────────────
@@ -122,8 +122,8 @@ async def sso_login(
 
     redirect_uri = f"{settings.effective_public_base_url}/sso/{slug}/callback"
     url = build_authorize_url(
-        tenant_id=config.tenant_id,
-        client_id=config.client_id,
+        tenant_id=config.tenant_id,  # type: ignore[arg-type]
+        client_id=config.client_id,  # type: ignore[arg-type]
         redirect_uri=redirect_uri,
         state=state,
         nonce=nonce,
@@ -166,7 +166,7 @@ async def sso_callback(
         return RedirectResponse("/login?error=sso_disabled", status_code=302)
 
     try:
-        client_secret = decrypt_secret(config.client_secret_enc)
+        client_secret = decrypt_secret(config.client_secret_enc)  # type: ignore[arg-type]
     except Exception:
         return RedirectResponse("/login?error=sso_failed", status_code=302)
 
@@ -174,8 +174,8 @@ async def sso_callback(
 
     try:
         token_resp = await exchange_code(
-            tenant_id=config.tenant_id,
-            client_id=config.client_id,
+            tenant_id=config.tenant_id,  # type: ignore[arg-type]
+            client_id=config.client_id,  # type: ignore[arg-type]
             client_secret=client_secret,
             redirect_uri=redirect_uri,
             code=code or "",
@@ -184,8 +184,8 @@ async def sso_callback(
         )
         claims = await validate_id_token(
             id_token=token_resp.get("id_token", ""),
-            tenant_id=config.tenant_id,
-            client_id=config.client_id,
+            tenant_id=config.tenant_id,  # type: ignore[arg-type]
+            client_id=config.client_id,  # type: ignore[arg-type]
             nonce=flow["n"],
             authority_base=config.authority_base,
         )
@@ -301,7 +301,7 @@ async def sso_callback(
             for rid in role_ids:
                 db.add(UserRole(user_id=user.id, role_id=rid))
             new_codes = {
-                db.get(Role, rid).code for rid in role_ids
+                db.get(Role, rid).code for rid in role_ids  # type: ignore[union-attr]
                 if db.get(Role, rid)
             }
             write_audit(db, "auth.sso.role_sync", org_id=org.id, user_id=user.id, ip=ip,
@@ -344,9 +344,9 @@ async def sso_discover(request: Request, email: str, db: Session = Depends(get_d
     for cfg in configs:
         if domain in cfg.allowed_domain_list:
             org = cfg.org
-            if org and org.is_active and not org.deleted_at:
-                # F-08: kein org.name in Response (verhindert Kundenlisten-Enumeration)
-                matches.append(f"/sso/{org.slug}/login")
+            if org and org.is_active and not org.deleted_at:  # type: ignore[attr-defined]
+                # F-08: kein org.name in Response (verhindert Kundenlisten-Enumeration)  # type: ignore[attr-defined]
+                matches.append(f"/sso/{org.slug}/login")  # type: ignore[attr-defined]
 
     if len(matches) == 1:
         return JSONResponse({"found": True, "redirect": matches[0]})

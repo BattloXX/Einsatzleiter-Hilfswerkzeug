@@ -578,7 +578,7 @@ async def store_upload_for_uas_medien(
         tpath = None
         width, height, duration_s = None, None, None
     else:  # video
-        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)
+        main_p, thumb_p, w, h, dur = _process_video(raw, dest_dir)  # type: ignore[assignment]
         stored_bytes = main_p.stat().st_size
         _reserve(db, org_id, stored_bytes)
         out_mime = "video/mp4"

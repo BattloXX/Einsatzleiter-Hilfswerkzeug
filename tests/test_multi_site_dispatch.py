@@ -16,10 +16,9 @@ from tests.conftest import TestingSession, engine
 
 
 @pytest.fixture(autouse=True)
-def fresh_db():
-    Base.metadata.create_all(engine)
+def fresh_db(setup_db):
+    """Stellt sicher dass das Session-Setup aus conftest.py gelaufen ist."""
     yield
-    Base.metadata.drop_all(engine)
 
 
 def _make_lage(db) -> MajorIncident:

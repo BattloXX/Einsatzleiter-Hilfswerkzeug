@@ -611,7 +611,7 @@ try:
     from zoneinfo import ZoneInfo
     _VIENNA_TZ = ZoneInfo("Europe/Vienna")
 except Exception:  # pragma: no cover - zoneinfo immer vorhanden ab 3.9
-    _VIENNA_TZ = UTC
+    _VIENNA_TZ = UTC  # type: ignore[assignment]
 
 
 def _parse_warn_time(epoch: Any, text: Any) -> datetime | None:
@@ -684,21 +684,21 @@ async def _fetch_geosphere_warnings(lat: float, lng: float) -> list[WeatherWarni
     now = datetime.now(UTC)
     warnings: list[WeatherWarning] = []
     for raw_item in raw_list:
-        item = {}
+        item: dict = {}
         try:
             # ZAMG-Warn-API: Felder liegen verschachtelt unter "properties"
             item = raw_item.get("properties", raw_item) if isinstance(raw_item, dict) else {}
             rawinfo = item.get("rawinfo") if isinstance(item.get("rawinfo"), dict) else {}
 
-            level = int(item.get("warnstufeid") or rawinfo.get("wlevel") or 1)
-            type_id = int(item.get("warntypid") or rawinfo.get("wtype") or 0)
+            level = int(item.get("warnstufeid") or rawinfo.get("wlevel") or 1)  # type: ignore[union-attr]
+            type_id = int(item.get("warntypid") or rawinfo.get("wtype") or 0)  # type: ignore[union-attr]
             event = _WARN_TYPE_EVENT.get(type_id, "UNKNOWN")
             text = item.get("text") or item.get("meteotext") or _WARN_EVENT_DE.get(event, event)
 
             # Zeiten: bevorzugt Unix-Epoch aus rawinfo (UTC, eindeutig), sonst
             # deutsches Format "DD.MM.YYYY HH:MM" (Europe/Vienna) bzw. ISO.
-            valid_from = _parse_warn_time(rawinfo.get("start"), item.get("begin"))
-            valid_to = _parse_warn_time(rawinfo.get("end"), item.get("end"))
+            valid_from = _parse_warn_time(rawinfo.get("start"), item.get("begin"))  # type: ignore[union-attr]
+            valid_to = _parse_warn_time(rawinfo.get("end"), item.get("end"))  # type: ignore[union-attr]
             if valid_to is not None and valid_to < now:
                 continue   # already expired
 

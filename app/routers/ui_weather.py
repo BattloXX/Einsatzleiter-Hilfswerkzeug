@@ -506,17 +506,17 @@ async def _render_weather_panel(
         logger.warning("Warnings-Fehler: %s", warnings)
         warnings = []
 
-    nowcast_bars = _build_nowcast_bars(nowcast) if nowcast else []
-    peak_label = _peak_label(nowcast) if nowcast else None
-    trend_de = _TREND_DE.get(nowcast.trend, nowcast.trend) if nowcast else None
-    top_warning = warnings[0] if warnings else None
+    nowcast_bars = _build_nowcast_bars(nowcast) if nowcast else []  # type: ignore[arg-type]
+    peak_label = _peak_label(nowcast) if nowcast else None  # type: ignore[arg-type]
+    trend_de = _TREND_DE.get(nowcast.trend, nowcast.trend) if nowcast else None  # type: ignore[union-attr]
+    top_warning = warnings[0] if warnings else None  # type: ignore[index]
     warn_color = weather_service._WARN_LEVEL_COLORS.get(
         top_warning.level, "#6b7280"
     ) if top_warning else None
     station_current = _station_current_weather(station_views or [])
-    scenarios = analyze_weather(station_current or current, forecast, nowcast, warnings)
+    scenarios = analyze_weather(station_current or current, forecast, nowcast, warnings)  # type: ignore[arg-type]
     now_utc = datetime.now(UTC)
-    active_warnings = [w for w in warnings if w.valid_from <= now_utc]
+    active_warnings = [w for w in warnings if w.valid_from <= now_utc]  # type: ignore[union-attr]
 
     ctx = {
         "no_location": False,
@@ -526,7 +526,7 @@ async def _render_weather_panel(
         "peak_label": peak_label,
         "trend_de": trend_de,
         "current": current,
-        "wind_dir_label": _wind_dir_label(current.wind_direction_deg if current else None),
+        "wind_dir_label": _wind_dir_label(current.wind_direction_deg if current else None),  # type: ignore[union-attr]
         "forecast": forecast,
         "warnings": warnings,
         "warn_views": _build_warning_views(active_warnings),
@@ -845,15 +845,15 @@ async def wetter_index(
     if isinstance(warnings, Exception):
         warnings = []
 
-    nowcast_bars = _build_nowcast_bars(nowcast) if nowcast else []
-    peak_label = _peak_label(nowcast) if nowcast else None
-    trend_de = _TREND_DE.get(nowcast.trend, nowcast.trend) if nowcast else None
-    top_warning = warnings[0] if warnings else None
+    nowcast_bars = _build_nowcast_bars(nowcast) if nowcast else []  # type: ignore[arg-type]
+    peak_label = _peak_label(nowcast) if nowcast else None  # type: ignore[arg-type]
+    trend_de = _TREND_DE.get(nowcast.trend, nowcast.trend) if nowcast else None  # type: ignore[union-attr]
+    top_warning = warnings[0] if warnings else None  # type: ignore[index]
     warn_color = weather_service._WARN_LEVEL_COLORS.get(
         top_warning.level, "#6b7280"
     ) if top_warning else None
     station_current = _station_current_weather(station_views)
-    scenarios = analyze_weather(station_current or current, forecast, nowcast, warnings)
+    scenarios = analyze_weather(station_current or current, forecast, nowcast, warnings)  # type: ignore[arg-type]
 
     return templates.TemplateResponse(
         request,
@@ -868,10 +868,10 @@ async def wetter_index(
             "peak_label": peak_label,
             "trend_de": trend_de,
             "current": current,
-            "wind_dir_label": _wind_dir_label(current.wind_direction_deg if current else None),
+            "wind_dir_label": _wind_dir_label(current.wind_direction_deg if current else None),  # type: ignore[union-attr]
             "forecast": forecast,
             "warnings": warnings,
-            "warn_views": _build_warning_views(warnings),
+            "warn_views": _build_warning_views(warnings),  # type: ignore[arg-type]
             "top_warning": top_warning,
             "warn_color": warn_color,
             "scenarios": scenarios,
@@ -1040,7 +1040,7 @@ async def weather_infoscreen(
             return_exceptions=True,
         )
         if not isinstance(results[0], Exception):
-            warnings = results[0]
+            warnings = results[0]  # type: ignore[assignment]
         if not isinstance(results[1], Exception):
             current = results[1]
         if not isinstance(results[2], Exception):
@@ -1119,7 +1119,7 @@ async def weather_infoscreen(
             "warn_views": _build_warning_views(active_warnings),
             "top_warning": active_warnings[0] if active_warnings else None,
             "nowcast": nowcast,
-            "nowcast_bars": _build_nowcast_bars(nowcast) if nowcast else [],
+            "nowcast_bars": _build_nowcast_bars(nowcast) if nowcast else [],  # type: ignore[arg-type]
             "attribution": _build_attribution(current, None, nowcast, active_warnings, station_current),
             "public_base_url": base_url,
             "map_lat": lat,

@@ -35,7 +35,7 @@ async def profile_page(request: Request, db: Session = Depends(get_db)):
     db_user = db.get(User, user.id)
     return templates.TemplateResponse(request, "profile/index.html", {
         "profile_user": db_user,
-        "avatar_url": _avatar_url(db_user),
+        "avatar_url": _avatar_url(db_user),  # type: ignore[arg-type]
         "saved": request.query_params.get("saved"),
         "error": request.query_params.get("error"),
     })
@@ -84,7 +84,7 @@ async def profile_change_password(
     db_user = db.get(User, user.id)
     if not db_user:
         return RedirectResponse("/login", status_code=302)
-    if not verify_password(current_password, db_user.password_hash):
+    if not verify_password(current_password, db_user.password_hash):  # type: ignore[arg-type]
         return RedirectResponse("/profil?error=wrong_password", status_code=302)
     if len(new_password) < 8:
         return RedirectResponse("/profil?error=password_too_short", status_code=302)
@@ -117,7 +117,7 @@ async def profile_upload_avatar(
     try:
         from PIL import Image
         img = Image.open(io.BytesIO(data))
-        img = img.convert("RGB")
+        img = img.convert("RGB")  # type: ignore[assignment]
         img.thumbnail((256, 256))
         _AVATAR_DIR.mkdir(parents=True, exist_ok=True)
         filename = f"{user.id}_{uuid.uuid4().hex[:8]}.jpg"

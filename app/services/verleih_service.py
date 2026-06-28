@@ -181,7 +181,7 @@ def create_ausleihe(
 
 
 def _fetch_ausleihe(db: Session, ausleihe_id: int) -> VerleihAusleihe:
-    return db.query(VerleihAusleihe).options(
+    return db.query(VerleihAusleihe).options(  # type: ignore[return-value]
         selectinload(VerleihAusleihe.positionen),
         selectinload(VerleihAusleihe.fotos),
     ).filter_by(id=ausleihe_id).first()
@@ -297,9 +297,9 @@ async def save_verleih_foto(
         raise HTTPException(500, "Pillow nicht verfügbar")
 
     img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)
+    img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
     if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")
+        img = img.convert("RGB")  # type: ignore[assignment]
     img.thumbnail(
         (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
         Image.Resampling.LANCZOS,

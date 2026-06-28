@@ -110,7 +110,7 @@ class Teilnahme(TenantScoped, Base):
     fahrzeug: Mapped[VehicleMaster | None] = relationship(  # type: ignore[name-defined]
         "VehicleMaster", lazy="joined", foreign_keys="[Teilnahme.fahrzeug_id]"
     )
-    hinzugefuegt_von_user: Mapped["User | None"] = relationship(  # type: ignore[name-defined]
+    hinzugefuegt_von_user: Mapped[User | None] = relationship(  # type: ignore[name-defined]
         "User", lazy="joined", foreign_keys="[Teilnahme.hinzugefuegt_von]"
     )
 

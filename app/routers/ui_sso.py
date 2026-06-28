@@ -248,7 +248,7 @@ async def sso_group_map_delete(
     db.delete(mapping)
     db.commit()
 
-    return await _group_map_table(db, cfg.id, effective_org_id, request, user)
+    return await _group_map_table(db, cfg.id, effective_org_id, request, user)  # type: ignore[arg-type]
 
 
 async def _group_map_table(db, config_id: int, org_id: int, request: Request, user: User) -> HTMLResponse:

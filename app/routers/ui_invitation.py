@@ -36,7 +36,7 @@ async def invite_org(
     incident = db.get(Incident, incident_id)
     if not incident:
         raise HTTPException(404)
-    if not same_org_or_system_admin(user, incident.primary_org_id):
+    if not same_org_or_system_admin(user, incident.primary_org_id):  # type: ignore[arg-type]
         raise HTTPException(403, "Nur die führende Org darf Einladungen versenden")
 
     invited_org = db.get(FireDept, invited_org_id)
@@ -196,7 +196,7 @@ async def revoke_invitation(
         "incident": incident,
         "invitations": invitations,
         "all_orgs": all_orgs,
-        "can_invite": same_org_or_system_admin(user, incident.primary_org_id) if incident else False,
+        "can_invite": same_org_or_system_admin(user, incident.primary_org_id) if incident else False,  # type: ignore[arg-type]
     })
 
 

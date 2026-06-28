@@ -26,7 +26,7 @@ try:
     from slowapi.util import get_remote_address
     _limiter = Limiter(key_func=get_remote_address)
 except ImportError:
-    _limiter = None
+    _limiter = None  # type: ignore[assignment]
 
 
 def _resolve_org_by_token(token: str, db: Session):
@@ -91,11 +91,11 @@ async def fahrtenbuch_speichern(
     if not user and not token_org:
         t = form.get("t", "")
         if t:
-            token_org = _resolve_org_by_token(t, db)
+            token_org = _resolve_org_by_token(t, db)  # type: ignore[arg-type]
     if not user and not token_org:
         raise HTTPException(status_code=401, detail="Nicht authentifiziert")
 
-    org_id = user.org_id if user else token_org.org_id
+    org_id = user.org_id if user else token_org.org_id  # type: ignore[union-attr]
 
     daten = _form_zu_daten(form, org_id=org_id, user=user, token_org=token_org)
 
@@ -108,11 +108,11 @@ async def fahrtenbuch_speichern(
     except HTTPException as exc:
         db.rollback()
         # Warnung-Flags: Formular erneut anzeigen mit Fehlermeldung
-        fahrzeug_id = int(form.get("fahrzeug_id") or 0)
+        fahrzeug_id = int(form.get("fahrzeug_id") or 0)  # type: ignore[arg-type]
         return await _render_erfassung(
             request, db, user=user, preset_fahrzeug_id=fahrzeug_id,
             fehler=exc.detail, form_daten=dict(form),
-            token_org=token_org, fab_token=form.get("t", "") or None,
+            token_org=token_org, fab_token=form.get("t", "") or None,  # type: ignore[arg-type]
         )
 
     return templates.TemplateResponse(request, "fahrtenbuch/erfolg.html", {

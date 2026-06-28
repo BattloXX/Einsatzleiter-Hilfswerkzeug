@@ -1,5 +1,7 @@
 """Tests für den GeoJSON-Endpoint /api/lagekarte/…"""
 import hashlib
+import secrets
+from datetime import UTC, datetime
 
 import pytest
 
@@ -8,6 +10,7 @@ from app.db import SessionLocal
 from app.models.incident import Incident, IncidentColumn, IncidentVehicle
 from app.models.lagekarte import LagekarteToken
 from app.models.master import FireDept, VehicleMaster
+from app.models.user import DeviceToken, User
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -73,6 +76,26 @@ def incident_with_vehicles(setup_db, org_id):
         iv2 = IncidentVehicle(incident_id=incident.id, column_id=col.id,
                                vehicle_master_id=vm.id, unit_status="Einsatz übernommen")
         db.add_all([iv1, iv2])
+
+        # Fahrzeug braucht eine live GPS-Position (seit #62 kein Fallback auf Einsatz-Koordinaten)
+        dev_user = User(
+            username=f"lk-dev-{secrets.token_hex(4)}",
+            password_hash="x",
+            display_name="LK Test Device",
+            org_id=org_id,
+        )
+        db.add(dev_user)
+        db.flush()
+        db.add(DeviceToken(
+            label="LK Test",
+            token_hash=secrets.token_hex(32),
+            user_id=dev_user.id,
+            vehicle_master_id=vm.id,
+            last_lat=47.4664,
+            last_lng=9.7416,
+            last_location_at=datetime.now(UTC),
+        ))
+
         db.commit()
         return incident.id
     finally:
@@ -109,8 +132,7 @@ def incident_empty(setup_db, org_id):
 
 
 def _make_token(org_id, einsatz_id=None, revoked=False, expired=False) -> str:
-    import secrets
-    from datetime import UTC, datetime, timedelta
+    from datetime import timedelta
     raw = "lkw_" + secrets.token_urlsafe(16)
     tok_hash = hashlib.sha256(raw.encode()).hexdigest()
     db = SessionLocal()

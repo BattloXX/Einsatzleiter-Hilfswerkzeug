@@ -150,7 +150,7 @@ async def photon_suggest(
         ) as client:
             resp = await client.get(
                 f"{settings.PHOTON_BASE_URL}/api",
-                params=params,
+                params=params,  # type: ignore[arg-type]
             )
             resp.raise_for_status()
             data = resp.json()

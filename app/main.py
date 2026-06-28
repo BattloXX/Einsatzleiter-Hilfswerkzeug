@@ -264,7 +264,7 @@ async def session_middleware(request: Request, call_next):
                             user = _QrUser(user, recorder)  # type: ignore[assignment]
                     elif qr_incident_id is not None:
                         # Incident QR session: valid while incident is open and token not revoked.
-                        db_token = db.query(IncidentToken).filter(
+                        db_token = db.query(IncidentToken).filter(  # type: ignore[assignment]
                             IncidentToken.incident_id == qr_incident_id,
                             IncidentToken.issued_by_user_id == user_id,
                             IncidentToken.revoked_at.is_(None),

@@ -48,13 +48,13 @@ def pruefe_zaehler(
         schwelle = int(fahrzeug.warn_schwelle_km or 50)
         neu = int(neuer_wert)
     elif art == "bh":
-        aktuell = Decimal(str(fahrzeug.betriebsstunden_aktuell or 0))
-        schwelle = Decimal(str(fahrzeug.warn_schwelle_bh or 10))
-        neu = Decimal(str(neuer_wert))
+        aktuell = Decimal(str(fahrzeug.betriebsstunden_aktuell or 0))  # type: ignore[assignment]
+        schwelle = Decimal(str(fahrzeug.warn_schwelle_bh or 10))  # type: ignore[assignment]
+        neu = Decimal(str(neuer_wert))  # type: ignore[assignment]
     elif art == "seilwinde_bh":
-        aktuell = Decimal(str(fahrzeug.seilwinde_bh_aktuell or 0))
-        schwelle = _SEILWINDE_SCHWELLE_DEFAULT
-        neu = Decimal(str(neuer_wert))
+        aktuell = Decimal(str(fahrzeug.seilwinde_bh_aktuell or 0))  # type: ignore[assignment]
+        schwelle = _SEILWINDE_SCHWELLE_DEFAULT  # type: ignore[assignment]
+        neu = Decimal(str(neuer_wert))  # type: ignore[assignment]
     else:
         raise ValueError(f"Unbekannte Zählerart: {art}")
 

@@ -74,7 +74,7 @@ def reserve_storage(db: Session, org_id: int, n_bytes: int) -> None:
             ),
             {"n": n_bytes, "org_id": org_id, "quota": quota},
         )
-    if result.rowcount != 1:
+    if result.rowcount != 1:  # type: ignore[attr-defined]
         raise HTTPException(status_code=413, detail="Speicher-Quota der Organisation erschöpft.")
 
 

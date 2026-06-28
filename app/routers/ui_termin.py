@@ -396,7 +396,7 @@ async def teilnahme_hinzufuegen(
 
     form = await request.form()
     mitglied_ids = form.getlist("mitglied_id")
-    freitext = (form.get("freitext_name") or "").strip()
+    freitext = (form.get("freitext_name") or "").strip()  # type: ignore[union-attr]
 
     # Fahrzeug vom Tablet-Device automatisch ermitteln (nur bei Einsatz)
     device_fahrzeug_id: int | None = None
@@ -411,10 +411,10 @@ async def teilnahme_hinzufuegen(
     # Mehrfach-Insert Mitglieder
     for mid in mitglied_ids:
         try:
-            mid_int = int(mid)
+            mid_int = int(mid)  # type: ignore[arg-type]
         except (ValueError, TypeError):
             continue
-        status = (form.get(f"s_{mid_int}") or "").strip()
+        status = (form.get(f"s_{mid_int}") or "").strip()  # type: ignore[union-attr]
         exists = db.query(Teilnahme).filter(
             Teilnahme.org_id == org_id,
             Teilnahme.bezug_typ == bezug_typ,
@@ -477,12 +477,12 @@ async def teilnahme_bearbeiten(
     form = await request.form()
     if "funktion_id" in form:
         v = form.get("funktion_id")
-        teilnahme.funktion_id = int(v) if v else None
+        teilnahme.funktion_id = int(v) if v else None  # type: ignore[arg-type]
     if "fahrzeug_id" in form:
         v = form.get("fahrzeug_id")
-        teilnahme.fahrzeug_id = int(v) if v else None
+        teilnahme.fahrzeug_id = int(v) if v else None  # type: ignore[arg-type]
     if "notiz" in form:
-        teilnahme.notiz = (form.get("notiz") or "").strip() or None
+        teilnahme.notiz = (form.get("notiz") or "").strip() or None  # type: ignore[union-attr]
     if "ausgerueckt" in form:
         teilnahme.ausgerueckt = form.get("ausgerueckt") == "1"
     if "entschuldigt" in form:
