@@ -104,6 +104,11 @@ _TENANT_TABLE_NAMES: frozenset[str] = frozenset({
     "termin",
     "funktion",
     "teilnahme",
+    # GSL/Großschadenslage (SEC-1 Defense-in-Depth-Backstop) — bisher nur durch
+    # ~95 manuelle _check_org_access()-Aufrufe in ui_major_incident.py geschützt;
+    # ein vergessener Aufruf wäre ein Cross-Tenant-IDOR ohne DB-seitigen Schutz.
+    "major_incident",
+    "incident_site",
 })
 
 
@@ -152,6 +157,7 @@ def _add_tenant_filter(execute_state) -> None:
     from sqlalchemy import select as sa_select
 
     from app.models.incident import Incident, IncidentOrg
+    from app.models.major_incident import IncidentSite, MajorIncident
     from app.models.master import VehicleMaster
     from app.models.user import AuditLog, User
 
@@ -187,6 +193,19 @@ def _add_tenant_filter(execute_state) -> None:
         ),
         with_loader_criteria(
             AuditLog,
+            lambda c: c.org_id == _org_id,
+            include_aliases=True,
+        ),
+        # GSL/Großschadenslage (SEC-1): kein Kollaborations-Modell wie bei Incident/
+        # IncidentOrg — org_id ist ein einfacher, nicht-nullbarer FK, daher genügt
+        # ein direkter Vergleich (kein or_(...)-Subquery nötig).
+        with_loader_criteria(
+            MajorIncident,
+            lambda c: c.org_id == _org_id,
+            include_aliases=True,
+        ),
+        with_loader_criteria(
+            IncidentSite,
             lambda c: c.org_id == _org_id,
             include_aliases=True,
         ),

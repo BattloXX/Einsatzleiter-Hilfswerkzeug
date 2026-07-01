@@ -10,8 +10,16 @@ from app.models.major_incident import (
     SitePriority,
     SiteResourceAssignment,
 )
+from app.core.tenant import set_tenant_context
 from app.services import lagemeldung_service as lm
 from tests.conftest import TestingSession
+
+
+def _session() -> "TestingSession":
+    """TestingSession mit gesetztem Tenant-Kontext (org_id=1, wie Test-Fixtures)."""
+    db = TestingSession()
+    set_tenant_context(db, 1)
+    return db
 
 
 # ── Reine Logik (ohne DB) ─────────────────────────────────────────────────────
@@ -95,7 +103,7 @@ def _mk_lage_site(db, *, phase=SitePhase.in_arbeit, with_resource=True):
 
 
 def test_ensure_timer_sets_when_configured():
-    db = TestingSession()
+    db = _session()
     try:
         _set_interval(db, 60)
 
@@ -111,7 +119,7 @@ def test_ensure_timer_sets_when_configured():
 
 
 def test_ensure_timer_off_when_interval_empty():
-    db = TestingSession()
+    db = _session()
     try:
         _set_interval(db, None)
 
@@ -124,7 +132,7 @@ def test_ensure_timer_off_when_interval_empty():
 
 
 def test_register_lagemeldung_closes_open_auto_auftrag():
-    db = TestingSession()
+    db = _session()
     try:
         _set_interval(db, 60)
 
@@ -147,7 +155,7 @@ def test_register_lagemeldung_closes_open_auto_auftrag():
 
 
 def test_clear_timer_closes_auftrag_and_resets():
-    db = TestingSession()
+    db = _session()
     try:
         lage, site = _mk_lage_site(db)
         site.naechste_lagemeldung_at = lm._now()
