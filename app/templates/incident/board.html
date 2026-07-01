@@ -11,7 +11,7 @@
      Vorher war .board-wrap fix auf calc(100vh - --topnav-h) gesetzt, was die
      Hoehe der davorstehenden Elemente ignorierte -> Board rutschte unten aus
      dem sichtbaren Bereich, horizontale Scrollleiste war dadurch ausserhalb
-     des Viewports und mit der Maus nicht mehr erreichbar. #}
+     des Viewports und mit der Maus nicht mehr erreichbar. */
   .main-content { display: flex; flex-direction: column; height: calc(100vh - var(--topnav-h)); overflow: hidden; }
   .board-wrap { display: flex; gap: 0; flex: 1 1 auto; min-height: 0; overflow: hidden; position: relative; }
   .sidebar {
