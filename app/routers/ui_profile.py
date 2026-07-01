@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -141,11 +141,17 @@ async def profile_upload_avatar(
 
 @router.get("/profil/avatar/{filename}")
 async def serve_avatar(filename: str, request: Request):
-    """Liefert das Profilbild aus – kein Auth erforderlich (public Ressource)."""
+    """Liefert das Profilbild aus – kein Auth erforderlich (public Ressource).
+
+    Fehlt die Datei (z.B. nach Redeploy ohne persistentes Avatar-Volume, siehe
+    Vorfall 2026-07-01: DB verwies noch auf ein gelöschtes File -> 404 auf
+    jeder Seite), liefern wir statt eines nackten 404 den neutralen
+    Platzhalter aus -- kein kaputtes Bild-Icon, kein wiederholter 404-Request.
+    """
     safe_name = Path(filename).name
     path = _AVATAR_DIR / safe_name
     if not path.exists() or not path.is_file():
-        return Response(status_code=404)
+        return RedirectResponse("/static/img/avatar-default.svg", status_code=302)
     import mimetypes
     mime = mimetypes.guess_type(str(path))[0] or "image/jpeg"
-    return Response(content=path.read_bytes(), media_type=mime)
+    return FileResponse(path, media_type=mime, headers={"Cache-Control": "public, max-age=86400"})
