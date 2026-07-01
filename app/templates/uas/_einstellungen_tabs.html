@@ -1,0 +1,8 @@
+{# Drohne/UAS: Unter-Tabs innerhalb "Einstellungen" (Geräte / Piloten / DSGVO) #}
+{% from "_tabnav.html" import subtabnav %}
+{% set _fp = request.url.path %}
+{{ subtabnav([
+  {'label': 'Geräte', 'href': '/uas/geraete', 'active': _fp.startswith('/uas/geraete')},
+  {'label': 'Piloten', 'href': '/uas/piloten', 'active': _fp.startswith('/uas/piloten')},
+  {'label': 'DSGVO', 'href': '/uas/dsgvo-uebersicht', 'active': _fp.startswith('/uas/dsgvo')},
+]) }}

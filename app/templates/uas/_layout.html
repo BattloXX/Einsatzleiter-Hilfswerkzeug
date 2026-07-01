@@ -1,10 +1,8 @@
-{% extends "admin/_layout.html" %}
-{% from "admin/_breadcrumb.html" import breadcrumb %}
+{% extends "base.html" %}
 
-{% block admin_breadcrumb %}
-  {{ breadcrumb([{'label': 'Drohne / UAS', 'href': '/uas'}] + (uas_breadcrumb or [])) }}
-{% endblock %}
-
-{% block admin_content %}
+{% block content %}
+<div class="container" style="max-width:1200px;margin:0 auto;padding:1rem;">
+{% include "uas/_tabs.html" %}
 {% block uas_content %}{% endblock %}
+</div>
 {% endblock %}

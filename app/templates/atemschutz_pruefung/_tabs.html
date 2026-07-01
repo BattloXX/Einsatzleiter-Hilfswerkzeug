@@ -1,0 +1,11 @@
+{# Atemschutz-Geraeteprüfung: Haupt-Tab-Leiste (Prüfprotokolle / Geräteübersicht / Einstellungen) #}
+{% from "_tabnav.html" import tabnav %}
+{% set _fp = request.url.path %}
+{% set _tabs = [
+  {'label': 'Prüfprotokolle', 'href': '/atemschutz-pruefung', 'active': (_fp == '/atemschutz-pruefung')},
+  {'label': 'Geräteübersicht', 'href': '/atemschutz-pruefung/geraete', 'active': (_fp == '/atemschutz-pruefung/geraete')},
+] %}
+{% if is_admin %}
+{% set _tabs = _tabs + [{'label': 'Einstellungen', 'href': '/admin/atemschutz-pruefung/geraete', 'active': _fp.startswith('/admin/atemschutz-pruefung')}] %}
+{% endif %}
+{{ tabnav(_tabs) }}

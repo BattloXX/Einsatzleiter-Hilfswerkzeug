@@ -1,9 +1,10 @@
-{% extends "admin/_layout.html" %}
-{% from "admin/_breadcrumb.html" import breadcrumb %}
+{% extends "base.html" %}
 {% block title %}Atemschutz-Geräteprüfung – Einstellungen{% endblock %}
-{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Atemschutz-Geräteprüfung', 'url': '/atemschutz-pruefung'}, {'label': 'Einstellungen'}]) }}{% endblock %}
 
-{% block admin_content %}
+{% block content %}
+<div class="container" style="padding:1rem;">
+{% include "atemschutz_pruefung/_tabs.html" %}
+{% include "atemschutz_pruefung/_einstellungen_tabs.html" %}
 <div class="page-header">
   <div>
     <h1>Atemschutz-Geräteprüfung – Einstellungen</h1>
@@ -51,4 +52,5 @@
     <button type="submit" class="btn btn--primary">Speichern</button>
   </div>
 </form>
+</div>
 {% endblock %}

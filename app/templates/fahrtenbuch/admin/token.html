@@ -1,9 +1,10 @@
-{% extends "admin/_layout.html" %}
-{% from "admin/_breadcrumb.html" import breadcrumb %}
+{% extends "base.html" %}
 {% block title %}Fahrtenbuch – Token / QR{% endblock %}
-{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Fahrtenbuch', 'url': '/verwaltung/fahrten'}, {'label': 'Token / QR'}]) }}{% endblock %}
 
-{% block admin_content %}
+{% block content %}
+<div class="container" style="max-width:1200px;margin:0 auto;padding:1rem;">
+{% include "fahrtenbuch/_tabs.html" %}
+{% include "fahrtenbuch/_einstellungen_tabs.html" %}
 <div class="page-header">
   <div>
     <h1>Fahrtenbuch-Token &amp; QR-Codes</h1>
@@ -59,5 +60,6 @@
     </p>
     <a href="/admin/fahrtenbuch/fahrzeuge" class="btn btn--ghost btn--sm">&#x2192; Zu Fahrzeug-Einstellungen</a>
   </div>
+</div>
 </div>
 {% endblock %}

@@ -1,9 +1,10 @@
-{% extends "admin/_layout.html" %}
-{% from "admin/_breadcrumb.html" import breadcrumb %}
+{% extends "base.html" %}
 {% block title %}Fahrtenbuch – Zielorte{% endblock %}
-{% block admin_breadcrumb %}{{ breadcrumb([{'label': 'Fahrtenbuch', 'url': '/verwaltung/fahrten'}, {'label': 'Zielorte'}]) }}{% endblock %}
 
-{% block admin_content %}
+{% block content %}
+<div class="container" style="max-width:1200px;margin:0 auto;padding:1rem;">
+{% include "fahrtenbuch/_tabs.html" %}
+{% include "fahrtenbuch/_einstellungen_tabs.html" %}
 <div class="page-header">
   <div>
     <h1>Zielorte</h1>
@@ -72,5 +73,6 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
 </div>
 {% endblock %}

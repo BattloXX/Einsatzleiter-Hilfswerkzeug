@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="/static/css/app.css?v={{ CSS_VERSION }}">
   <link rel="stylesheet" href="/static/css/tooltips.css?v={{ CSS_VERSION }}">
   <style>[x-cloak]{display:none!important}</style>
+  <style>
+    .topnav__doku-panel a{display:block;padding:8px 16px;font-size:.88rem;color:var(--on-surface);text-decoration:none;white-space:nowrap;transition:background .15s;}
+    .topnav__doku-panel a:hover{background:var(--surface-high);}
+    .topnav__doku-panel a.active{background:rgba(183,25,33,.15);color:var(--red-light);}
+    .mobile-menu__group-hdr{padding:14px 20px 4px;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);}
+  </style>
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32.png">
@@ -45,19 +51,32 @@
       <span class="test-system-badge">TEST SYSTEM</span>
       {% endif %}
     </div>
+    {% set _doku_active = '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path or request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') or request.url.path.startswith('/atemschutz-pruefung') or request.url.path.startswith('/uas') or '/statistik' in request.url.path %}
     <div class="topnav__links">
       <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">🎛 Konsole</a>
       <a href="/lage" class="nav-link {% if request.url.path.startswith('/lage') %}active{% endif %}">🚨 Lage</a>
       <a href="/archiv" class="nav-link {% if '/archiv' in request.url.path %}active{% endif %}">Archiv</a>
-      <a href="/statistik" class="nav-link {% if '/statistik' in request.url.path %}active{% endif %}">Statistik</a>
-      {% if is_fahrtenbuch %}
-      <a href="/verwaltung/fahrten" class="nav-link {% if '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path %}active{% endif %}">Fahrtenbuch</a>
-      {% endif %}
-      {% if is_as_pruefung %}
-      <a href="/atemschutz-pruefung" class="nav-link {% if request.url.path.startswith('/atemschutz-pruefung') %}active{% endif %}">Atemschutzprüfung</a>
-      {% endif %}
-      <a href="/termine" class="nav-link {% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">Termine</a>
-      <a href="/medien" class="nav-link {% if request.url.path.startswith('/medien') %}active{% endif %}">Medien</a>
+      <div class="topnav__doku" x-data="{open:false}" @click.outside="open=false" style="position:relative;">
+        <button type="button" class="nav-link nav-link--dropdown {% if _doku_active %}active{% endif %}" @click="open=!open">
+          📖 Dokumentation <span style="font-size:.7rem; opacity:.7; margin-left:2px;">▾</span>
+        </button>
+        <div class="topnav__doku-panel" x-show="open" x-cloak
+             style="position:absolute; top:calc(100% + 4px); left:0; z-index:200;
+                    background:var(--surface-mid); border:1px solid var(--border); border-radius:.5rem;
+                    min-width:230px; padding:8px 0; box-shadow:0 12px 32px rgba(0,0,0,.5);">
+          {% if is_fahrtenbuch %}
+          <a href="/verwaltung/fahrten" class="{% if '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path %}active{% endif %}">🚒 Fahrtenbuch</a>
+          {% endif %}
+          <a href="/termine" class="{% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">📅 Termine</a>
+          {% if is_as_pruefung %}
+          <a href="/atemschutz-pruefung" class="{% if request.url.path.startswith('/atemschutz-pruefung') %}active{% endif %}">🫁 Atemschutz-Geräteprüfung</a>
+          {% endif %}
+          {% if request.state.uas_module_enabled %}
+          <a href="/uas/einsaetze" class="{% if request.url.path.startswith('/uas') %}active{% endif %}">🚁 Drohne / UAS</a>
+          {% endif %}
+          <a href="/statistik" class="{% if '/statistik' in request.url.path %}active{% endif %}">📊 Statistik</a>
+        </div>
+      </div>
       {% if WEATHER_ENABLED %}
       <a href="/wetter" class="nav-link {% if request.url.path.startswith('/wetter') %}active{% endif %}">🌦 Wetter</a>
       {% endif %}
@@ -154,18 +173,21 @@
       <a href="/" class="mobile-menu__link {% if request.url.path == '/' %}active{% endif %}">🏠 Übersicht</a>
       <a href="/lage" class="mobile-menu__link {% if request.url.path.startswith('/lage') %}active{% endif %}">🚨 Lage</a>
       <a href="/archiv" class="mobile-menu__link {% if '/archiv' in request.url.path %}active{% endif %}">📚 Archiv</a>
-      <a href="/statistik" class="mobile-menu__link {% if '/statistik' in request.url.path %}active{% endif %}">📊 Statistik</a>
-      {% if is_fahrtenbuch %}
-      <a href="/verwaltung/fahrten" class="mobile-menu__link {% if '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path %}active{% endif %}">🚒 Fahrtenbuch</a>
-      {% endif %}
-      {% if is_as_pruefung %}
-      <a href="/atemschutz-pruefung" class="mobile-menu__link {% if request.url.path.startswith('/atemschutz-pruefung') %}active{% endif %}">🫁 Atemschutzprüfung</a>
-      {% endif %}
-      <a href="/termine" class="mobile-menu__link {% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">📅 Termine</a>
-      <a href="/medien" class="mobile-menu__link {% if request.url.path.startswith('/medien') %}active{% endif %}">🖼️ Medien</a>
       {% if WEATHER_ENABLED %}
       <a href="/wetter" class="mobile-menu__link {% if request.url.path.startswith('/wetter') %}active{% endif %}">🌦 Wetter</a>
       {% endif %}
+      <div class="mobile-menu__group-hdr">Dokumentation</div>
+      {% if is_fahrtenbuch %}
+      <a href="/verwaltung/fahrten" class="mobile-menu__link {% if '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path %}active{% endif %}">🚒 Fahrtenbuch</a>
+      {% endif %}
+      <a href="/termine" class="mobile-menu__link {% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">📅 Termine</a>
+      {% if is_as_pruefung %}
+      <a href="/atemschutz-pruefung" class="mobile-menu__link {% if request.url.path.startswith('/atemschutz-pruefung') %}active{% endif %}">🫁 Atemschutz-Geräteprüfung</a>
+      {% endif %}
+      {% if request.state.uas_module_enabled %}
+      <a href="/uas/einsaetze" class="mobile-menu__link {% if request.url.path.startswith('/uas') %}active{% endif %}">🚁 Drohne / UAS</a>
+      {% endif %}
+      <a href="/statistik" class="mobile-menu__link {% if '/statistik' in request.url.path %}active{% endif %}">📊 Statistik</a>
     </nav>
     <footer class="mobile-menu__footer">
       <a href="/profil" class="mobile-menu__link {% if request.url.path.startswith('/profil') %}active{% endif %}">👤 Mein Profil</a>
@@ -196,10 +218,6 @@
     <a href="/archiv" class="bottom-nav__item {% if '/archiv' in _p %}bottom-nav__item--active{% endif %}">
       <span class="bottom-nav__icon">📚</span>
       <span>Archiv</span>
-    </a>
-    <a href="/statistik" class="bottom-nav__item {% if '/statistik' in _p %}bottom-nav__item--active{% endif %}">
-      <span class="bottom-nav__icon">📊</span>
-      <span>Statistik</span>
     </a>
     {% if WEATHER_ENABLED %}
     <a href="/wetter" class="bottom-nav__item {% if _p.startswith('/wetter') %}bottom-nav__item--active{% endif %}">

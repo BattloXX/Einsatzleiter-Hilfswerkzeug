@@ -1,0 +1,20 @@
+{# Wiederverwendbare Tab-Navigation fuer Modul-Landingpages
+   (Fahrtenbuch, Atemschutz-Geraetepruefung, Drohne/UAS).
+   tabs: Liste von Dicts {label, href, active} #}
+{% macro tabnav(tabs) %}
+<div class="tabnav" role="tablist">
+  {% for t in tabs %}
+  <a href="{{ t.href }}" role="tab" aria-selected="{% if t.active %}true{% else %}false{% endif %}"
+     class="tabnav__item {% if t.active %}tabnav__item--active{% endif %}">{{ t.label }}</a>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro subtabnav(tabs) %}
+<div class="subtabnav" role="tablist">
+  {% for t in tabs %}
+  <a href="{{ t.href }}" role="tab" aria-selected="{% if t.active %}true{% else %}false{% endif %}"
+     class="subtabnav__item {% if t.active %}subtabnav__item--active{% endif %}">{{ t.label }}</a>
+  {% endfor %}
+</div>
+{% endmacro %}

@@ -16,10 +16,6 @@
        or '/admin/konfig' in _p or '/admin/sso' in _p or '/admin/gsl-einstellungen' in _p
        or _p == '/admin/settings/wetter' or _p.startswith('/admin/settings/wetter?') %}
   {% set active_group = 'einstellungen' %}
-{% elif _p.startswith('/uas/') %}
-  {% set active_group = 'uas' %}
-{% elif '/admin/fahrtenbuch' in _p or '/verwaltung/fahrten' in _p or '/statistik/fahrtenbuch' in _p %}
-  {% set active_group = 'fahrtenbuch' %}
 {% elif _p == '/admin/hilfe' %}
   {% set active_group = 'hilfe' %}
 {% else %}
@@ -370,122 +366,6 @@
           </div>
         </div>
 
-        {% if request.state.uas_module_enabled %}
-        <!-- ── Drohne / UAS ─────────────────────────────────────────── -->
-        <button class="admin-nav__group-hdr" type="button" @click="toggle('uas')">
-          <span>&#x1F681; Drohne / UAS</span>
-          <span class="admin-nav__group-arrow" :class="groups.uas && 'is-open'">›</span>
-        </button>
-        <div x-show="groups.uas" x-transition.opacity.duration.120ms>
-          <div class="admin-nav__group-items">
-            <a href="/uas/einsaetze"
-               class="admin-nav__item {% if '/uas/einsaetze' in request.url.path %}is-active{% endif %}"
-               {{ tip('Alle Drohneneinsätze: Übersicht und Export') }}>
-              <span class="admin-nav__icon">📋</span>Eins&auml;tze
-            </a>
-            <a href="/uas/geraete"
-               class="admin-nav__item {% if '/uas/geraete' in request.url.path %}is-active{% endif %}"
-               {{ tip('UAS-Geräteliste: Drohnen und Zubehoer') }}>
-              <span class="admin-nav__icon">🚁</span>Ger&auml;te
-            </a>
-            <a href="/uas/piloten"
-               class="admin-nav__item {% if '/uas/piloten' in request.url.path %}is-active{% endif %}"
-               {{ tip('Piloten mit Lizenzen und Qualifikationen') }}>
-              <span class="admin-nav__icon">👨‍✈️</span>Piloten
-            </a>
-            <a href="/uas/dsgvo-uebersicht"
-               class="admin-nav__item {% if '/uas/dsgvo' in request.url.path %}is-active{% endif %}"
-               {{ tip('DSGVO-Übersicht und Compliance-Status') }}>
-              <span class="admin-nav__icon">🔒</span>DSGVO
-            </a>
-          </div>
-        </div>
-        {% endif %}
-
-        {% if request.state.fahrtenbuch_modul_aktiv %}
-        <!-- ── Fahrtenbuch ───────────────────────────────────────────── -->
-        <button class="admin-nav__group-hdr" type="button" @click="toggle('fahrtenbuch')">
-          <span>&#x1F697; Fahrtenbuch</span>
-          <span class="admin-nav__group-arrow" :class="groups.fahrtenbuch && 'is-open'">›</span>
-        </button>
-        <div x-show="groups.fahrtenbuch" x-transition.opacity.duration.120ms>
-          <div class="admin-nav__group-items">
-            <a href="/verwaltung/fahrten"
-               class="admin-nav__item {% if '/verwaltung/fahrten' in request.url.path %}is-active{% endif %}"
-               {{ tip('Alle Fahrten: Übersicht, Detail, Storno, Export') }}>
-              <span class="admin-nav__icon">📋</span>Fahrten
-            </a>
-            <a href="/admin/fahrtenbuch/fahrzeuge"
-               class="admin-nav__item {% if '/admin/fahrtenbuch/fahrzeuge' in request.url.path %}is-active{% endif %}"
-               {{ tip('Fahrtenbuch-Felder je Fahrzeug: km, BH, Seilwinde, QR-Token') }}>
-              <span class="admin-nav__icon">🚒</span>Fahrzeuge
-            </a>
-            <a href="/admin/fahrtenbuch/zwecke"
-               class="admin-nav__item {% if '/admin/fahrtenbuch/zwecke' in request.url.path %}is-active{% endif %}"
-               {{ tip('Fahrtzwecke: Einsatz, Übung, Sonstige – Pflichtfelder je Zweck') }}>
-              <span class="admin-nav__icon">🏷️</span>Fahrtzwecke
-            </a>
-            <a href="/admin/fahrtenbuch/zielorte"
-               class="admin-nav__item {% if '/admin/fahrtenbuch/zielorte' in request.url.path %}is-active{% endif %}"
-               {{ tip('Häufige Zielorte als Schnellauswahl') }}>
-              <span class="admin-nav__icon">📍</span>Zielorte
-            </a>
-            <a href="/admin/fahrtenbuch/token"
-               class="admin-nav__item {% if '/admin/fahrtenbuch/token' in request.url.path %}is-active{% endif %}"
-               {{ tip('Org-Token und QR-Codes für Tablet-/Token-Erfassung') }}>
-              <span class="admin-nav__icon">🔑</span>Token / QR
-            </a>
-            <a href="/admin/fahrtenbuch/einstellungen"
-               class="admin-nav__item {% if '/admin/fahrtenbuch/einstellungen' in request.url.path %}is-active{% endif %}"
-               {{ tip('Schaden-Mail, Teams-Webhook, Doppelfahrt-Fenster') }}>
-              <span class="admin-nav__icon">⚙️</span>Einstellungen
-            </a>
-            <a href="/statistik/fahrtenbuch"
-               class="admin-nav__item {% if '/statistik/fahrtenbuch' in request.url.path %}is-active{% endif %}"
-               {{ tip('Fahrtenstatistik nach Fahrzeug, Maschinist, Ausbildner') }}>
-              <span class="admin-nav__icon">📊</span>Statistik
-            </a>
-          </div>
-        </div>
-        {% endif %}
-
-        {% if request.state.atemschutz_pruefung_modul_aktiv %}
-        <!-- ── Atemschutz-Geräteprüfung ─────────────────────────────────── -->
-        <button class="admin-nav__group-hdr" type="button" @click="toggle('as_pruefung')">
-          <span>&#x1FAA6; Atemschutz-Geräteprüfung</span>
-          <span class="admin-nav__group-arrow" :class="groups.as_pruefung && 'is-open'">›</span>
-        </button>
-        <div x-show="groups.as_pruefung" x-transition.opacity.duration.120ms>
-          <div class="admin-nav__group-items">
-            <a href="/atemschutz-pruefung"
-               class="admin-nav__item {% if request.url.path == '/atemschutz-pruefung' %}is-active{% endif %}"
-               {{ tip('Alle Prüfprotokolle: Übersicht, Export') }}>
-              <span class="admin-nav__icon">📋</span>Prüfprotokolle
-            </a>
-            <a href="/atemschutz-pruefung/geraete"
-               class="admin-nav__item {% if '/atemschutz-pruefung/geraete' in request.url.path %}is-active{% endif %}"
-               {{ tip('Letzte Prüfung je Gerät') }}>
-              <span class="admin-nav__icon">📊</span>Geräte-Übersicht
-            </a>
-            <a href="/admin/atemschutz-pruefung/geraete"
-               class="admin-nav__item {% if '/admin/atemschutz-pruefung/geraete' in request.url.path %}is-active{% endif %}"
-               {{ tip('Gerätenummer und Bezeichnung der Pressluftatmer') }}>
-              <span class="admin-nav__icon">🗂️</span>Geräte-Stammdaten
-            </a>
-            <a href="/admin/atemschutz-pruefung/token"
-               class="admin-nav__item {% if '/admin/atemschutz-pruefung/token' in request.url.path %}is-active{% endif %}"
-               {{ tip('Login-freier Link und QR-Code für das Tablet-Formular') }}>
-              <span class="admin-nav__icon">🔑</span>Token / QR
-            </a>
-            <a href="/admin/atemschutz-pruefung/einstellungen"
-               class="admin-nav__item {% if '/admin/atemschutz-pruefung/einstellungen' in request.url.path %}is-active{% endif %}"
-               {{ tip('Modul aktivieren, Wart-Mail/Teams bei Defekt') }}>
-              <span class="admin-nav__icon">⚙️</span>Einstellungen
-            </a>
-          </div>
-        </div>
-        {% endif %}
-
       </nav>
     </div>
   </aside>
@@ -500,7 +380,7 @@ function adminNav(activeGroup) {
   var STORE = 'admin_nav_groups';
   var s = {};
   try { s = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch(e) {}
-  var labels = { stammdaten: 'Stammdaten', verwaltung: 'Verwaltung', einstellungen: 'Einstellungen', uas: 'Drohne / UAS', fahrtenbuch: 'Fahrtenbuch', as_pruefung: 'Atemschutz-Geräteprüfung' };
+  var labels = { stammdaten: 'Stammdaten', verwaltung: 'Verwaltung', einstellungen: 'Einstellungen' };
   var mobile = window.matchMedia('(max-width: 1100px)').matches;
 
   function grpInit(g, desktopDefault) {
@@ -515,9 +395,6 @@ function adminNav(activeGroup) {
       stammdaten:   grpInit('stammdaten',   true),
       verwaltung:   grpInit('verwaltung',   true),
       einstellungen:grpInit('einstellungen',false),
-      uas:          grpInit('uas',          false),
-      fahrtenbuch:  grpInit('fahrtenbuch',  false),
-      as_pruefung:  grpInit('as_pruefung',  false),
     },
     isMobile: function() { return window.matchMedia('(max-width: 1100px)').matches; },
     toggle: function(group) {

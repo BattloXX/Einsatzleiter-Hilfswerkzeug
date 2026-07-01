@@ -171,3 +171,15 @@ button.htmx-request,
 
 /* -- MOB-3: Touch-Targets >=44px fuer Prio-Schnellbuttons (Bedienung mit Handschuhen) -- */
 .prio-quick-btn{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;}
+
+/* -- Menue-Umbau: gemeinsame Tab-Navigation fuer Modul-Landingpages
+   (Fahrtenbuch / Atemschutz-Geraetepruefung / Drohne-UAS), siehe _tabnav.html.
+   Mobil horizontal scrollbar statt Umbruch, Touch-Targets >=44px. -- */
+.tabnav{display:flex;align-items:flex-end;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.25rem;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tabnav__item{display:inline-flex;align-items:center;min-height:44px;padding:.6rem 1.1rem;font-size:.9rem;font-weight:600;white-space:nowrap;color:var(--text-muted);text-decoration:none;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;flex-shrink:0;}
+.tabnav__item:hover{color:var(--text);}
+.tabnav__item--active{color:var(--text);border-bottom-color:var(--red);}
+.subtabnav{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:1.25rem;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.subtabnav__item{display:inline-flex;align-items:center;min-height:44px;padding:.4rem .9rem;font-size:.82rem;font-weight:600;white-space:nowrap;color:var(--text-muted);background:var(--surface-mid);border:1px solid var(--border);border-radius:var(--radius-full,999px);text-decoration:none;transition:background .15s,color .15s;flex-shrink:0;}
+.subtabnav__item:hover{color:var(--text);background:var(--surface-high);}
+.subtabnav__item--active{color:#fff;background:var(--red);border-color:var(--red);}

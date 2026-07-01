@@ -1,0 +1,8 @@
+{# Atemschutz-Geraeteprüfung: Unter-Tabs innerhalb "Einstellungen" (Stammdaten / Token / Allgemein) #}
+{% from "_tabnav.html" import subtabnav %}
+{% set _fp = request.url.path %}
+{{ subtabnav([
+  {'label': 'Geräte-Stammdaten', 'href': '/admin/atemschutz-pruefung/geraete', 'active': _fp.startswith('/admin/atemschutz-pruefung/geraete')},
+  {'label': 'Token / QR', 'href': '/admin/atemschutz-pruefung/token', 'active': _fp.startswith('/admin/atemschutz-pruefung/token')},
+  {'label': 'Allgemein', 'href': '/admin/atemschutz-pruefung/einstellungen', 'active': _fp.startswith('/admin/atemschutz-pruefung/einstellungen')},
+]) }}

@@ -1,0 +1,11 @@
+{# Drohne/UAS: Haupt-Tab-Leiste (Einsätze / Einstellungen) #}
+{% from "_tabnav.html" import tabnav %}
+{% set _fp = request.url.path %}
+{% set _on_einsaetze = _fp.startswith('/uas/einsaetze') %}
+{{ tabnav([
+  {'label': 'Einsätze', 'href': '/uas/einsaetze', 'active': _on_einsaetze},
+  {'label': 'Einstellungen', 'href': '/uas/geraete', 'active': not _on_einsaetze},
+]) }}
+{% if not _on_einsaetze %}
+{% include "uas/_einstellungen_tabs.html" %}
+{% endif %}
