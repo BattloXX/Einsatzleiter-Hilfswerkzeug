@@ -135,6 +135,7 @@ async def save_org_settings(
     gsl_lagemeldung_auto_auftrag_raw: str = Form(""),
     uas_module_enabled_raw: str = Form(""),
     fahrtenbuch_modul_aktiv_raw: str = Form(""),
+    atemschutz_pruefung_modul_aktiv_raw: str = Form(""),
     einsatzinfo_sms_enabled_raw: str = Form(""),
 ):
     is_sysadmin = has_role(user, "system_admin")
@@ -296,6 +297,21 @@ async def save_org_settings(
             org_id=effective_org_id,
             user_id=user.id,
             payload={"alt": old_fb, "neu": new_fb},
+            ip=request.client.host if request.client else None,
+        )
+
+    # Atemschutzgeräteprüfung-Modul: Org-Toggle
+    old_as_pruefung = org_s.atemschutz_pruefung_modul_aktiv
+    new_as_pruefung = atemschutz_pruefung_modul_aktiv_raw in ("1", "true", "on")
+    org_s.atemschutz_pruefung_modul_aktiv = new_as_pruefung
+    if old_as_pruefung != new_as_pruefung:
+        from app.core.audit import write_audit
+        write_audit(
+            db,
+            "atemschutz_pruefung.org_toggle",
+            org_id=effective_org_id,
+            user_id=user.id,
+            payload={"alt": old_as_pruefung, "neu": new_as_pruefung},
             ip=request.client.host if request.client else None,
         )
 

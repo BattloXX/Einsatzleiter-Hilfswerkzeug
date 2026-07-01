@@ -7,9 +7,13 @@
 <div class="page-header">
   <div>
     <h1>Atemschutz-Geräteprüfung – Einstellungen</h1>
-    <p class="page-header__sub">Modul aktivieren, Wart-Benachrichtigung bei Defekt</p>
+    <p class="page-header__sub">Wart-Benachrichtigung bei Defekt</p>
   </div>
 </div>
+
+<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem;">
+  Das Modul selbst wird unter <a href="/admin/settings">Organisation</a> aktiviert/deaktiviert.
+</p>
 
 {% if saved %}
 <div class="alert alert--success" style="margin-bottom:1rem;">Einstellungen gespeichert.</div>
@@ -17,20 +21,6 @@
 
 <form method="post" action="/admin/atemschutz-pruefung/einstellungen">
   <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-
-  <div class="card" style="margin-bottom:1.25rem;">
-    <div class="card__header" style="padding:12px 16px;border-bottom:1px solid var(--border);">
-      <strong>Modul</strong>
-    </div>
-    <div style="padding:1rem;">
-      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
-        <input type="checkbox" name="atemschutz_pruefung_modul_aktiv" value="on" style="width:20px;height:20px;"
-               {% if org and org.atemschutz_pruefung_modul_aktiv %}checked{% endif %}>
-        Atemschutzgeräteprüfung aktiv
-      </label>
-      <small class="form-hint">Schaltet Navigation, öffentlichen Link und Verwaltung frei.</small>
-    </div>
-  </div>
 
   <div class="card" style="margin-bottom:1.25rem;">
     <div class="card__header" style="padding:12px 16px;border-bottom:1px solid var(--border);">

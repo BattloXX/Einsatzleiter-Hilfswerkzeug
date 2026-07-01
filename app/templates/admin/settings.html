@@ -302,6 +302,21 @@
         </small>
       </div>
 
+      <h3 style="margin-top:1.5rem;margin-bottom:.75rem;font-size:1rem;font-weight:600">&#x1FAA6; Atemschutz-Geräteprüfung</h3>
+      {% set _as_pruefung_on = (org_settings.atemschutz_pruefung_modul_aktiv) if org_settings else false %}
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;">
+          <input type="checkbox" name="atemschutz_pruefung_modul_aktiv_raw" value="1"
+                 {% if _as_pruefung_on %}checked{% endif %}>
+          Atemschutzgeräteprüfung für diese Organisation aktivieren
+        </label>
+        <small class="form-hint">
+          Schaltet das Prüfprotokoll für Pressluftatmer (login-freier Tablet-Link, Geräte-Stammdaten,
+          Wart-Benachrichtigung bei Defekt) für diese Org ein. Admins sehen dann den Bereich
+          „Atemschutz-Geräteprüfung" im Verwaltungsmenü.
+        </small>
+      </div>
+
       <h3 style="margin-top:1.5rem;margin-bottom:.75rem;font-size:1rem;font-weight:600">&#x1F4F1; SMS</h3>
       {% set _sms_on = (org_settings.einsatzinfo_sms_enabled) if org_settings else false %}
       <div class="form-group">

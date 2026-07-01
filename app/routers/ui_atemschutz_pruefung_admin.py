@@ -98,7 +98,6 @@ async def einstellungen(request: Request, db: Session = Depends(get_db), user=De
 @router.post("/admin/atemschutz-pruefung/einstellungen")
 async def einstellungen_speichern(
     request: Request,
-    atemschutz_pruefung_modul_aktiv: bool = Form(False),
     atemschutz_wart_mail: str = Form(""),
     atemschutz_wart_teams_webhook_url: str = Form(""),
     db: Session = Depends(get_db),
@@ -107,7 +106,6 @@ async def einstellungen_speichern(
     org = db.query(OrgSettings).filter(OrgSettings.org_id == user.org_id).first()
     if not org:
         raise HTTPException(status_code=404)
-    org.atemschutz_pruefung_modul_aktiv = atemschutz_pruefung_modul_aktiv
     org.atemschutz_wart_mail = atemschutz_wart_mail.strip() or None
     org.atemschutz_wart_teams_webhook_url = atemschutz_wart_teams_webhook_url.strip() or None
     write_audit(db, action="atemschutz_pruefung.einstellungen_gespeichert", org_id=user.org_id, user_id=user.id)
