@@ -4,7 +4,7 @@ import enum
 from datetime import UTC, datetime
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.types import TypeDecorator
 
 from app.db import Base
@@ -535,6 +535,15 @@ class LageJournalEntry(Base):
     author_name:       Mapped[str | None] = mapped_column(String(120), nullable=True)
     user_id:           Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("user.id"), nullable=True)
+
+    @validates("body_html")
+    def _sanitize_body_html(self, key, value):
+        # Zentraler Choke-Point (SEC-9): body_html wird in mehreren Templates
+        # mit |safe gerendert. Sanitisierung am Modell statt pro Schreibpfad
+        # verhindert, dass ein zukünftiger vergessener sanitize_html()-Aufruf
+        # zu Stored-XSS führt.
+        from app.core.html_utils import sanitize_html
+        return sanitize_html(value)
 
     media: Mapped[list[LageJournalMedia]] = relationship(
         "LageJournalMedia", cascade="all, delete-orphan", lazy="select",

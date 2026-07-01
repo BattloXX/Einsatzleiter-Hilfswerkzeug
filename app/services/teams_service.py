@@ -6,9 +6,12 @@ import logging
 logger = logging.getLogger("einsatzleiter.teams")
 
 
-def post_teams_karte(webhook_url: str, titel: str, text: str, url: str | None = None) -> bool:
+async def post_teams_karte(webhook_url: str, titel: str, text: str, url: str | None = None) -> bool:
     """Sendet eine MessageCard an den angegebenen Teams-Webhook.
 
+    Async (httpx.AsyncClient) statt synchronem httpx.post — ein synchroner Aufruf
+    würde den Event-Loop bis zu 10 s blockieren und damit ALLE gleichzeitigen
+    Requests des Worker-Prozesses verzögern, nicht nur den aufrufenden (STAB-4).
     Fehler werden nur geloggt, nicht weitergegeben (non-blocking).
     Gibt True bei Erfolg zurück.
     """
@@ -33,7 +36,8 @@ def post_teams_karte(webhook_url: str, titel: str, text: str, url: str | None = 
         }]
 
     try:
-        resp = httpx.post(webhook_url, json=payload, timeout=10.0)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(webhook_url, json=payload)
         resp.raise_for_status()
         return True
     except Exception as exc:

@@ -1,6 +1,9 @@
 """Tests für Mehrfach-Disposition von Einheiten (resource_service + lagemeldung_service)."""
+from contextlib import contextmanager
+
 import pytest
 
+from app.core.tenant import set_tenant_context
 from app.db import Base
 from app.models.major_incident import (
     EinheitSiteDispatch,
@@ -13,6 +16,17 @@ from app.models.major_incident import (
 from app.services import resource_service as rs
 from app.services import lagemeldung_service as lm
 from tests.conftest import TestingSession, engine
+
+
+@contextmanager
+def _session():
+    """TestingSession mit gesetztem Tenant-Kontext (org_id=1, wie Test-Fixtures)."""
+    db = TestingSession()
+    set_tenant_context(db, 1)
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @pytest.fixture(autouse=True)
@@ -51,7 +65,7 @@ def _make_einheit(db, lage_id, label="RLF 1") -> LageEinheit:
 # ── dispatch_to_site ──────────────────────────────────────────────────────────
 
 def test_dispatch_to_site_creates_record():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e = _make_einheit(db, lage.id)
@@ -66,7 +80,7 @@ def test_dispatch_to_site_creates_record():
 
 
 def test_dispatch_duplicate_raises_value_error():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e = _make_einheit(db, lage.id)
@@ -80,7 +94,7 @@ def test_dispatch_duplicate_raises_value_error():
 # ── set_vor_ort_at_site ───────────────────────────────────────────────────────
 
 def test_set_vor_ort_no_conflict_sets_timestamps():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e = _make_einheit(db, lage.id)
@@ -95,7 +109,7 @@ def test_set_vor_ort_no_conflict_sets_timestamps():
 
 
 def test_set_vor_ort_returns_conflict_when_other_site_has_vor_ort():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site_a = _make_site(db, lage.id, "Stelle A")
         site_b = _make_site(db, lage.id, "Stelle B")
@@ -114,7 +128,7 @@ def test_set_vor_ort_returns_conflict_when_other_site_has_vor_ort():
 
 
 def test_set_vor_ort_no_conflict_when_other_site_only_alarmed():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site_a = _make_site(db, lage.id, "Stelle A")
         site_b = _make_site(db, lage.id, "Stelle B")
@@ -134,7 +148,7 @@ def test_set_vor_ort_no_conflict_when_other_site_only_alarmed():
 # ── resolve_vor_ort_conflict ──────────────────────────────────────────────────
 
 def test_resolve_conflict_withdraws_old_and_sets_new():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site_a = _make_site(db, lage.id, "Stelle A")
         site_b = _make_site(db, lage.id, "Stelle B")
@@ -159,7 +173,7 @@ def test_resolve_conflict_withdraws_old_and_sets_new():
 # ── withdraw_from_site ────────────────────────────────────────────────────────
 
 def test_withdraw_from_site_sets_withdrawn_at_and_clears_incident_site_id():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e = _make_einheit(db, lage.id)
@@ -177,7 +191,7 @@ def test_withdraw_from_site_sets_withdrawn_at_and_clears_incident_site_id():
 
 
 def test_withdraw_raises_when_no_active_dispatch():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e = _make_einheit(db, lage.id)
@@ -190,7 +204,7 @@ def test_withdraw_raises_when_no_active_dispatch():
 # ── get_active_dispatches_for_site ────────────────────────────────────────────
 
 def test_get_active_dispatches_excludes_withdrawn():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e1 = _make_einheit(db, lage.id, "E1")
@@ -209,7 +223,7 @@ def test_get_active_dispatches_excludes_withdrawn():
 # ── get_dispatch_counts_for_site ──────────────────────────────────────────────
 
 def test_get_dispatch_counts_for_site():
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e1 = _make_einheit(db, lage.id, "E1")
@@ -229,7 +243,7 @@ def test_get_dispatch_counts_for_site():
 
 def test_has_active_resource_only_alarmed_does_not_trigger():
     """Nur disponiert (vor_ort_at=NULL) → Timer läuft NICHT."""
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e = _make_einheit(db, lage.id)
@@ -243,7 +257,7 @@ def test_has_active_resource_only_alarmed_does_not_trigger():
 
 def test_has_active_resource_vor_ort_triggers():
     """Vor Ort gesetzt → Timer läuft."""
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e = _make_einheit(db, lage.id)
@@ -258,7 +272,7 @@ def test_has_active_resource_vor_ort_triggers():
 
 def test_has_active_resource_withdrawn_does_not_trigger():
     """Nach Abzug → kein aktiver Timer."""
-    with TestingSession() as db:
+    with _session() as db:
         lage = _make_lage(db)
         site = _make_site(db, lage.id)
         e = _make_einheit(db, lage.id)
