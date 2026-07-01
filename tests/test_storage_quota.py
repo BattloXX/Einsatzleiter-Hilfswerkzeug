@@ -156,3 +156,48 @@ def test_parallel_uploads_exactly_one_fails(db, orgs):
 
     assert results.count("ok") == 1
     assert results.count(413) == 1
+
+
+# ── reconcile_storage: KONS-1 Regressionstest ──────────────────────
+# reconcile_storage summierte bislang lage_journal_media und cross_marker_media
+# nicht mit -> nach einem Reconcile waere die Quota faelschlich niedriger als
+# tatsaechlich belegt (De-facto-Bypass, da danach wieder mehr hochgeladen werden
+# koennte als die konfigurierte Quota erlaubt).
+
+def test_reconcile_storage_includes_journal_and_cross_marker_media(db, orgs):
+    from app.models.major_incident import (
+        CrossMarkerMedia,
+        CrossSiteMarker,
+        IncidentSite,
+        LageJournalEntry,
+        LageJournalMedia,
+        MajorIncident,
+        SiteMedia,
+    )
+
+    org_a, _ = orgs
+    lage = MajorIncident(org_id=org_a.id, name="Reconcile-Testlage")
+    db.add(lage)
+    db.flush()
+
+    site = IncidentSite(major_incident_id=lage.id, org_id=org_a.id, bezeichnung="Stelle")
+    db.add(site)
+    db.flush()
+    db.add(SiteMedia(incident_site_id=site.id, stored_filename="a.jpg",
+                      original_filename="a.jpg", media_type="image", bytes=100, org_id=org_a.id))
+
+    entry = LageJournalEntry(major_incident_id=lage.id, text="Eintrag")
+    db.add(entry)
+    db.flush()
+    db.add(LageJournalMedia(journal_entry_id=entry.id, stored_filename="b.jpg",
+                             original_filename="b.jpg", media_type="image", bytes=200, org_id=org_a.id))
+
+    marker = CrossSiteMarker(major_incident_id=lage.id, title="Marker", org_id=org_a.id)
+    db.add(marker)
+    db.flush()
+    db.add(CrossMarkerMedia(marker_id=marker.id, stored_filename="c.jpg",
+                             original_filename="c.jpg", media_type="image", bytes=300, org_id=org_a.id))
+    db.commit()
+
+    total = reconcile_storage(db, org_a.id)
+    assert total == 600, "reconcile_storage zaehlt journal_media/cross_marker_media nicht mit (KONS-1-Regression)"

@@ -1,17 +1,18 @@
 """Bild-Upload für Einsatzstellen (SiteMedia), Einsatzjournal (LageJournalMedia)
-und CrossSiteMarker (CrossMarkerMedia)."""
+und CrossSiteMarker (CrossMarkerMedia).
+
+Bildverarbeitung (EXIF-Transpose, Resize, JPEG-Encode) nutzt dieselbe Pipeline
+wie media_service._process_image (KONS-1) — keine eigene Kopie mehr."""
 from __future__ import annotations
 
-import io
 import logging
-import uuid
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 
 from app.config import settings
 from app.models.major_incident import CrossMarkerMedia, LageJournalMedia, SiteMedia
-from app.services.media_service import IMAGE_MIMES, _detect_mime
+from app.services.media_service import IMAGE_MIMES, _detect_mime, _process_image
 
 logger = logging.getLogger("einsatzleiter.lage_media")
 
@@ -65,31 +66,11 @@ async def upload_site_media(
         mb = max_bytes // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"Datei zu groß (max {mb} MB)")
 
-    try:
-        from PIL import Image, ImageOps  # type: ignore
-    except ImportError:
-        raise HTTPException(status_code=500, detail="Pillow nicht verfügbar")
-
-    img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
-    if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")  # type: ignore[assignment]
-    img.thumbnail(
-        (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
-        Image.Resampling.LANCZOS,
-    )
-
     dest = _site_dir(site_id, org_id)
-    uid = uuid.uuid4().hex
-    main_fn = f"{uid}.jpg"
-    thumb_fn = f"{uid}_thumb.jpg"
+    main_p, _thumb_p, _w, _h, _mime = _process_image(data, dest)
+    main_fn = main_p.name
 
-    img.save(dest / main_fn, "JPEG", quality=85, optimize=True, progressive=True)
-    thumb = img.copy()
-    thumb.thumbnail((settings.MEDIA_THUMB_SIZE, settings.MEDIA_THUMB_SIZE), Image.Resampling.LANCZOS)
-    thumb.save(dest / thumb_fn, "JPEG", quality=80, optimize=True)
-
-    stored_bytes = (dest / main_fn).stat().st_size
+    stored_bytes = main_p.stat().st_size
     if db is not None and org_id is not None:
         from app.services.storage_service import reserve_storage
         reserve_storage(db, org_id, stored_bytes)
@@ -118,26 +99,11 @@ def copy_citizen_photo_to_site(
     if not citizen_photo_path.exists():
         return None
     try:
-        from PIL import Image, ImageOps  # type: ignore
-    except ImportError:
-        return None
-    try:
-        from app.config import settings as _s
         data = citizen_photo_path.read_bytes()
-        img = Image.open(io.BytesIO(data))
-        img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
-        if img.mode not in ("RGB", "L"):
-            img = img.convert("RGB")  # type: ignore[assignment]
-        img.thumbnail((_s.MEDIA_IMAGE_MAX_WIDTH, _s.MEDIA_IMAGE_MAX_HEIGHT), Image.Resampling.LANCZOS)
         dest = _site_dir(site_id, org_id)
-        uid = uuid.uuid4().hex
-        main_fn = f"{uid}.jpg"
-        thumb_fn = f"{uid}_thumb.jpg"
-        img.save(dest / main_fn, "JPEG", quality=85, optimize=True, progressive=True)
-        thumb = img.copy()
-        thumb.thumbnail((_s.MEDIA_THUMB_SIZE, _s.MEDIA_THUMB_SIZE), Image.Resampling.LANCZOS)
-        thumb.save(dest / thumb_fn, "JPEG", quality=80, optimize=True)
-        stored_bytes = (dest / main_fn).stat().st_size
+        main_p, _thumb_p, _w, _h, _mime = _process_image(data, dest)
+        main_fn = main_p.name
+        stored_bytes = main_p.stat().st_size
         if db is not None and org_id is not None:
             from app.services.storage_service import reserve_storage
             reserve_storage(db, org_id, stored_bytes)
@@ -202,31 +168,11 @@ async def upload_journal_media(
         mb = max_bytes // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"Datei zu groß (max {mb} MB)")
 
-    try:
-        from PIL import Image, ImageOps  # type: ignore
-    except ImportError:
-        raise HTTPException(status_code=500, detail="Pillow nicht verfügbar")
-
-    img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
-    if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")  # type: ignore[assignment]
-    img.thumbnail(
-        (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
-        Image.Resampling.LANCZOS,
-    )
-
     dest = _journal_dir(entry_id, org_id)
-    uid = uuid.uuid4().hex
-    main_fn = f"{uid}.jpg"
-    thumb_fn = f"{uid}_thumb.jpg"
+    main_p, _thumb_p, _w, _h, _mime = _process_image(data, dest)
+    main_fn = main_p.name
 
-    img.save(dest / main_fn, "JPEG", quality=85, optimize=True, progressive=True)
-    thumb = img.copy()
-    thumb.thumbnail((settings.MEDIA_THUMB_SIZE, settings.MEDIA_THUMB_SIZE), Image.Resampling.LANCZOS)
-    thumb.save(dest / thumb_fn, "JPEG", quality=80, optimize=True)
-
-    stored_bytes = (dest / main_fn).stat().st_size
+    stored_bytes = main_p.stat().st_size
     if db is not None and org_id is not None:
         from app.services.storage_service import reserve_storage
         reserve_storage(db, org_id, stored_bytes)
@@ -293,31 +239,11 @@ async def upload_cross_media(
         mb = max_bytes // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"Datei zu groß (max {mb} MB)")
 
-    try:
-        from PIL import Image, ImageOps  # type: ignore
-    except ImportError:
-        raise HTTPException(status_code=500, detail="Pillow nicht verfügbar")
-
-    img = Image.open(io.BytesIO(data))
-    img = ImageOps.exif_transpose(img)  # type: ignore[assignment]
-    if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")  # type: ignore[assignment]
-    img.thumbnail(
-        (settings.MEDIA_IMAGE_MAX_WIDTH, settings.MEDIA_IMAGE_MAX_HEIGHT),
-        Image.Resampling.LANCZOS,
-    )
-
     dest = _cross_media_dir(marker_id, org_id)
-    uid = uuid.uuid4().hex
-    main_fn = f"{uid}.jpg"
-    thumb_fn = f"{uid}_thumb.jpg"
+    main_p, _thumb_p, _w, _h, _mime = _process_image(data, dest)
+    main_fn = main_p.name
 
-    img.save(dest / main_fn, "JPEG", quality=85, optimize=True, progressive=True)
-    thumb = img.copy()
-    thumb.thumbnail((settings.MEDIA_THUMB_SIZE, settings.MEDIA_THUMB_SIZE), Image.Resampling.LANCZOS)
-    thumb.save(dest / thumb_fn, "JPEG", quality=80, optimize=True)
-
-    stored_bytes = (dest / main_fn).stat().st_size
+    stored_bytes = main_p.stat().st_size
     if db is not None and org_id is not None:
         from app.services.storage_service import reserve_storage
         reserve_storage(db, org_id, stored_bytes)
