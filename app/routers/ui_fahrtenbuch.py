@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,7 @@ from app.models.fahrtenbuch import FahrtErfassungsweg, FahrtKategorie, Fahrtzwec
 from app.models.incident import Incident
 from app.models.master import FireDept, Member, MemberQualification, OrgSettings, Qualification, VehicleMaster
 from app.services.fahrtenbuch_service import erstelle_fahrt, pruefe_doppelfahrt, pruefe_zaehler
-from app.services.schaden_service import melde_schaden
+from app.services.schaden_service import melde_schaden_background
 
 router = APIRouter()
 logger = logging.getLogger("einsatzleiter.fahrtenbuch")
@@ -82,6 +82,7 @@ async def fahrtenbuch_neu(
 @router.post("/fahrtenbuch", response_class=HTMLResponse)
 async def fahrtenbuch_speichern(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     user = _current_user(request)
@@ -101,10 +102,10 @@ async def fahrtenbuch_speichern(
 
     try:
         fahrt = erstelle_fahrt(daten, db)
+        db.commit()
         if fahrt.schaden_vorhanden:
             base_url = str(request.base_url).rstrip("/")
-            await melde_schaden(fahrt, db, base_url=base_url)
-        db.commit()
+            background_tasks.add_task(melde_schaden_background, fahrt.id, base_url)
     except HTTPException as exc:
         db.rollback()
         # Warnung-Flags: Formular erneut anzeigen mit Fehlermeldung

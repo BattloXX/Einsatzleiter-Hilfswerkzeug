@@ -12,6 +12,32 @@ from app.models.master import OrgSettings, VehicleMaster
 logger = logging.getLogger("einsatzleiter.schaden")
 
 
+async def melde_schaden_background(fahrt_id: int, base_url: str = "") -> None:
+    """Background-Variante von melde_schaden für BackgroundTasks (STAB-4).
+
+    Öffnet eine eigene DB-Session (unabhängig vom Request-Lifecycle, das der
+    Request-Handler bereits geschlossen hat, wenn BackgroundTasks laufen) und
+    committet selbst. Fehler werden geloggt, aber nie propagiert — ein
+    Mail-/Teams-Ausfall darf den Fahrtenbuch-Eintrag nicht beeinträchtigen.
+    """
+    from app.core.tenant import set_tenant_context
+    from app.db import SessionLocal
+
+    db = SessionLocal()
+    set_tenant_context(db, None)
+    try:
+        fahrt = db.get(Fahrt, fahrt_id)
+        if not fahrt:
+            return
+        await melde_schaden(fahrt, db, base_url=base_url)
+        db.commit()
+    except Exception:
+        logger.exception("Background-Schadenmeldung für Fahrt %d fehlgeschlagen", fahrt_id)
+        db.rollback()
+    finally:
+        db.close()
+
+
 def _empfaenger(fahrzeug: VehicleMaster, org: OrgSettings | None) -> tuple[str | None, str | None]:
     mail = fahrzeug.schaden_mail_override or (org.schaden_mail if org else None)
     teams = fahrzeug.schaden_teams_webhook_override or (org.schaden_teams_webhook_url if org else None)
@@ -76,7 +102,7 @@ async def melde_schaden(fahrt: Fahrt, db: Session, base_url: str = "") -> None:
     # Teams
     if teams_url:
         from app.services.teams_service import post_teams_karte
-        ok = post_teams_karte(teams_url, betreff, body_text, url=detail_url or None)
+        ok = await post_teams_karte(teams_url, betreff, body_text, url=detail_url or None)
         db.add(FahrtBenachrichtigung(
             fahrt_id=fahrt.id,
             org_id=fahrt.org_id,
