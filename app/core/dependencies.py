@@ -60,6 +60,15 @@ def _resolve_current_org(
 
     user = getattr(request.state, "user", None)
     if user is None:
+        # SEC-11: Anonyme Requests laufen UNGEFILTERT (org_id=None = kein
+        # Tenant-Filter, identisch zum system_admin-Modus). Der Tenant-Listener
+        # (app/core/tenant.py) bietet auf dieser Fläche KEINEN Schutz — jeder
+        # unauthentifizierte Endpunkt (Public-Token-Routen, QR-Flows, API-Key-
+        # Endpunkte ohne Session-Cookie) MUSS selbst scopen, z. B. über einen
+        # expliziten .filter(...==token.org_id) oder eine andere Beweiskette
+        # (Token/PIN/Signatur), bevor Daten zurückgegeben werden. Diese
+        # Dependency selbst kann das nicht generisch erzwingen, da sie den
+        # fachlichen Scoping-Mechanismus des jeweiligen Endpunkts nicht kennt.
         set_tenant_context(db, None)
         return None
 

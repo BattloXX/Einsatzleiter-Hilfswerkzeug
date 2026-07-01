@@ -192,4 +192,11 @@ def validate_startup_secrets() -> list[str]:
             "COOKIE_SECURE ist False – in Produktion (HTTPS) müssen Session-/CSRF-Cookies "
             "Secure sein. Setze COOKIE_SECURE=true in der .env (erfordert HTTPS via nginx)."
         )
+    if not settings.FERNET_KEY:
+        errors.append(
+            "FERNET_KEY ist nicht gesetzt – der Datenverschlüsselungs-Key wird sonst aus "
+            "SECRET_KEY abgeleitet (SHA256), wodurch eine SECRET_KEY-Rotation gespeicherte "
+            "SSO-Client-Secrets/KI-API-Keys unentschlüsselbar macht. Generieren: "
+            "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
     return errors

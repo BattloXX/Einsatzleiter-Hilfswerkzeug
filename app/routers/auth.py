@@ -1,3 +1,4 @@
+import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, Request, Response
@@ -22,6 +23,21 @@ from app.models.incident import Incident, IncidentToken
 from app.models.user import DeviceToken, User
 
 router = APIRouter()
+
+# SEC-10: Timing-Seitenkanal (Enumeration) — für nicht existierende/inaktive
+# User kehrte login() bislang VOR dem bcrypt-Vergleich zurück, während
+# existierende User bcrypt (~100ms) durchlaufen. Ein Dummy-Hash gleicher
+# Kostenstufe gleicht die Antwortzeit an. Lazy statt Modul-Import-Zeit, damit
+# hash_password() (bcrypt) nicht bei jedem App-Start unnötig läuft.
+_dummy_password_hash: str | None = None
+
+
+def _get_dummy_password_hash() -> str:
+    global _dummy_password_hash
+    if _dummy_password_hash is None:
+        from app.core.security import hash_password
+        _dummy_password_hash = hash_password(secrets.token_urlsafe(32))
+    return _dummy_password_hash
 
 
 def _set_session_cookie(response: Response, token: str) -> None:
@@ -62,6 +78,10 @@ async def login(
 
     user = db.query(User).filter(User.username == username).first()
     if not user or not user.active:
+        # SEC-10: bcrypt-Dummy-Vergleich durchlaufen, damit die Antwortzeit
+        # nicht von der Antwortzeit bei existierendem User unterscheidbar ist
+        # (verhindert Username-Enumeration über Timing).
+        verify_password(password, _get_dummy_password_hash())
         return templates.TemplateResponse(
             request, "login.html", {"error": generic_error},
             status_code=401,
