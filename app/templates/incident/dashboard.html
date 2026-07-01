@@ -772,6 +772,21 @@
         <div class="hdr-block__sub">Upd. in <span id="refreshCountdown">30</span>s</div>
       </div>
 
+      {% if dash_weather %}
+      <div class="hdr-block" style="min-width:9.5rem;">
+        <div class="hdr-block__label">Wetter</div>
+        <div class="hdr-block__value">
+          {% if dash_weather.temperature_c is not none %}🌡 {{ '%.0f'|format(dash_weather.temperature_c) }}&deg;C{% else %}–{% endif %}
+        </div>
+        {% if dash_weather.wind_speed_ms is not none %}
+        <div class="hdr-block__sub">💨 {{ '%.0f'|format(dash_weather.wind_speed_ms) }} m/s {{ dash_weather.wind_dir }}</div>
+        {% endif %}
+        <div class="hdr-block__sub">
+          {% if dash_weather.rain_label %}🌧 {{ dash_weather.rain_label }}{% else %}☀ kein Regen{% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       {% if qr_img %}
       <div class="hdr-qr">
         <a href="/einsatz/{{ incident.id }}/qr" target="_blank" rel="noopener" title="QR-Code vergrößern">

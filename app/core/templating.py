@@ -68,6 +68,7 @@ _ACTION_LABELS: dict[str, str] = {
     "message.created":          "Meldung angelegt",
     "message.updated":          "Meldung bearbeitet",
     "message.status_set":       "Meldungs-Status geändert",
+    "message.assigned":         "Meldung einer Einheit zugeteilt",
     "person.created":           "Person erfasst",
     "person.updated":           "Person bearbeitet",
     "person.status_set":        "Personen-Status geändert",

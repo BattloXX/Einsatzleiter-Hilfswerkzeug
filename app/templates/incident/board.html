@@ -695,6 +695,7 @@
         <input type="hidden" name="commander_member_id" :value="gkMemberId">
         <input type="hidden" name="commander_free_text" :value="gkFreeText">
         <input type="hidden" name="note" :value="noteText">
+        <input type="hidden" name="column_id" class="vehicle-wizard-column-id" value="">
         <div style="text-align:right;">
           <button type="submit" class="btn btn--primary">Einheit hinzufügen</button>
         </div>
@@ -710,6 +711,7 @@
           <input type="hidden" name="commander_member_id" :value="gkMemberId">
           <input type="hidden" name="commander_free_text" :value="gkFreeText">
           <input type="hidden" name="note" :value="noteText">
+          <input type="hidden" name="column_id" class="vehicle-wizard-column-id" value="">
           <div class="form-row" style="display:flex; gap:8px;">
             <div class="form-group" style="flex:1;">
               <label class="form-label">FUNKRUFNAME / KÜRZEL</label>
@@ -1050,6 +1052,15 @@ function promptSectionLeaderFreitext(colId) {
   }).then(function(r) {
     if (r.ok) { location.reload(); } else { _colToast('Abschnittsleiter konnte nicht gesetzt werden.', 'warn'); }
   });
+}
+
+function openVehicleWizard(colId) {
+  // Öffnet den Einheiten-Wizard mit der Ziel-Spalte, aus der der Button geklickt wurde,
+  // damit neu hinzugefügte Einheiten direkt in diesem Abschnitt landen (nicht immer "Disponiert").
+  document.querySelectorAll('.vehicle-wizard-column-id').forEach(function(el) {
+    el.value = colId || '';
+  });
+  document.getElementById('vehicleWizard').showModal();
 }
 
 function openQuickAddTask(colId) {

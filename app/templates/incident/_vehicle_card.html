@@ -78,10 +78,12 @@
       {% endif %}
       {% endfor %}
       {% for p in vehicle.assigned_persons %}
+      {% if p.status == 'gefunden' %}
       <div class="assigned-person" data-uid="{{ p.id }}" data-kind="person" title="Person">
         <span style="font-size:.65rem;opacity:.65;">👤</span>
         <span>{{ p.name or p.person_group or 'Person' }}{% if p.location %} · {{ p.location }}{% endif %}</span>
       </div>
+      {% endif %}
       {% endfor %}
     </div>
   </div>

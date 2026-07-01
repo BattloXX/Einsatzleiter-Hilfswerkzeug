@@ -329,6 +329,13 @@ body.mobile-menu-open { overflow: hidden; }
 .assigned-task { display: flex; align-items: center; gap: 6px; font-size: .82rem; padding: 2px 0; }
 .assigned-task--done { text-decoration: line-through; color: var(--text-muted); }
 .assigned-task--cancelled { opacity: .5; text-decoration: line-through; }
+.assigned-msg, .assigned-person {
+  display: flex; align-items: center; gap: 6px; font-size: .82rem; padding: 2px 0;
+  overflow: hidden;
+}
+.assigned-msg span:last-child, .assigned-person span:last-child {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .task-check { accent-color: var(--green); width: 16px; height: 16px; cursor: pointer; }
 .card--vehicle { --org-color: var(--red); }
 .card--task    { --org-color: #3a7bd5; }

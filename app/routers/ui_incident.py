@@ -747,7 +747,7 @@ def incident_board(incident_id: int, request: Request, db: Session = Depends(get
 
 
 @router.get("/einsatz/{incident_id}/dashboard", response_class=HTMLResponse)
-def incident_dashboard(
+async def incident_dashboard(
     incident_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -876,6 +876,48 @@ def incident_dashboard(
         if col.column_kind in ("vehicles", "neighbor")
     ]
 
+    # Wetter-Kompaktinfo im Header: Temperatur, Wind, Regenvorschau für den Einsatzort.
+    # Gleiche Standort-Ermittlung wie das Wetter-Panel am Board (Einsatzkoordinaten,
+    # sonst Org-Fallback-Standort). Fail-safe: fehlende Wetterdaten blenden den Block
+    # nur aus, blockieren das Dashboard aber nie.
+    dash_weather = None
+    try:
+        import asyncio
+
+        from app.routers.ui_weather import _org_weather_enabled, _peak_label, _wind_dir_label
+        from app.services import weather_service
+
+        org_id = incident.primary_org_id
+        if _org_weather_enabled(org_id, db):
+            lat, lng = incident.lat, incident.lng
+            if (lat is None or lng is None) and org_id:
+                org = db.get(FireDept, org_id)
+                if org and org.fallback_lat and org.fallback_lng:
+                    lat, lng = org.fallback_lat, org.fallback_lng
+            if lat is not None and lng is not None:
+                current, nowcast = await asyncio.gather(
+                    weather_service.get_current(lat, lng, org_id=org_id),
+                    weather_service.get_nowcast(lat, lng),
+                    return_exceptions=True,
+                )
+                current = None if isinstance(current, Exception) else current
+                nowcast = None if isinstance(nowcast, Exception) else nowcast
+                if current or nowcast:
+                    rain_label = None
+                    if nowcast and nowcast.peak_mm >= 0.05:
+                        peak = _peak_label(nowcast)
+                        rain_label = f"{nowcast.peak_mm:.1f} mm{(' ' + peak) if peak else ''}"
+                    dash_weather = {
+                        "temperature_c": current.temperature_c if current else None,
+                        "wind_speed_ms": current.wind_speed_ms if current else None,
+                        "gust_speed_ms": current.gust_speed_ms if current else None,
+                        "wind_dir": _wind_dir_label(current.wind_direction_deg if current else None),
+                        "rain_label": rain_label,
+                    }
+    except Exception:
+        _log.warning("Dashboard-Wetter konnte nicht geladen werden", exc_info=True)
+        dash_weather = None
+
     return templates.TemplateResponse(
         request,
         "incident/dashboard.html",
@@ -897,6 +939,7 @@ def incident_dashboard(
             "qr_url": qr_url_str,
             "uas_einsatz": uas_einsatz,
             "uas_flug_count": uas_flug_count,
+            "dash_weather": dash_weather,
         },
     )
 
@@ -1222,6 +1265,7 @@ async def attach_vehicle_to_incident(
     commander_member_id: int | None = Form(None),
     commander_free_text: str = Form(""),
     note: str = Form(""),
+    column_id: int | None = Form(None),
     db: Session = Depends(get_db),
     _=Depends(require_role("incident_leader", "admin", "recorder")),
 ):
@@ -1265,7 +1309,17 @@ async def attach_vehicle_to_incident(
     if existing:
         return RedirectResponse(f"/einsatz/{incident_id}", status_code=303)
 
-    target_col = next((c for c in incident.columns if c.code == "dispatched"), None)
+    # Wurde die Einheit über den "+ Einheit"-Button einer konkreten Spalte (Abschnitt) angelegt,
+    # landet sie direkt dort statt immer in "Disponiert".
+    target_col = None
+    if column_id:
+        target_col = next(
+            (c for c in incident.columns
+             if c.id == column_id and c.column_kind in ("vehicles", "neighbor")),
+            None,
+        )
+    if target_col is None:
+        target_col = next((c for c in incident.columns if c.code == "dispatched"), None)
     if target_col is None and incident.columns:
         target_col = incident.columns[0]
     if target_col is None:
@@ -2226,6 +2280,42 @@ async def update_message_endpoint(
     )
     db.commit()
     await manager.broadcast(incident_id, {"type": "message_updated", "reload_board": True})
+    incident = _incident_or_404(incident_id, db)
+    can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
+    can_note = has_role(request.state.user, "incident_leader", "admin", "recorder", "readonly")
+    entity_logs = _entity_logs(db, incident_id, "message", message_id)
+    card_journal = _card_journal(db, incident_id, "message", message_id)
+    return templates.TemplateResponse(request, "incident/_message_modal.html", {
+        "user": request.state.user, "incident": incident, "msg": msg, "can_edit": can_edit, "can_note": can_note,
+        "entity_logs": entity_logs, "card_journal": card_journal,
+    })
+
+
+@router.post("/einsatz/{incident_id}/meldung/{message_id}/zuweisen", response_class=HTMLResponse)
+async def assign_message(
+    incident_id: int, message_id: int, request: Request,
+    vehicle_id: int | None = Form(None),
+    db: Session = Depends(get_db),
+    _=Depends(require_role("incident_leader", "admin", "recorder")),
+):
+    msg = db.get(Message, message_id)
+    if not msg or msg.incident_id != incident_id:
+        return Response(status_code=404)
+    before = {"vehicle_id": msg.vehicle_id}
+    if vehicle_id:
+        vehicle = db.get(IncidentVehicle, vehicle_id)
+        if vehicle and vehicle.incident_id == incident_id:
+            msg.vehicle_id = vehicle.id
+    else:
+        msg.vehicle_id = None
+    from app.core.audit import write_incident_change
+    write_incident_change(
+        db, incident_id, "message.assigned", "message", msg.id,
+        before=before, after={"vehicle_id": msg.vehicle_id},
+        user_id=request.state.user.id,
+    )
+    db.commit()
+    await manager.broadcast(incident_id, {"type": "message_assigned", "reload_board": True})
     incident = _incident_or_404(incident_id, db)
     can_edit = has_role(request.state.user, "incident_leader", "admin", "recorder")
     can_note = has_role(request.state.user, "incident_leader", "admin", "recorder", "readonly")

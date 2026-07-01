@@ -46,6 +46,27 @@
                 placeholder="Ergänzende Beschreibung, Sachstand, Auftrag …">{{ msg.detail or '' }}</textarea>
     </div>
   </form>
+
+  <!-- Fahrzeug-Zuweisung -->
+  <div style="margin-top:8px;">
+    <form hx-post="/einsatz/{{ incident.id }}/meldung/{{ msg.id }}/zuweisen"
+          hx-target="#cardDetailBody"
+          hx-swap="innerHTML">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select name="vehicle_id" class="form-select" style="flex:1">
+          <option value="">– keine Einheit –</option>
+          {% for v in incident.vehicles %}
+          {% if v.removed_at is none %}
+          <option value="{{ v.id }}" {% if msg.vehicle_id == v.id %}selected{% endif %}>
+            {{ v.vehicle_master.display_label }} – {{ v.vehicle_master.dept.name }}
+          </option>
+          {% endif %}
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn--secondary">Zuweisen</button>
+      </div>
+    </form>
+  </div>
   {% else %}
   <div class="form-group">
     <p class="modal__subtitle">Überschrift</p>
