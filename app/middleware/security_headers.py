@@ -34,13 +34,13 @@ _CSP_BASE = (
 _CSP_DEFAULT = _CSP_BASE + "; frame-ancestors 'none'"
 # Fuer Routen, die per <iframe>/<video> im eigenen UI eingebettet werden:
 _CSP_SAMEORIGIN_FRAME = _CSP_BASE + "; frame-ancestors 'self'"
-# Wetter-Infoscreen: standalone FullHD-Seite mit Tailwind CDN + Google Fonts
+# Wetter-Infoscreen: standalone FullHD-Seite mit Tailwind CDN (Fonts sind lokal, siehe fonts.css)
 _CSP_INFOSCREEN = (
     "default-src 'self'; "
     "img-src 'self' data: blob:; "
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "style-src 'self' 'unsafe-inline'; "
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com; "
-    "font-src 'self' data: https://fonts.gstatic.com; "
+    "font-src 'self' data:; "
     "connect-src 'self'; "
     "frame-src https://embed.windy.com; "
     "object-src 'none'; "

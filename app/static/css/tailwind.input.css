@@ -13,10 +13,11 @@
  *   automatisch in das gebuendelte app.css aufgenommen.
  * ============================================================ */
 
-/* ── Google Fonts: Hanken Grotesk (UI) + JetBrains Mono (Code/Codes) ── */
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
-/* Material Symbols Outlined fuer Icon-Familie analog zur Stitch-Vorlage */
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block');
+/* ── Fonts: Hanken Grotesk (UI) + JetBrains Mono (Code/Codes) ──
+   Lokal gehostet statt fonts.googleapis.com (503-Ausfaelle beobachtet
+   2026-07-01) -- siehe fonts.css. Material Symbols wurde entfernt: in
+   keinem Template referenziert (nur Emoji/Unicode-Icons im Einsatz). ── */
+@import url('fonts.css');
 
 @tailwind base;
 @tailwind components;
