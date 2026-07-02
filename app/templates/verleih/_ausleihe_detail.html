@@ -50,12 +50,12 @@
     </div>
 
     <!-- PIN -->
-    <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+    <div class="vl-panel" style="border-color:rgba(242,176,46,.35);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div>
-          <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:2px;">PIN</div>
+          <div class="vl-field-label" style="color:var(--yellow);margin-bottom:4px;">🔒 PIN</div>
           {% if a.pin %}
-          <span style="font-size:1.4rem;font-family:JetBrains Mono,monospace;font-weight:700;letter-spacing:.2em;">{{ a.pin }}</span>
+          <span style="font-size:1.4rem;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.2em;color:var(--yellow);">{{ a.pin }}</span>
           {% else %}
           <span style="color:var(--text-muted);font-size:.85rem;">Kein PIN</span>
           {% endif %}
@@ -104,7 +104,7 @@
       {% endif %}
 
       {% for p in a.positionen %}
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:5px;gap:8px;">
+      <div class="vl-panel" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;margin-bottom:5px;gap:8px;">
         <div style="flex:1;min-width:0;">
           {% if p.artikel_nr %}<code style="font-size:.72rem;color:var(--text-muted);margin-right:6px;">{{ p.artikel_nr }}</code>{% endif %}
           <span style="{% if p.status.value == 'zurueckgegeben' %}text-decoration:line-through;opacity:.5;{% endif %}">{{ p.bezeichnung }}</span>
@@ -351,9 +351,10 @@
 </div>
 
 <style>
-.status-chip { font-size:.7rem;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap;display:inline-block; }
-.status-chip--ausgeliehen { background:rgba(251,191,36,.2);color:#fbbf24; }
-.status-chip--zurueck     { background:rgba(34,197,94,.15);color:#4ade80; }
+.status-chip { font-size:.64rem;padding:2px 9px;border-radius:999px;font-weight:700;white-space:nowrap;display:inline-block;
+  text-transform:uppercase;letter-spacing:.03em; }
+.status-chip--ausgeliehen { background:rgba(242,176,46,.18);color:var(--yellow); }
+.status-chip--zurueck     { background:rgba(24,169,87,.15);color:var(--green); }
 </style>
 
 <script>

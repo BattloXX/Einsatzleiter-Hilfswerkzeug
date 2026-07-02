@@ -3,41 +3,56 @@
 
 {% block head_extra %}
 <style>
-.mel-wrap { padding: 14px 16px; max-width: 960px; margin: 0 auto; }
+.mel-wrap { padding: 16px; max-width: 1000px; margin: 0 auto; }
 
 .portal-box {
-  background: var(--surface-elevated, #1e2130);
-  border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px 14px; margin-bottom: 14px;
+  background: var(--surface-mid);
+  border: 1px solid var(--border); border-radius: var(--radius-lg, .75rem);
+  padding: 14px 16px; margin-bottom: 16px;
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
+.portal-box__label {
+  font-size: .66rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;
+  text-transform: uppercase; letter-spacing: .05em; font-family: 'JetBrains Mono', monospace;
+}
 .portal-url {
-  flex: 1; font-size: .8rem; font-family: monospace;
+  flex: 1; font-size: .8rem; font-family: 'JetBrains Mono', monospace;
   color: #93c5fd; word-break: break-all;
 }
-.portal-box__hint { font-size: .75rem; color: var(--text-muted); }
+.portal-box__hint { font-size: .78rem; color: var(--text-muted); }
 
 .mel-card {
-  background: var(--surface-elevated, #1e2130);
-  border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px 14px; margin-bottom: 10px;
+  background: var(--surface-mid);
+  border: 1px solid var(--border); border-left: 3px solid var(--border);
+  border-radius: var(--radius-lg, .75rem);
+  padding: 14px 16px; margin-bottom: 12px;
+  transition: transform .12s, box-shadow .12s;
 }
-.mel-card--new      { border-left: 3px solid #fbbf24; }
-.mel-card--accepted { border-left: 3px solid #4ade80; opacity: .75; }
-.mel-card--rejected { border-left: 3px solid #f87171; opacity: .55; }
+.mel-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.mel-card--new      { border-left-color: var(--yellow); }
+.mel-card--accepted { border-left-color: var(--green); opacity: .8; }
+.mel-card--rejected { border-left-color: var(--red); opacity: .55; }
 
-.mel-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.mel-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 9px; }
 .mel-status {
-  font-size: .65rem; font-weight: 700; padding: 2px 7px; border-radius: 3px;
+  font-size: .62rem; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: .04em;
 }
-.mel-status--new      { background: rgba(251,191,36,.2); color: #fbbf24; }
-.mel-status--accepted { background: rgba(74,222,128,.2); color: #4ade80; }
-.mel-status--rejected { background: rgba(248,113,113,.2); color: #f87171; }
+.mel-status--new      { background: rgba(242,176,46,.18); color: var(--yellow); }
+.mel-status--accepted { background: rgba(24,169,87,.18); color: var(--green); }
+.mel-status--rejected { background: rgba(212,34,37,.18); color: #f87171; }
 
-.mel-body { font-size: .85rem; line-height: 1.5; margin-bottom: 8px; }
-.mel-meta { font-size: .75rem; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
-.mel-actions { display: flex; gap: 6px; margin-top: 10px; }
-.mel-photo { max-height: 100px; border-radius: 4px; cursor: pointer; margin-top: 8px; }
+.mel-body { font-size: .85rem; line-height: 1.55; margin-bottom: 9px; }
+.mel-meta { font-size: .72rem; color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace; }
+.mel-actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.mel-photo { max-height: 110px; border-radius: var(--radius-md, .5rem); cursor: pointer; margin-top: 8px;
+  border: 1px solid var(--border); }
+
+/* Modal (QR) */
+.mel-modal { background: var(--surface-mid); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); padding: 16px; text-align: center; }
+.mel-modal::backdrop { background: rgba(0,0,0,.6); }
 </style>
 {% endblock %}
 
@@ -48,16 +63,16 @@
   <div class="portal-box">
     {% if portal_url %}
     <div>
-      <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">PORTAL-LINK (für Bürger)</div>
+      <div class="portal-box__label">Portal-Link (für Bürger)</div>
       <div class="portal-url">{{ portal_url }}</div>
     </div>
     <button onclick="navigator.clipboard.writeText('{{ portal_url }}').then(()=>this.textContent='✓ Kopiert')"
             class="btn btn--ghost btn--sm">📋 Kopieren</button>
     <button class="btn btn--ghost btn--sm"
             onclick="document.getElementById('qr-modal').showModal()">QR</button>
-    <dialog id="qr-modal" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;">
+    <dialog id="qr-modal" class="mel-modal">
       <p style="font-size:.78rem;margin-bottom:10px;color:var(--text-muted);">QR-Code für Bürgerportal</p>
-      <img src="/lage/{{ lage.id }}/meldungen/qr" alt="QR Code" style="width:200px;height:200px;background:#fff;border-radius:4px;">
+      <img src="/lage/{{ lage.id }}/meldungen/qr" alt="QR Code" style="width:200px;height:200px;background:#fff;border-radius:var(--radius-md, .5rem);">
       <br><button onclick="this.closest('dialog').close()" class="btn btn--ghost btn--sm" style="margin-top:10px;">Schließen</button>
     </dialog>
     {% else %}
@@ -89,14 +104,14 @@
       <span style="font-size:.78rem;color:var(--text-muted);">
         {{ r.reporter_contact }}
         {% if r.phone_verified %}
-        <span title="Telefonnummer per SMS verifiziert" style="color:#4ade80;font-size:.85rem;">✓</span>
+        <span title="Telefonnummer per SMS verifiziert" style="color:var(--green);font-size:.85rem;">✓</span>
         {% endif %}
       </span>
       {% endif %}
     </div>
 
     {% if r.ort or r.strasse %}
-    <div style="font-size:.78rem;color:#93c5fd;margin-bottom:6px;">
+    <div style="font-size:.78rem;color:#93c5fd;margin-bottom:8px;">
       📍 {% if r.strasse %}{{ r.strasse }}{% if r.ort %}, {% endif %}{% endif %}{{ r.ort or '' }}
     </div>
     {% endif %}

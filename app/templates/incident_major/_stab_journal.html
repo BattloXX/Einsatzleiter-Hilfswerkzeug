@@ -6,54 +6,58 @@
 {% else %}
 
 {# ── Chronologische Tabelle ──────────────────────────────────────────────── #}
-<div style="overflow-x:auto;margin-bottom:20px;">
-  <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
-    <thead>
-      <tr style="border-bottom:1px solid var(--border);color:var(--text-muted);font-size:.72rem;">
-        <th style="text-align:left;padding:4px 8px;">Funktion</th>
-        <th style="text-align:left;padding:4px 8px;">Person</th>
-        <th style="text-align:left;padding:4px 8px;">Von</th>
-        <th style="text-align:left;padding:4px 8px;">Bis</th>
-        <th style="text-align:left;padding:4px 8px;">Dauer</th>
-        <th style="text-align:left;padding:4px 8px;">Abgelöst von</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for a in assignments | sort(attribute='start_at') %}
-      {% set role = roles.get(a.role_id) %}
-      <tr style="border-bottom:1px solid rgba(255,255,255,.04);">
-        <td style="padding:5px 8px;font-weight:600;white-space:nowrap;">
-          {% if role %}{{ role.code }} – {{ role.name }}{% else %}?{% endif %}
-        </td>
-        <td style="padding:5px 8px;">{{ a.display_name }}</td>
-        <td style="padding:5px 8px;white-space:nowrap;font-family:var(--font-mono,monospace);font-size:.72rem;">
-          {{ a.start_at|local_datetime }}
-        </td>
-        <td style="padding:5px 8px;white-space:nowrap;font-family:var(--font-mono,monospace);font-size:.72rem;">
-          {% if a.end_at %}{{ a.end_at|local_datetime }}{% else %}<span style="color:#4ade80;">aktiv</span>{% endif %}
-        </td>
-        <td style="padding:5px 8px;font-family:var(--font-mono,monospace);font-size:.72rem;color:var(--text-muted);">
-          {% if a.end_at %}
-            {% set secs = (a.end_at - a.start_at).total_seconds() | int %}
-            {{ '%d:%02d'|format(secs // 3600, (secs % 3600) // 60) }}h
-          {% else %}—{% endif %}
-        </td>
-        <td style="padding:5px 8px;font-size:.72rem;color:var(--text-muted);">
-          {% set succ = successors.get(a.id) %}
-          {% if succ %}{{ succ.display_name }}{% else %}—{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="pj-panel">
+  <div class="pj-panel__head">Aktive Stabskräfte</div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);color:var(--text-muted);font-size:.66rem;
+                   text-transform:uppercase;letter-spacing:.05em;font-family:'JetBrains Mono',monospace;">
+          <th style="text-align:left;padding:8px 12px;">Funktion</th>
+          <th style="text-align:left;padding:8px 12px;">Person</th>
+          <th style="text-align:left;padding:8px 12px;">Von</th>
+          <th style="text-align:left;padding:8px 12px;">Bis</th>
+          <th style="text-align:left;padding:8px 12px;">Dauer</th>
+          <th style="text-align:left;padding:8px 12px;">Abgelöst von</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in assignments | sort(attribute='start_at') %}
+        {% set role = roles.get(a.role_id) %}
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px 12px;font-weight:700;white-space:nowrap;">
+            {% if role %}{{ role.code }} – {{ role.name }}{% else %}?{% endif %}
+          </td>
+          <td style="padding:8px 12px;">{{ a.display_name }}</td>
+          <td style="padding:8px 12px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-muted);">
+            {{ a.start_at|local_datetime }}
+          </td>
+          <td style="padding:8px 12px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-muted);">
+            {% if a.end_at %}{{ a.end_at|local_datetime }}{% else %}<span class="pj-active">aktiv</span>{% endif %}
+          </td>
+          <td style="padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-muted);">
+            {% if a.end_at %}
+              {% set secs = (a.end_at - a.start_at).total_seconds() | int %}
+              {{ '%d:%02d'|format(secs // 3600, (secs % 3600) // 60) }}h
+            {% else %}—{% endif %}
+          </td>
+          <td style="padding:8px 12px;font-size:.72rem;color:var(--text-muted);">
+            {% set succ = successors.get(a.id) %}
+            {% if succ %}{{ succ.display_name }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 {# ── Zeitstrahl je Funktion ───────────────────────────────────────────────── #}
 {% if assignments %}
 {# Zeitstrahl-Spanne wird clientseitig via JS berechnet #}
 
-<div class="timeline-wrap">
-  <div class="timeline-header">ZEITSTRAHL JE FUNKTION</div>
+<div class="dash-section" style="--dash-accent:var(--blue);margin-top:0;">
+  <div class="timeline-header">📊 Zeitstrahl je Funktion</div>
 
   {% set seen = namespace(ids=[]) %}
   {% for a in assignments | sort(attribute='role_id') %}
@@ -67,9 +71,8 @@
     <div class="tl-track" id="tl-{{ a.role_id }}">
       {% for ra in role_assignments %}
       <div title="{{ ra.display_name }} — {{ ra.start_at|local_datetime }}{% if ra.end_at %} bis {{ ra.end_at|local_datetime }}{% endif %}"
-           style="position:absolute;top:0;height:100%;border-radius:4px;
-             background:{% if ra.end_at is none %}rgba(34,197,94,.6){% else %}rgba(147,197,253,.4){% endif %};
-             font-size:.6rem;display:flex;align-items:center;padding:0 3px;overflow:hidden;white-space:nowrap;color:rgba(255,255,255,.9);"
+           class="tl-bar {% if ra.end_at is none %}tl-bar--current{% else %}tl-bar--ended{% endif %}"
+           style="background:{% if ra.end_at is none %}var(--green){% else %}var(--blue){% endif %};"
            data-start="{{ ra.start_at.isoformat() }}"
            data-end="{{ ra.end_at.isoformat() if ra.end_at else '' }}"
            data-name="{{ ra.display_name }}">

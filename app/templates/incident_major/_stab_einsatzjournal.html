@@ -1,8 +1,8 @@
 {# HTMX-Partial: Einsatzjournal-Liste (ohne Formular, nur Einträge) #}
 {% set cat_color = {'entscheidung':'#a78bfa','anweisung':'#fb923c','meldung':'#60a5fa','sonstiges':'#6b7280','lagemeldung':'#34d399'} %}
 {% for entry in journal_entries %}
-<div class="journal-row" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);align-items:flex-start;">
-  <div style="flex-shrink:0;width:90px;font-size:.7rem;font-family:var(--font-mono,monospace);color:var(--text-muted);padding-top:2px;">
+<div class="journal-row" style="--jr-accent:{{ cat_color.get(entry.category,'#6b7280') }};">
+  <div style="flex-shrink:0;width:90px;font-size:.7rem;font-family:'JetBrains Mono',monospace;color:var(--text-muted);padding-top:2px;">
     {{ entry.ts | local_datetime }}
   </div>
   <span style="flex-shrink:0;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:8px;

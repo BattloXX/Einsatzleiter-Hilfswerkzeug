@@ -2,6 +2,7 @@
 {# Kontext: comms, sites_by_id, lage, can_edit, open_requests #}
 
 {% if comms %}
+<div class="fj-panel">
 <table class="fj-table">
   <thead>
     <tr>
@@ -30,7 +31,7 @@
       </td>
       <td style="color:var(--text-muted);white-space:nowrap;">{{ c.channel or '–' }}</td>
       <td style="white-space:nowrap;">{{ c.partner or '–' }}</td>
-      <td class="fj-msg">
+      <td class="fj-msg{% if c.is_request %} fj-msg--auftrag{% endif %}">
         {{ c.message }}
         {% if c.is_request %}<span class="fj-req-badge">Auftrag</span>{% endif %}
         {% if is_auto_lm and can_note %}
@@ -83,8 +84,9 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% else %}
-<div style="color:var(--text-muted);font-size:.88rem;padding:20px 0;text-align:center;">
+<div class="fj-panel" style="color:var(--text-muted);font-size:.88rem;padding:24px 0;text-align:center;">
   Noch keine Einträge im Funkjournal.
 </div>
 {% endif %}

@@ -18,7 +18,7 @@
         {% if all_assignments %}
         <span class="fn-card__code">{{ all_assignments|length }}</span>
         {% endif %}
-        {% if can_edit and lage.status.value == 'active' %}
+        {% if can_edit and lage.status.value == 'active' and not (role.is_required and status == 'red' and not lead_assignments) %}
         <button class="btn btn--xs btn--ghost"
                 onclick="openBesetzen({{ role.id }}, '{{ role.name }}')">+ Besetzen</button>
         {% endif %}
@@ -59,12 +59,15 @@
         Nicht besetzt
         {% endif %}
       </div>
+      {% if role.is_required and status == 'red' and can_edit and lage.status.value == 'active' %}
+      <button class="fn-btn-besetzen" onclick="openBesetzen({{ role.id }}, '{{ role.name }}')">Jetzt besetzen</button>
+      {% endif %}
       {% endif %}
 
       {# Mitarbeiter (is_lead=False) #}
       {% set workers = all_assignments | rejectattr('is_lead') | list %}
       {% if workers %}
-      <div style="border-top:1px solid rgba(255,255,255,.05);margin-top:6px;padding-top:6px;">
+      <div style="border-top:1px solid rgba(255,255,255,.05);margin-top:8px;padding-top:8px;">
         {% for a in workers %}
         <div class="asgn-row" style="font-size:.76rem;color:var(--text-muted);">
           <span class="asgn-label">{{ a.display_name }} <span style="font-size:.65rem;">(MA)</span></span>

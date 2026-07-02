@@ -30,22 +30,22 @@
     </div>
 
     <!-- PIN -->
-    <div class="form-group">
-      <label class="form-label">
-        PIN <span style="font-size:.72rem;color:var(--text-muted);">(optional – fuer Rueckgabe-Abgleich)</span>
+    <div class="vl-panel" style="border-color:rgba(242,176,46,.35);">
+      <label class="vl-field-label" style="color:var(--yellow);">
+        🔒 PIN <span style="font-weight:400;text-transform:none;color:var(--text-muted);">(optional – fuer Rueckgabe-Abgleich)</span>
       </label>
       <input type="text" name="pin" class="form-input" maxlength="6" pattern="[0-9]*" inputmode="numeric"
-             placeholder="z.B. 123456" style="max-width:140px;font-family:JetBrains Mono,monospace;letter-spacing:.2em;">
-    </div>
+             placeholder="z.B. 123456" style="max-width:140px;font-family:'JetBrains Mono',monospace;letter-spacing:.2em;">
 
-    <!-- PIN per SMS senden -->
-    <div class="form-group" x-show="telefon.trim()">
-      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:.85rem;padding:2px 0;">
-        <input type="checkbox" name="send_pin" value="1" style="width:16px;height:16px;flex-shrink:0;margin-top:2px;">
-        <span>PIN generieren + per SMS senden
-          <span style="display:block;font-size:.72rem;color:var(--text-muted);">Ohne manuellen PIN wird automatisch ein 6-stelliger PIN erstellt.</span>
-        </span>
-      </label>
+      <!-- PIN per SMS senden -->
+      <div x-show="telefon.trim()" style="margin-top:10px;">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:.85rem;padding:2px 0;">
+          <input type="checkbox" name="send_pin" value="1" style="width:16px;height:16px;flex-shrink:0;margin-top:2px;">
+          <span>PIN generieren + per SMS senden
+            <span style="display:block;font-size:.72rem;color:var(--text-muted);">Ohne manuellen PIN wird automatisch ein 6-stelliger PIN erstellt.</span>
+          </span>
+        </label>
+      </div>
     </div>
 
     <!-- Einsatzstelle -->

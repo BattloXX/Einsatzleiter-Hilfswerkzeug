@@ -73,75 +73,122 @@
   margin: 4px 0;
 }
 
-.stab-wrap { padding: 14px 16px; max-width: 1200px; margin: 0 auto; }
+.stab-wrap { padding: 16px; max-width: 1280px; margin: 0 auto; }
 
 /* Ampel-Banner */
 .ampel-banner {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 8px 14px; border-radius: 6px; margin-bottom: 14px;
-  font-size: .84rem; font-weight: 600;
+  padding: 10px 16px; border-radius: var(--radius-lg, .75rem); margin-bottom: 16px;
+  font-size: .84rem; font-weight: 700; border: 1px solid transparent;
 }
-.ampel-banner--red    { background: rgba(239,68,68,.15);  border: 1px solid rgba(239,68,68,.4);  color: #f87171; }
-.ampel-banner--yellow { background: rgba(234,179,8,.12);  border: 1px solid rgba(234,179,8,.4);  color: #facc15; }
-.ampel-banner--green  { background: rgba(34,197,94,.1);   border: 1px solid rgba(34,197,94,.3);  color: #4ade80; }
+.ampel-banner--red    { background: rgba(212,34,37,.12); border-color: rgba(212,34,37,.4); color: #f87171; animation: stabPulse 2s ease-in-out infinite; }
+.ampel-banner--yellow { background: rgba(242,176,46,.12); border-color: rgba(242,176,46,.4); color: var(--yellow); }
+.ampel-banner--green  { background: rgba(24,169,87,.1);  border-color: rgba(24,169,87,.3);  color: var(--green); }
+.ampel-banner__count {
+  font-size: .66rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+  margin-left: auto; background: rgba(255,255,255,.08); padding: 3px 10px; border-radius: 999px;
+}
+@keyframes stabPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
-/* Tafel-Grid */
+/* Tab-Nav (Segmented Control) */
+.stab-tabs {
+  display: inline-flex; gap: 2px; padding: 4px; margin-bottom: 16px;
+  background: var(--surface-mid); border: 1px solid var(--border); border-radius: var(--radius-lg, .75rem);
+  max-width: 100%; overflow-x: auto;
+}
+.stab-tab {
+  font-size: .74rem; font-weight: 700; padding: 7px 16px; border-radius: var(--radius-md, .5rem); border: none;
+  background: transparent; color: var(--text-muted); cursor: pointer; white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace; letter-spacing: .04em; text-transform: uppercase;
+  transition: background .12s, color .12s;
+}
+.stab-tab:hover { color: var(--text); }
+.stab-tab.active { background: var(--surface-high); color: var(--text); box-shadow: var(--shadow-card); }
+
+/* Panel (Formular / KI-Pressemeldung) */
+.dash-section {
+  background: var(--surface-mid);
+  border: 1px solid var(--border); border-top: 3px solid var(--dash-accent, var(--border));
+  border-radius: var(--radius-lg, .75rem);
+  padding: 14px 16px; margin-bottom: 14px;
+}
+.dash-section__title {
+  display: flex; align-items: center; gap: 7px;
+  font-size: .72rem; font-weight: 700; color: var(--text-muted);
+  margin-bottom: 12px; letter-spacing: .08em; text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Tafel-Grid (Besetzungstafel) */
 .fn-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 .fn-card--el { grid-column: 1 / -1; }
 
 .fn-card {
-  background: var(--surface-elevated, #1e2130);
-  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: var(--surface-mid);
+  border: 1px solid var(--border); border-left: 3px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); overflow: hidden;
+  transition: transform .12s, box-shadow .12s;
 }
-.fn-card--red    { border-color: rgba(239,68,68,.5); }
-.fn-card--yellow { border-color: rgba(234,179,8,.5); }
-.fn-card--green  { border-color: rgba(34,197,94,.3); }
+.fn-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.fn-card--red    { border-left-color: var(--red); }
+.fn-card--yellow { border-left-color: var(--yellow); }
+.fn-card--green  { border-left-color: var(--green); }
 
 .fn-card__header {
-  padding: 7px 12px;
-  background: rgba(255,255,255,.04); border-bottom: 1px solid var(--border);
+  padding: 9px 14px;
+  background: rgba(255,255,255,.03); border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-  font-size: .82rem; font-weight: 600;
+  font-size: .84rem; font-weight: 700;
 }
 .fn-card__code {
-  font-size: .65rem; font-weight: 700; padding: 1px 6px;
-  border-radius: 8px; background: rgba(147,197,253,.15); color: #93c5fd;
-  white-space: nowrap;
+  font-size: .62rem; font-weight: 700; padding: 2px 8px;
+  border-radius: 999px; background: var(--surface-high); color: var(--text-muted);
+  white-space: nowrap; font-family: 'JetBrains Mono', monospace;
 }
 .fn-card__ampel {
-  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
 }
-.fn-card__ampel--red    { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
-.fn-card__ampel--yellow { background: #eab308; box-shadow: 0 0 5px #eab308; }
-.fn-card__ampel--green  { background: #22c55e; }
+.fn-card__ampel--red    { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.fn-card__ampel--yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+.fn-card__ampel--green  { background: var(--green); }
 
-.fn-card__body { padding: 8px 12px; }
+.fn-card__body { padding: 10px 14px; }
 
 .asgn-row {
   display: flex; align-items: center; gap: 8px;
-  padding: 5px 0; border-top: 1px solid rgba(255,255,255,.05);
+  padding: 7px 9px; margin: 4px 0; border-radius: var(--radius-md, .5rem);
+  background: var(--surface-high);
   font-size: .82rem;
 }
-.asgn-row:first-child { border-top: none; }
-.asgn-label { flex: 1; font-weight: 500; }
-.asgn-since { font-size: .68rem; color: var(--text-muted); white-space: nowrap; }
+.asgn-row:first-child { margin-top: 0; }
+.asgn-label { flex: 1; font-weight: 600; }
+.asgn-since { font-size: .66rem; color: var(--text-muted); white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
 .asgn-duration {
-  font-size: .68rem; font-family: var(--font-mono, monospace);
+  font-size: .66rem; font-family: 'JetBrains Mono', monospace;
   color: var(--text-muted); white-space: nowrap;
 }
 .asgn-actions { display: flex; gap: 4px; }
 
-.fn-empty { font-size: .78rem; color: var(--text-muted); padding: 6px 0; }
-.fn-warn  { font-size: .72rem; color: #facc15; padding: 3px 0; }
+.fn-empty { font-size: .78rem; color: var(--text-muted); padding: 6px 0; font-style: italic; }
+.fn-warn  { font-size: .72rem; color: var(--yellow); padding: 4px 8px; margin-bottom: 6px;
+  background: rgba(242,176,46,.1); border-radius: var(--radius-md, .5rem); }
+
+.fn-btn-besetzen {
+  width: 100%; margin-top: 8px; padding: 8px; border-radius: var(--radius-md, .5rem);
+  border: 1px solid rgba(212,34,37,.35); background: rgba(212,34,37,.14); color: #f87171;
+  font-weight: 700; font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; cursor: pointer;
+  transition: background .12s;
+}
+.fn-btn-besetzen:hover { background: rgba(212,34,37,.24); }
 
 /* Modal */
 .stab-modal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 18px; min-width: 320px; max-width: 450px;
+  background: var(--surface-mid); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); padding: 18px; min-width: 320px; max-width: 450px;
 }
 .stab-modal::backdrop { background: rgba(0,0,0,.6); }
 .stab-modal h3 { font-size: .92rem; margin: 0 0 14px; }
@@ -149,29 +196,48 @@
 /* Zeitstrahl */
 .timeline-wrap { margin-top: 16px; }
 .timeline-header {
-  font-size: .78rem; font-weight: 600; color: var(--text-muted);
-  letter-spacing: .04em; margin-bottom: 10px;
+  font-size: .72rem; font-weight: 700; color: var(--text-muted);
+  letter-spacing: .06em; text-transform: uppercase; margin-bottom: 12px;
+  font-family: 'JetBrains Mono', monospace;
 }
-.tl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: .78rem; }
-.tl-label { width: 80px; flex-shrink: 0; font-size: .72rem; font-weight: 600; color: var(--text-muted); }
-.tl-track { flex: 1; position: relative; height: 20px; background: rgba(255,255,255,.05);
-  border-radius: 4px; overflow: visible; }
+.tl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: .78rem; }
+.tl-label { width: 44px; flex-shrink: 0; font-size: .7rem; font-weight: 700; color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace; }
+.tl-track { flex: 1; position: relative; height: 22px; background: var(--surface-high);
+  border-radius: var(--radius-md, .5rem); overflow: visible; }
 .tl-bar {
   position: absolute; top: 0; height: 100%;
-  border-radius: 4px; font-size: .65rem; display: flex; align-items: center;
-  padding: 0 5px; overflow: hidden; white-space: nowrap; cursor: default;
-  color: rgba(255,255,255,.9);
+  border-radius: var(--radius-md, .5rem); font-size: .64rem; display: flex; align-items: center;
+  padding: 0 6px; overflow: hidden; white-space: nowrap; cursor: default;
+  color: rgba(255,255,255,.92);
 }
 .tl-bar--current { opacity: 1; }
 .tl-bar--ended   { opacity: .65; }
 
-/* Tab-Nav */
-.stab-tabs { display: flex; gap: 2px; margin-bottom: 14px; }
-.stab-tab {
-  font-size: .8rem; padding: 5px 14px; border-radius: 4px; border: none;
-  background: transparent; color: var(--text-muted); cursor: pointer;
+/* Personenjournal-Tabelle */
+.pj-panel {
+  background: var(--surface-mid); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); overflow: hidden; margin-bottom: 20px;
 }
-.stab-tab.active { background: rgba(255,255,255,.1); color: var(--text); font-weight: 600; }
+.pj-panel__head {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-size: .72rem; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em; font-family: 'JetBrains Mono', monospace;
+}
+.pj-active {
+  display: inline-block; padding: 1px 8px; border-radius: 999px;
+  background: rgba(24,169,87,.15); color: var(--green); font-weight: 700; font-size: .72rem;
+}
+
+/* Einsatzjournal-Einträge */
+.journal-row {
+  display: flex; gap: 10px; padding: 10px 14px; margin-bottom: 8px;
+  background: var(--surface-mid); border: 1px solid var(--border);
+  border-left: 3px solid var(--jr-accent, var(--border));
+  border-radius: var(--radius-md, .5rem); align-items: flex-start;
+  transition: background .12s;
+}
+.journal-row:hover { background: var(--surface-high); }
 </style>
 {% endblock %}
 
@@ -187,19 +253,21 @@
        hx-target="#stab-tafel"
        hx-swap="innerHTML">
     {% if overall == 'red' %}
-      🔴 Pflichtfunktion(en) unbesetzt — Lage kritisch
+      ⚠ Pflichtfunktion(en) unbesetzt — Lage kritisch
     {% elif overall == 'yellow' %}
-      🟡 Hinweise: Ablösebedarf oder Mehrfachbesetzung
+      ⚠ Hinweise: Ablösebedarf oder Mehrfachbesetzung
     {% else %}
-      🟢 Stab vollständig besetzt
+      ✓ Stab vollständig besetzt
     {% endif %}
-    <span style="font-size:.72rem;font-weight:400;margin-left:auto;">
-      {% set red_count = check.roles | selectattr('status', 'equalto', 'red') | list | length %}
-      {% set yellow_count = check.roles | selectattr('status', 'equalto', 'yellow') | list | length %}
+    {% set red_count = check.roles | selectattr('status', 'equalto', 'red') | list | length %}
+    {% set yellow_count = check.roles | selectattr('status', 'equalto', 'yellow') | list | length %}
+    {% if red_count or yellow_count %}
+    <span class="ampel-banner__count">
       {% if red_count %}{{ red_count }} unbesetzt{% endif %}
       {% if red_count and yellow_count %} · {% endif %}
       {% if yellow_count %}{{ yellow_count }} Hinweis{% if yellow_count != 1 %}e{% endif %}{% endif %}
     </span>
+    {% endif %}
   </div>
 
   {# ── Tab-Navigation ────────────────────────────────────────────────────────── #}
@@ -214,7 +282,8 @@
 
     {# Neuer Eintrag #}
     {% if can_edit %}
-    <div style="background:var(--surface-elevated,#1e2130);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+    <div class="dash-section" style="--dash-accent:var(--red);margin-bottom:16px;">
+      <div class="dash-section__title">📝 Neuer Eintrag</div>
       <form id="form-journal-add"
             hx-post="/lage/{{ lage.id }}/journal"
             hx-encoding="multipart/form-data"
@@ -267,7 +336,7 @@
              oninput="journalApplySearch()"
              autocomplete="off"
              style="flex:1;min-width:160px;max-width:280px;padding:3px 9px;font-size:.78rem;border-radius:4px;
-                    border:1px solid var(--border);background:var(--surface-elevated,#1e2130);color:var(--text);">
+                    border:1px solid var(--border);background:var(--surface-high);color:var(--text);">
       <a href="/lage/{{ lage.id }}/druck/bericht#journal" target="_blank"
          class="btn btn--xs btn--ghost" title="Ganzes Journal drucken">🖨 Journal drucken</a>
     </div>
@@ -292,9 +361,9 @@
   </div>
 
   {# ── KI-Pressemeldung (S5) ─────────────────────────────────────────────────── #}
-  <div class="dash-section" style="margin-top:16px;background:var(--surface-elevated,#1e2130);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <span style="font-size:.78rem;font-weight:600;color:var(--text-muted);letter-spacing:.04em;">KI-PRESSEMELDUNG (S5)</span>
+  <div class="dash-section" style="margin-top:16px;--dash-accent:var(--yellow);">
+    <div class="dash-section__title" style="justify-content:space-between;margin-bottom:8px;">
+      <span>✨ KI-Pressemeldung (S5)</span>
       <form hx-post="/lage/{{ lage.id }}/pressemeldung"
             hx-target="#presse-result" hx-swap="innerHTML"
             hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
