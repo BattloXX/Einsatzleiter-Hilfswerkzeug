@@ -135,6 +135,39 @@ def add_resource(
 
 # ── Zuordnung Abschnitt / Einsatzstelle / Pool ────────────────────────────────
 
+def sync_units_sector_to_site(db: Session, site: IncidentSite) -> int:
+    """Gleicht LageEinheit.sector_id aller an dieser Einsatzstelle aktiv disponierten
+    Einheiten mit dem aktuellen Abschnitt der Einsatzstelle ab (site.sector_id).
+
+    Wird aufgerufen, wenn eine Einsatzstelle einem Abschnitt zugeordnet wird (manuell
+    oder automatisch via Polygon), damit die Kräfteübersicht (die rein nach
+    LageEinheit.sector_id gruppiert) die Ressourcen im richtigen Abschnitt zeigt.
+    Committed nicht selbst — der Aufrufer committet. Gibt Anzahl geänderter Einheiten zurück.
+    """
+    einheit_ids = {
+        d.einheit_id for d in db.query(EinheitSiteDispatch)
+        .filter(
+            EinheitSiteDispatch.site_id == site.id,
+            EinheitSiteDispatch.withdrawn_at.is_(None),
+        )
+        .all()
+    }
+    einheit_ids.update(
+        e.id for e in db.query(LageEinheit)
+        .filter(LageEinheit.incident_site_id == site.id)
+        .all()
+    )
+    if not einheit_ids:
+        return 0
+
+    changed = 0
+    for e in db.query(LageEinheit).filter(LageEinheit.id.in_(einheit_ids)).all():
+        if e.sector_id != site.sector_id:
+            e.sector_id = site.sector_id
+            changed += 1
+    return changed
+
+
 def assign_to_sector(
     db: Session,
     einheit_id: int,
@@ -299,6 +332,7 @@ def set_vor_ort_at_site(
 
     dispatch.vor_ort_at = datetime.now(UTC)
     e.incident_site_id = site_id
+    e.sector_id = site.sector_id
     if e.status == STATUS_BEREITGESTELLT:
         e.status = STATUS_IM_EINSATZ
         e.committed_at = datetime.now(UTC)

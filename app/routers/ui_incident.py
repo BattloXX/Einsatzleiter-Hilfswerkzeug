@@ -50,8 +50,6 @@ from app.models.master import (
     LageHint,
     LageHintAlarm,
     MemberQualification,
-    MessageSuggestion,
-    MessageSuggestionAlarm,
     OrgSettings,
     Qualification,
     SystemSettings,
@@ -138,6 +136,29 @@ async def _trigger_ai_task_suggestions(
         _log.exception("KI-Auftragsvorschläge Fehler für Einsatz %d", incident_id)
     finally:
         db.close()
+
+
+async def _best_task_suggestions(
+    task_suggestions: list, einsatzart: str, org_id: int | None,
+) -> list:
+    """Reduziert eine Liste von Auftragsvorlagen auf die 5 relevantesten.
+
+    Nutzt KI-Ranking wenn verfügbar; bei Fehler/Timeout/deaktivierter KI wird auf
+    die ersten 5 in Original-Reihenfolge (display_order) zurückgefallen.
+    """
+    if not ai_is_enabled():
+        return task_suggestions[:5]
+    from app.services.ai_service import rank_task_suggestions
+    try:
+        ranked_idx = await rank_task_suggestions(
+            [t.text for t in task_suggestions], einsatzart, limit=5, org_id=org_id,
+        )
+    except Exception:
+        _log.exception("KI-Ranking der Auftragsvorlagen fehlgeschlagen")
+        ranked_idx = None
+    if not ranked_idx:
+        return task_suggestions[:5]
+    return [task_suggestions[i] for i in ranked_idx]
 
 
 def _prepend_ai_hints(incident: Incident, master_hints: list) -> list:
@@ -602,7 +623,7 @@ async def alarm_regenerate_ki(
 # ── Einsatz-Board ─────────────────────────────────────────────────────────────
 
 @router.get("/einsatz/{incident_id}", response_class=HTMLResponse)
-def incident_board(incident_id: int, request: Request, db: Session = Depends(get_db)):
+async def incident_board(incident_id: int, request: Request, db: Session = Depends(get_db)):
     from fastapi import HTTPException
     user = getattr(request.state, "user", None)
     if not user:
@@ -643,13 +664,10 @@ def incident_board(incident_id: int, request: Request, db: Session = Depends(get
         .order_by(TaskSuggestionAlarm.display_order)
         .all()
     ) if _at_board else []
-    msg_suggestions = (
-        db.query(MessageSuggestion)
-        .join(MessageSuggestionAlarm, MessageSuggestionAlarm.message_suggestion_id == MessageSuggestion.id)
-        .filter(MessageSuggestionAlarm.alarm_type_id == _at_board.id)
-        .order_by(MessageSuggestionAlarm.display_order)
-        .all()
-    ) if _at_board else []
+    if len(task_suggestions) > 5:
+        task_suggestions = await _best_task_suggestions(
+            task_suggestions, incident.alarm_type_code or "", incident.primary_org_id,
+        )
     can_edit = has_role(user, "incident_leader", "admin", "recorder")
     # Leader candidates: active users of same org with relevant roles
     leader_roles = {"incident_leader", "admin", "org_admin", "system_admin"}
@@ -733,7 +751,7 @@ def incident_board(incident_id: int, request: Request, db: Session = Depends(get
     return templates.TemplateResponse(request, "incident/board.html", {
         "user": user, "incident": incident,
         "alarm_types": alarm_types, "lage_hints": lage_hints, "lage_hints_ai": lage_hints_ai,
-        "task_suggestions": task_suggestions, "msg_suggestions": msg_suggestions,
+        "task_suggestions": task_suggestions,
         "ai_task_suggestions": ai_task_suggestions,
         "can_edit": can_edit, "leader_candidates": leader_candidates,
         "el_member_candidates": el_member_candidates,

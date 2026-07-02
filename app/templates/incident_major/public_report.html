@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Meldung abgeben - {{ org_name }}</title>
+<link rel="stylesheet" href="/static/css/leaflet.min.css">
 <style>
   :root {
     --bg:#0b1326; --surface:#131b2e; --surface-2:#171f33; --surface-3:#222a3d;
@@ -96,6 +97,16 @@
   .gps-btn:active { transform: scale(.97); }
   .gps-status { font-size: .75rem; color: var(--text-muted); margin-left: 8px; }
 
+  .report-map {
+    display: none; height: 260px; margin-top: 10px;
+    border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
+  }
+  .report-map__hint { font-size: .72rem; color: var(--text-muted); margin-top: 6px; display: none; }
+  @media (min-width: 761px) {
+    .report-map { display: block; }
+    .report-map__hint { display: block; }
+  }
+
   .file-label {
     display: flex; flex-direction: column; align-items: center; gap: 6px;
     margin-top: 6px; padding: 22px 14px; border: 2px dashed var(--border);
@@ -160,8 +171,11 @@
       </div>
     </div>
 
+    <div id="report-map" class="report-map"></div>
+    <div class="report-map__hint">Position auf der Karte anklicken oder den Pin ziehen, um den Ort genau zu markieren.</div>
+
     <div>
-      <button type="button" class="gps-btn" onclick="captureGPS(this)">📍 Standort ermitteln</button>
+      <button type="button" class="gps-btn" id="gps-btn" onclick="captureGPS(this)">📍 Standort ermitteln</button>
       <span id="gps-status" class="gps-status"></span>
     </div>
     <input type="hidden" name="lat" id="gps-lat">
@@ -197,6 +211,7 @@
   <footer>{{ brand }} – {{ org_name }}</footer>
 </main>
 
+<script src="/static/js/leaflet.min.js"></script>
 <script>
 document.querySelector('form[action^="/melden/"]').addEventListener('submit', function() {
   var lat = document.getElementById('gps-lat');
@@ -205,22 +220,71 @@ document.querySelector('form[action^="/melden/"]').addEventListener('submit', fu
   if (lng && !lng.value) lng.removeAttribute('name');
 });
 
-function captureGPS(btn) {
+function captureGPS(btn, silent) {
   var status = document.getElementById('gps-status');
-  if (!navigator.geolocation) { status.textContent = 'GPS nicht verfügbar'; return; }
-  status.textContent = '…';
-  btn.disabled = true;
+  if (!navigator.geolocation) { if (!silent) status.textContent = 'GPS nicht verfügbar'; return; }
+  if (!silent) status.textContent = '…';
+  if (btn) btn.disabled = true;
   navigator.geolocation.getCurrentPosition(function(pos) {
     document.getElementById('gps-lat').value = pos.coords.latitude.toFixed(6);
     document.getElementById('gps-lng').value = pos.coords.longitude.toFixed(6);
     status.textContent = '✓ Standort erfasst (' + pos.coords.latitude.toFixed(4) + ', ' + pos.coords.longitude.toFixed(4) + ')';
     status.style.color = '#18a957';
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
+    setReportMarker(pos.coords.latitude, pos.coords.longitude);
   }, function() {
-    status.textContent = 'Standort nicht verfügbar';
-    btn.disabled = false;
+    if (!silent) status.textContent = 'Standort nicht verfügbar';
+    if (btn) btn.disabled = false;
   }, { timeout: 10000, enableHighAccuracy: true });
 }
+
+var reportMap = null, reportMarker = null;
+
+function initReportMap() {
+  var mapEl = document.getElementById('report-map');
+  if (!mapEl || typeof L === 'undefined') return;
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconUrl: '/static/img/leaflet/marker-icon.png',
+    iconRetinaUrl: '/static/img/leaflet/marker-icon-2x.png',
+    shadowUrl: '/static/img/leaflet/marker-shadow.png',
+  });
+  reportMap = L.map('report-map', { zoomControl: true }).setView([47.6965, 13.3457], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', subdomains: 'abc', maxZoom: 19,
+  }).addTo(reportMap);
+  reportMap.on('click', function(e) { setReportMarker(e.latlng.lat, e.latlng.lng); });
+  setTimeout(function() { reportMap.invalidateSize(); }, 200);
+}
+
+function setReportMarker(lat, lng) {
+  var latlng = [lat, lng];
+  document.getElementById('gps-lat').value = lat.toFixed(6);
+  document.getElementById('gps-lng').value = lng.toFixed(6);
+  if (!reportMap) return;
+  if (reportMarker) {
+    reportMarker.setLatLng(latlng);
+  } else {
+    reportMarker = L.marker(latlng, { draggable: true }).addTo(reportMap);
+    reportMarker.on('dragend', function() {
+      var p = reportMarker.getLatLng();
+      document.getElementById('gps-lat').value = p.lat.toFixed(6);
+      document.getElementById('gps-lng').value = p.lng.toFixed(6);
+      var status = document.getElementById('gps-status');
+      status.textContent = '✓ Position gewählt (' + p.lat.toFixed(4) + ', ' + p.lng.toFixed(4) + ')';
+      status.style.color = '#18a957';
+    });
+  }
+  reportMap.setView(latlng, 16);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.matchMedia('(max-width: 760px)').matches) {
+    captureGPS(document.getElementById('gps-btn'), true);
+  } else {
+    initReportMap();
+  }
+});
 function showPreview(input) {
   var prev = document.getElementById('photo-preview');
   prev.innerHTML = '';

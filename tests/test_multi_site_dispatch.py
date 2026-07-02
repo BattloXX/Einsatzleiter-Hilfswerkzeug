@@ -10,6 +10,7 @@ from app.models.major_incident import (
     IncidentSite,
     LageEinheit,
     MajorIncident,
+    Sector,
     SitePhase,
     SiteResourceAssignment,
 )
@@ -283,4 +284,70 @@ def test_has_active_resource_withdrawn_does_not_trigger():
         db.flush()
 
         assert lm.has_active_resource(site, db) is False
+        db.rollback()
+
+
+# ── sync_units_sector_to_site (Bugfix: Einheit folgt Sektor der Einsatzstelle) ─
+
+def _make_sector(db, lage_id, name="Abschnitt Nord") -> Sector:
+    sector = Sector(major_incident_id=lage_id, name=name)
+    db.add(sector)
+    db.flush()
+    return sector
+
+
+def test_set_vor_ort_inherits_sector_from_site():
+    """Neu 'vor Ort' gemeldete Einheit übernimmt sofort den Sektor der Einsatzstelle."""
+    with _session() as db:
+        lage = _make_lage(db)
+        sector = _make_sector(db, lage.id)
+        site = _make_site(db, lage.id)
+        site.sector_id = sector.id
+        e = _make_einheit(db, lage.id)
+
+        rs.dispatch_to_site(db, e.id, lage.id, site.id)
+        rs.set_vor_ort_at_site(db, e.id, lage.id, site.id)
+
+        assert e.sector_id == sector.id
+        db.rollback()
+
+
+def test_sync_units_sector_to_site_propagates_to_dispatched_units():
+    """Wird die Einsatzstelle nachträglich einem (anderen) Abschnitt zugeordnet,
+    müssen die dort vor Ort gemeldeten Einheiten mitziehen."""
+    with _session() as db:
+        lage = _make_lage(db)
+        site = _make_site(db, lage.id)
+        e = _make_einheit(db, lage.id)
+        rs.dispatch_to_site(db, e.id, lage.id, site.id)
+        rs.set_vor_ort_at_site(db, e.id, lage.id, site.id)
+        assert e.sector_id is None
+
+        sector = _make_sector(db, lage.id)
+        site.sector_id = sector.id
+        changed = rs.sync_units_sector_to_site(db, site)
+
+        assert changed == 1
+        assert e.sector_id == sector.id
+        db.rollback()
+
+
+def test_sync_units_sector_to_site_clears_sector_when_site_unassigned():
+    """Wird die Einsatzstelle aus dem Abschnitt entfernt, verlieren die Einheiten
+    ihren geerbten Sektor wieder (kein Karteileichen-Sektor)."""
+    with _session() as db:
+        lage = _make_lage(db)
+        sector = _make_sector(db, lage.id)
+        site = _make_site(db, lage.id)
+        site.sector_id = sector.id
+        e = _make_einheit(db, lage.id)
+        rs.dispatch_to_site(db, e.id, lage.id, site.id)
+        rs.set_vor_ort_at_site(db, e.id, lage.id, site.id)
+        assert e.sector_id == sector.id
+
+        site.sector_id = None
+        changed = rs.sync_units_sector_to_site(db, site)
+
+        assert changed == 1
+        assert e.sector_id is None
         db.rollback()

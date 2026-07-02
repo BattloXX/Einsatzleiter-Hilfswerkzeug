@@ -96,6 +96,7 @@ def bulk_reassign_section(
     Gibt Anzahl geänderter Stellen zurück.
     """
     from app.models.major_incident import IncidentSite
+    from app.services.resource_service import sync_units_sector_to_site
 
     q = db.query(IncidentSite).filter(IncidentSite.major_incident_id == incident_id)
     if not include_manual:
@@ -106,6 +107,7 @@ def bulk_reassign_section(
     for site in sites:
         if auto_assign_section(db, site, force=include_manual):
             changed += 1
+            sync_units_sector_to_site(db, site)
 
     return changed
 

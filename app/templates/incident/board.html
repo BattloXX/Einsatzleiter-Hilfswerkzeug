@@ -94,7 +94,16 @@
       max-width: 160px;
     }
     .board-tabs { display: none !important; }
+    .task-suggestions { display: none !important; }
+    /* Mobil: Kopfzeile auf Spaltenwechsel reduzieren, Rest ins "..."-Menü/entfernt */
+    .incident-header__timer { display: none !important; }
+    .incident-header__navlink { display: none !important; }
+    .header-dropdown--ki { display: none !important; }
+    .incident-header__actions .btn--danger { display: none !important; }
+    #wetter-details { display: none !important; }
+    .incident-header__weather-menu-item { display: flex !important; }
   }
+  .incident-header__weather-menu-item { display: none; }
 </style>
 {% endblock %}
 
@@ -155,33 +164,33 @@
     {% set lk_url = lagekarte_url(incident) %}
     {% if lk_url %}
     <a href="{{ lk_url }}" target="_blank" rel="noopener"
-       class="btn btn--sm btn--secondary"
+       class="btn btn--sm btn--secondary incident-header__navlink"
        {{ tip('Einsatz in lagekarte.info öffnen (neues Fenster)') }}>🗺️ Karte</a>
     {% endif %}
     {% if breathing_enabled %}
-    <a href="/einsatz/{{ incident.id }}/atemschutz" class="btn btn--sm btn--secondary"
+    <a href="/einsatz/{{ incident.id }}/atemschutz" class="btn btn--sm btn--secondary incident-header__navlink"
        {{ tip('Atemschutzüberwachung — Pressluft-Trupp-Steuerung') }}>🫁 AS</a>
     {% endif %}
     {% if uas_einsatz_id %}
-    <a href="/uas/einsatz/{{ uas_einsatz_id }}" class="btn btn--sm btn--secondary"
+    <a href="/uas/einsatz/{{ uas_einsatz_id }}" class="btn btn--sm btn--secondary incident-header__navlink"
        {{ tip('Drohneneinsatz öffnen') }}>🚁 Drohne</a>
     {% elif can_start_uas %}
-    <a href="/uas/incidents/{{ incident.id }}/einsatz/starten" class="btn btn--sm btn--secondary"
+    <a href="/uas/incidents/{{ incident.id }}/einsatz/starten" class="btn btn--sm btn--secondary incident-header__navlink"
        {{ tip('Drohneneinsatz zu diesem Einsatz starten') }}>🚁 Drohne starten</a>
     {% endif %}
     <a href="/einsatz/{{ incident.id }}/dashboard" target="_blank" rel="noopener noreferrer"
-       class="btn btn--sm btn--secondary"
+       class="btn btn--sm btn--secondary incident-header__navlink"
        {{ tip('Übersichts-Dashboard in neuem Fenster öffnen') }}>📊 Dashboard</a>
 
-    <a href="/einsatz/{{ incident.id }}/funkjournal" class="btn btn--sm btn--secondary"
+    <a href="/einsatz/{{ incident.id }}/funkjournal" class="btn btn--sm btn--secondary incident-header__navlink"
        {{ tip('Funkjournal – Sprüche und lagerelevante Einträge') }}>📻 Funk</a>
 
-    <a href="/einsatz/{{ incident.id }}/mannschaft" class="btn btn--sm btn--secondary"
+    <a href="/einsatz/{{ incident.id }}/mannschaft" class="btn btn--sm btn--secondary incident-header__navlink"
        {{ tip('Mannschaft – Teilnehmerliste und Einsatzkräfte') }}>👥 Mannschaft</a>
 
     {# ── KI-Dropdown (nur wenn KI aktiv) ─────────────────────────────────── #}
     {% if can_edit and ai_enabled %}
-    <div class="header-dropdown" x-data="{open:false}" @click.outside="open=false">
+    <div class="header-dropdown header-dropdown--ki" x-data="{open:false}" @click.outside="open=false">
       <button class="btn btn--sm btn--secondary header-btn--ki"
               id="ki-dropdown-btn"
               @click="open=!open"
@@ -202,12 +211,21 @@
     </div>
     {% endif %}
 
-    {# ── Mehr-Menü: selten benötigte Aktionen ────────────────────────────── #}
-    <div class="header-dropdown" x-data="{open:false}" @click.outside="open=false">
+    {# ── Mehr-Menü: selten benötigte Aktionen (mobil auch: Wetter) ───────── #}
+    <div class="header-dropdown header-dropdown--more" x-data="{open:false}" @click.outside="open=false">
       <button class="btn btn--sm btn--ghost"
               @click="open=!open"
-              {{ tip('Weitere Aktionen: QR-Code, PDF-Export') }}>⋯</button>
+              {{ tip('Weitere Aktionen: QR-Code, PDF-Export' ~ (', Wetter' if weather_enabled else '')) }}>⋯</button>
       <div class="header-dropdown__menu" x-show="open" x-cloak x-transition.opacity.duration.150ms>
+        {% if weather_enabled %}
+        <button type="button" class="dropdown-item incident-header__weather-menu-item" @click="open=false"
+                hx-get="/einsatz/{{ incident.id }}/wetter/panel"
+                hx-target="#wetter-mobile-panel"
+                hx-swap="innerHTML"
+                hx-on::after-swap="document.getElementById('wetterMobileDialog').showModal()">
+          <span class="di-icon">🌦</span> Wetter
+        </button>
+        {% endif %}
         <a href="/einsatz/{{ incident.id }}/qr" class="dropdown-item">
           <span class="di-icon">🔗</span> QR-Code anzeigen
         </a>
@@ -246,6 +264,21 @@
     <span style="font-size:.75rem;color:var(--text-muted);">Lade…</span>
   </div>
 </details>
+
+<!-- Wetter Dialog (mobil, erreichbar über das "..."-Menü) -->
+<dialog class="modal" id="wetterMobileDialog" x-data="{}">
+  <div class="modal__content" style="min-width:min(340px,90vw);">
+    <div class="modal__header">
+      <h3 class="modal__title">🌦 Wetter</h3>
+      <button type="button" @click="$el.closest('dialog').close()" class="modal__close">×</button>
+    </div>
+    <div class="modal__body">
+      <div id="wetter-mobile-panel" style="padding:4px 0;">
+        <span style="font-size:.75rem;color:var(--text-muted);">Lade…</span>
+      </div>
+    </div>
+  </div>
+</dialog>
 {% endif %}
 
 <div class="board-wrap" x-data="incidentBoard({{ incident.id }}, '{{ incident.alarm_type_code }}', '{{ incident.started_at|local_iso }}')">
@@ -550,14 +583,6 @@
           hx-encoding="multipart/form-data"
           @htmx:after-request="if(event.detail.successful){$el.reset();vehicleId='';document.getElementById('newMsgPreview').innerHTML='';$el.closest('dialog').close();location.reload();}">
       <div class="modal__body">
-        {% if msg_suggestions %}
-        <div class="task-suggestions" style="margin-bottom:10px;">
-          {% for ms in msg_suggestions %}
-          <button type="button" class="suggestion-pill"
-                  onclick="this.closest('form').querySelector('[name=title]').value='{{ ms.text }}'">{{ ms.text }}</button>
-          {% endfor %}
-        </div>
-        {% endif %}
         <div class="form-group">
           <label class="form-label" style="font-size:.82rem;">Typ</label>
           <select name="status" class="form-select form-select--status status-meldung"

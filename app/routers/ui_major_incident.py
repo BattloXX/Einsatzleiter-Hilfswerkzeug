@@ -3658,6 +3658,7 @@ async def site_sektor_assign(
 
     site.sector_id = sector_id or None
     site.section_assigned_mode = "manual"  # manuell → sticky
+    resource_service.sync_units_sector_to_site(db, site)
     db.commit()
     await broadcast_lage(lage_id, {
         "type": "site:sector_changed",

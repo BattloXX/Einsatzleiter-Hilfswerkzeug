@@ -99,19 +99,32 @@ async def termin_liste(
     user = _require_login(request)
     termine = []
     incidents = []
+    alle_eintraege = []
     if typ == "einsatz":
         from app.models.incident import Incident
         from app.routers.ui_archive import _scoped_incidents_query
         incidents = _scoped_incidents_query(db, user).order_by(Incident.started_at.desc()).limit(200).all()
+    elif typ in ("uebung", "veranstaltung"):
+        termine = db.query(Termin).filter(Termin.typ == typ).order_by(Termin.beginn.desc()).all()
     else:
-        q = db.query(Termin)
-        if typ in ("uebung", "veranstaltung"):
-            q = q.filter(Termin.typ == typ)
-        termine = q.order_by(Termin.beginn.desc()).all()
+        # "Alle": Termine und Einsätze gemeinsam nach Datum sortiert, damit Einsätze
+        # direkt aus der Übersicht heraus für die Teilnahme-Erfassung ausgewählt
+        # werden können (statt nur über den separaten "Einsätze"-Tab).
+        from app.models.incident import Incident
+        from app.routers.ui_archive import _scoped_incidents_query
+        termine = db.query(Termin).order_by(Termin.beginn.desc()).all()
+        incidents = _scoped_incidents_query(db, user).order_by(Incident.started_at.desc()).limit(200).all()
+        alle_eintraege = sorted(
+            [{"art": "termin", "obj": t, "dt": t.beginn} for t in termine]
+            + [{"art": "einsatz", "obj": i, "dt": i.started_at} for i in incidents],
+            key=lambda entry: entry["dt"] or datetime.min,
+            reverse=True,
+        )
     return templates.TemplateResponse(request, "termin/liste.html", {
         "user": user,
         "termine": termine,
         "incidents": incidents,
+        "alle_eintraege": alle_eintraege,
         "filter_typ": typ or "",
         "can_edit": _can_edit(user),
     })

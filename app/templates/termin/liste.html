@@ -65,6 +65,77 @@
   </div>
   {% endif %}
 
+  {% elif not filter_typ %}
+  <!-- Alle: Termine und Einsätze gemeinsam, chronologisch -->
+  {% if alle_eintraege %}
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    {% for entry in alle_eintraege %}
+    {% if entry.art == 'einsatz' %}
+    {% set inc = entry.obj %}
+    <a href="/einsatz/{{ inc.id }}/mannschaft"
+       style="display:block;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+              padding:14px 16px;text-decoration:none;color:inherit;transition:border-color .15s;"
+       onmouseover="this.style.borderColor='var(--primary,#d42225)'"
+       onmouseout="this.style.borderColor='var(--border)'">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:.95rem;margin-bottom:4px;">
+            <span class="alarm-badge alarm-badge--sm alarm-badge--{{ inc.alarm_type_code[:1]|lower }}">{{ inc.alarm_type_code }}</span>
+            Einsatz #{{ inc.nummer or inc.id }}
+          </div>
+          <div style="font-size:.8rem;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">
+            <span>{{ inc.started_at|local_datetime }}</span>
+            {% if inc.address_street %}<span>📍 {{ inc.address_street }} {{ inc.address_no or '' }}{% if inc.address_city %}, {{ inc.address_city }}{% endif %}</span>{% endif %}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+          {% if inc.is_exercise %}<span class="badge badge--exercise">ÜBUNG</span>
+          {% elif inc.status == 'active' %}<span class="badge badge--active">Aktiv</span>
+          {% else %}<span class="badge badge--closed">Abgeschlossen</span>{% endif %}
+          <span style="font-size:.75rem;color:var(--text-muted);background:var(--surface-high);
+                       padding:2px 8px;border-radius:4px;">👥 Mannschaft</span>
+        </div>
+      </div>
+    </a>
+    {% else %}
+    {% set t = entry.obj %}
+    <a href="/termine/{{ t.id }}"
+       style="display:block;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+              padding:14px 16px;text-decoration:none;color:inherit;transition:border-color .15s;"
+       onmouseover="this.style.borderColor='var(--primary,#d42225)'"
+       onmouseout="this.style.borderColor='var(--border)'">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:.95rem;margin-bottom:4px;">{{ t.titel }}</div>
+          <div style="font-size:.8rem;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">
+            <span>{{ t.beginn|local_datetime }}</span>
+            {% if t.ort %}<span>📍 {{ t.ort }}</span>{% endif %}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+          <span class="status-pill {{ t.status_css }}" style="font-size:.7rem;">{{ t.status_label }}</span>
+          <span style="font-size:.75rem;color:var(--text-muted);background:var(--surface-high);
+                       padding:2px 8px;border-radius:4px;">
+            {{ t.typ_label }}
+          </span>
+        </div>
+      </div>
+    </a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:48px 16px;color:var(--text-muted);">
+    <div style="font-size:2.5rem;margin-bottom:12px;">📅</div>
+    <div>Keine Termine oder Einsätze vorhanden.</div>
+    {% if can_edit %}
+    <div style="margin-top:12px;">
+      <a href="/termine/neu?typ=uebung" class="btn btn--primary">Erste Übung anlegen</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {% elif termine %}
   <div style="display:flex;flex-direction:column;gap:10px;">
     {% for t in termine %}

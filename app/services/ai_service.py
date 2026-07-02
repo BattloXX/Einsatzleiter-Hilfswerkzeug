@@ -392,6 +392,58 @@ async def suggest_tasks(
     return result
 
 
+_RANK_TASKS_SYSTEM = (
+    "Du bist ein taktischer Assistent der Feuerwehr. Aus einer Liste vorhandener "
+    "Auftragsvorlagen wählst du die für den aktuellen Einsatz am besten passenden aus.\n"
+    "Ausgabe: NUR ein gültiges JSON-Array der Indizes (0-basiert) der besten Vorlagen, "
+    "absteigend nach Relevanz sortiert, keine Erklärungen, keine Umrahmung. "
+    'Beispiel: [2,0,4,1,3]'
+)
+
+
+async def rank_task_suggestions(
+    vorlagen: list[str], einsatzart: str, limit: int = 5, org_id: int | None = None,
+) -> list[int] | None:
+    """Rankt vorhandene Auftragsvorlagen nach Relevanz für den Einsatz.
+
+    Gibt die Indizes (0-basiert, bezogen auf `vorlagen`) der besten `limit` Einträge
+    absteigend nach Relevanz zurück, oder None wenn KI nicht verfügbar/Antwort nicht
+    verwertbar war — der Aufrufer soll dann auf die ersten `limit` Einträge in
+    Original-Reihenfolge (display_order) zurückfallen.
+    """
+    if not vorlagen:
+        return []
+    numbered = "\n".join(f"{i}: {text}" for i, text in enumerate(vorlagen))
+    user_msg = f"Einsatzart: {einsatzart}\nVerfügbare Auftragsvorlagen:\n{numbered}"
+    try:
+        raw = await complete(_RANK_TASKS_SYSTEM, user_msg, fast=True, max_tokens=300, org_id=org_id)
+    except AIServiceError:
+        return None
+
+    _start = raw.find('[')
+    _end = raw.rfind(']')
+    if _start == -1 or _end == -1 or _end <= _start:
+        logger.warning("rank_task_suggestions: no JSON array found in AI response")
+        return None
+    try:
+        items = _json.loads(raw[_start:_end + 1])
+    except (ValueError, TypeError):
+        logger.warning("rank_task_suggestions: failed to parse AI response as JSON")
+        return None
+    if not isinstance(items, list):
+        return None
+
+    result: list[int] = []
+    seen: set[int] = set()
+    for it in items:
+        if isinstance(it, int) and 0 <= it < len(vorlagen) and it not in seen:
+            result.append(it)
+            seen.add(it)
+        if len(result) >= limit:
+            break
+    return result or None
+
+
 async def generate_report_draft(
     incident_data: dict, org_id: int | None = None,
 ) -> str:
