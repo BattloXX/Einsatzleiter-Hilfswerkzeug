@@ -9,15 +9,15 @@
 
 .karte-controls {
   position: fixed; top: calc(var(--topnav-h) + var(--lage-ctx-h, 80px) + 6px); left: 50%; transform: translateX(-50%);
-  z-index: 1000; display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
-  padding: 6px 10px;
-  background: rgba(17,24,39,.85); border-radius: 8px; border: 1px solid var(--border);
-  backdrop-filter: blur(4px);
+  z-index: 1000; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  padding: 7px 12px;
+  background: rgba(19,27,46,.9); border-radius: var(--radius-lg, .75rem); border: 1px solid var(--border);
+  backdrop-filter: blur(6px); box-shadow: var(--shadow-modal, 0 10px 40px rgba(0,0,0,.6));
 }
 .karte-controls label { display: flex; align-items: center; gap: 5px;
   font-size: .78rem; cursor: pointer; color: var(--text); white-space: nowrap; }
 .karte-controls__sep {
-  width: 1px; background: rgba(255,255,255,.15); align-self: stretch; margin: 0 2px;
+  width: 1px; background: var(--border); align-self: stretch; margin: 0 2px;
 }
 #ctrl-toggle-btn { display: none; }
 .karte-controls-body { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -29,8 +29,8 @@
 
 /* Mode toggle button */
 .karte-mode-btn {
-  font-size: .72rem; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border);
-  background: rgba(255,255,255,.06); color: var(--text); cursor: pointer;
+  font-size: .72rem; font-weight: 600; padding: 3px 10px; border-radius: var(--radius-md, .5rem); border: 1px solid var(--border);
+  background: var(--surface-high); color: var(--text); cursor: pointer;
   white-space: nowrap; min-height: 44px; /* MOB-3: Touch-Target (Bedienung mit Handschuhen) */
 }
 .karte-mode-btn.active {
@@ -47,16 +47,16 @@
 /* Site count badge */
 .karte-badge {
   position: fixed; bottom: 16px; right: 16px; z-index: 1001;
-  background: rgba(17,24,39,.85); border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 12px; font-size: .78rem;
-  color: var(--text-muted); backdrop-filter: blur(4px);
+  background: rgba(19,27,46,.9); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); padding: 8px 13px; font-size: .78rem;
+  color: var(--text-muted); backdrop-filter: blur(6px);
 }
 
 /* Sector legend */
 .karte-legend {
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 1001;
-  background: rgba(17,24,39,.88); border: 1px solid var(--border);
-  border-radius: 8px; padding: 7px 12px; backdrop-filter: blur(4px);
+  background: rgba(19,27,46,.92); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); padding: 8px 13px; backdrop-filter: blur(6px);
   display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
   font-size: .72rem; color: var(--text);
   max-width: 90vw;
@@ -74,8 +74,8 @@
   .veh-legend { bottom: 60px; left: 8px; }
   .karte-bottom-shelf {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 1002;
-    background: rgba(17,24,39,.95); border-top: 1px solid var(--border);
-    backdrop-filter: blur(4px);
+    background: rgba(19,27,46,.96); border-top: 1px solid var(--border);
+    backdrop-filter: blur(6px);
   }
   .karte-bottom-shelf__toggle {
     display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -93,21 +93,21 @@
 /* Leaflet popup custom style */
 .lk-popup { min-width: 180px; }
 .lk-popup__title { font-weight: 700; font-size: .9rem; margin-bottom: 4px; }
-.lk-popup__phase { font-size: .72rem; color: #9ca3af; margin-bottom: 4px; }
+.lk-popup__phase { font-size: .72rem; color: var(--text-muted); margin-bottom: 4px; }
 .lk-popup__res   { font-size: .75rem; margin-bottom: 6px; }
-.lk-popup__sector { font-size: .72rem; color: #a78bfa; margin-bottom: 4px; }
+.lk-popup__sector { font-size: .72rem; color: #c4b5fd; margin-bottom: 4px; }
 .lk-popup__link  { display: inline-block; font-size: .75rem; color: #93c5fd;
   text-decoration: none; border: 1px solid rgba(147,197,253,.3);
-  padding: 2px 8px; border-radius: 4px; }
+  padding: 2px 9px; border-radius: var(--radius-md, .5rem); }
 .lk-popup__link:hover { background: rgba(147,197,253,.1); }
 
 /* Hover-Tooltip */
 .lk-tip { max-width: 240px; }
 .leaflet-tooltip.lk-tip {
-  background: rgba(17,24,39,.92); color: #e5e7eb;
-  border: 1px solid rgba(255,255,255,.15); border-radius: 6px;
-  padding: 5px 8px; font-size: .76rem; line-height: 1.45;
-  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  background: rgba(19,27,46,.95); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-md, .5rem);
+  padding: 6px 9px; font-size: .76rem; line-height: 1.45;
+  box-shadow: var(--shadow-card);
   pointer-events: none;
 }
 .leaflet-tooltip.lk-tip::before { display: none; }
@@ -115,20 +115,21 @@
 /* No-coords list */
 .nocoords-box {
   position: fixed; bottom: 16px; left: 16px; z-index: 1001;
-  background: rgba(17,24,39,.85); border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 12px; font-size: .75rem;
+  background: rgba(19,27,46,.9); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); padding: 8px 13px; font-size: .75rem;
   max-width: 260px; max-height: 200px; overflow-y: auto;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
 }
-.nocoords-box__title { font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
-.nocoords-item { padding: 3px 0; border-top: 1px solid rgba(255,255,255,.05); color: var(--text); }
+.nocoords-box__title { font-weight: 700; margin-bottom: 6px; color: var(--text-muted); }
+.nocoords-item { padding: 3px 0; border-top: 1px solid var(--border); color: var(--text); }
 
 /* Side-Panel */
 #site-panel-wrap {
   position: fixed; top: calc(var(--topnav-h) + var(--lage-ctx-h, 80px)); right: 0; bottom: 0; z-index: 1100;
   width: 340px; max-width: 90vw;
-  background: var(--surface, #141824);
+  background: var(--surface-mid);
   border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-modal, -4px 0 24px rgba(0,0,0,.4));
   display: flex; flex-direction: column;
   transform: translateX(100%);
   transition: transform .25s ease;
@@ -138,25 +139,25 @@
 
 .site-panel-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 12px; border-bottom: 1px solid var(--border);
-  background: var(--surface-elevated, #1e2130);
+  padding: 9px 13px; border-bottom: 1px solid var(--border);
+  background: var(--surface-high);
   flex-shrink: 0;
 }
-.site-panel-header span { font-size: .78rem; font-weight: 600; color: var(--text-muted); }
+.site-panel-header span { font-size: .78rem; font-weight: 700; color: var(--text-muted); }
 #siteDetailContent { flex: 1; overflow-y: auto; }
 
 /* Fahrzeug-Legende */
 .veh-legend {
   position: fixed; bottom: 16px; left: 16px; z-index: 1001;
-  background: rgba(17,24,39,.88); border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 12px; font-size: .72rem;
-  backdrop-filter: blur(4px); cursor: pointer;
+  background: rgba(19,27,46,.92); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); padding: 8px 13px; font-size: .72rem;
+  backdrop-filter: blur(6px); cursor: pointer;
 }
 .veh-legend-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
 .veh-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.veh-dot--live   { background: #22c55e; box-shadow: 0 0 4px #22c55e; }
-.veh-dot--stale  { background: #6b7280; }
-.veh-dot--manual { background: #f97316; }
+.veh-dot--live   { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.veh-dot--stale  { background: var(--text-muted); }
+.veh-dot--manual { background: var(--orange); }
 
 /* Druck-Fußzeile */
 #print-footer {
@@ -217,15 +218,15 @@
 #pf-bar {
   display: none; position: fixed; bottom: 20px; left: 50%;
   transform: translateX(-50%); z-index: 1060;
-  background: rgba(17,24,39,.97); border: 1px solid rgba(147,197,253,.4);
-  border-radius: 10px; padding: 9px 14px;
+  background: rgba(19,27,46,.97); border: 1px solid rgba(147,197,253,.4);
+  border-radius: var(--radius-lg, .75rem); padding: 9px 14px;
   backdrop-filter: blur(8px);
   align-items: center; gap: 10px; flex-wrap: wrap;
-  box-shadow: 0 4px 24px rgba(0,0,0,.5);
+  box-shadow: var(--shadow-modal, 0 4px 24px rgba(0,0,0,.5));
 }
 #pf-bar select {
-  font-size:.8rem; background:rgba(255,255,255,.07); border:1px solid var(--border);
-  border-radius:5px; color:var(--text); padding:4px 8px; cursor:pointer;
+  font-size:.8rem; background:var(--surface-high); border:1px solid var(--border);
+  border-radius:var(--radius-md, .5rem); color:var(--text); padding:5px 9px; cursor:pointer;
 }
 @media (max-width:640px) {
   #pf-bar { bottom: 70px; width: calc(100vw - 24px); justify-content: center; }
@@ -247,8 +248,8 @@
 
 /* Geoman-Polygon-Modal */
 #poly-modal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 16px; min-width: 280px;
+  background: var(--surface-mid); border: 1px solid var(--border);
+  border-radius: var(--radius-lg, .75rem); padding: 16px; min-width: 280px;
 }
 #poly-modal::backdrop { background: rgba(0,0,0,.6); }
 
@@ -287,18 +288,18 @@
     {% endfor %}
     {% if reports_count > 0 %}
     <div class="karte-controls__sep"></div>
-    <label style="color:#fbbf24;">
+    <label style="color:var(--yellow);">
       <input type="checkbox" id="rep-toggle" checked onchange="toggleReports(this.checked)">
       📥 Meldungen
     </label>
     {% endif %}
     {% if mi_features.uebergreifend %}
     <div class="karte-controls__sep"></div>
-    <label style="color:#818cf8;">
+    <label style="color:var(--blue);">
       <input type="checkbox" id="cross-toggle" checked onchange="toggleCrossMarkers(this.checked)">
       📍 Übergreifend
     </label>
-    <label style="color:#818cf8;margin-left:4px;" title="Behobene Meldungen ausblenden">
+    <label style="color:var(--blue);margin-left:4px;" title="Behobene Meldungen ausblenden">
       <input type="checkbox" id="cross-hide-behoben" onchange="renderCrossMarkers()">
       Beh. ausbl.
     </label>
@@ -335,9 +336,9 @@
   <div class="karte-bottom-shelf__body" x-show="open" x-cloak>
     <div style="font-size:.72rem;color:var(--text-muted);" id="shelf-badge">Lade…</div>
     <div style="font-size:.7rem;color:var(--text-muted);display:flex;gap:8px;flex-wrap:wrap;" id="shelf-veh-legend">
-      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 4px #22c55e;"></span> GPS live</span>
-      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6b7280;"></span> GPS veraltet</span>
-      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316;"></span> Manuell</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);"></span> GPS live</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text-muted);"></span> GPS veraltet</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--orange);"></span> Manuell</span>
     </div>
     <div style="font-size:.7rem;color:var(--text-muted);display:none;flex-wrap:wrap;gap:8px;" id="shelf-takt-legend">
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d11;"></span> wasserf.</span>
@@ -366,8 +367,8 @@
 {% if sectors %}
 <div id="section-filters" x-data="{open: !window.matchMedia('(max-width:640px)').matches}"
      style="position:fixed;top:calc(var(--topnav-h) + var(--lage-ctx-h, 80px) + 6px);right:8px;z-index:1001;
-     background:rgba(17,24,39,.85);border:1px solid var(--border);border-radius:8px;
-     padding:6px 10px;backdrop-filter:blur(4px);max-width:200px;">
+     background:rgba(19,27,46,.9);border:1px solid var(--border);border-radius:var(--radius-lg, .75rem);
+     padding:7px 11px;backdrop-filter:blur(6px);max-width:200px;">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;"
        @click="open=!open">
     <div style="font-size:.65rem;color:var(--text-muted);white-space:nowrap;">Abschnitt-Filter</div>
@@ -375,18 +376,18 @@
   </div>
   <div x-show="open" x-cloak style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">
     <button class="section-chip active" data-sector="all"
-            style="font-size:.7rem;padding:2px 7px;border-radius:10px;border:1px solid rgba(255,255,255,.2);
-                   background:rgba(255,255,255,.1);color:var(--text);cursor:pointer;">Alle</button>
+            style="font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--border);
+                   background:var(--surface-high);color:var(--text);cursor:pointer;">Alle</button>
     {% for sec in sectors %}
     <button class="section-chip" data-sector="{{ sec.id }}"
-            style="font-size:.7rem;padding:2px 7px;border-radius:10px;cursor:pointer;
+            style="font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:999px;cursor:pointer;
                    border:1px solid {{ sec.color or '#6b7280' }}88;
                    background:{{ sec.color or '#6b7280' }}22;
                    color:{{ sec.color or '#6b7280' }};">{{ sec.name }}</button>
     {% endfor %}
     <button class="section-chip" data-sector="none"
-            style="font-size:.7rem;padding:2px 7px;border-radius:10px;border:1px solid rgba(107,114,128,.4);
-                   background:rgba(107,114,128,.15);color:#9ca3af;cursor:pointer;">Ohne</button>
+            style="font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid rgba(122,135,168,.4);
+                   background:rgba(122,135,168,.15);color:var(--text-muted);cursor:pointer;">Ohne</button>
   </div>
 </div>
 {% endif %}
@@ -660,10 +661,10 @@
 
   function buildReportPopup(r) {
     return '<div class="lk-popup">' +
-      '<div class="lk-popup__phase" style="color:#fbbf24;margin-bottom:4px;">📥 Bürger-Meldung</div>' +
+      '<div class="lk-popup__phase" style="color:var(--yellow);margin-bottom:4px;">📥 Bürger-Meldung</div>' +
       (r.description ? '<div style="font-size:.84rem;margin-bottom:6px;">' + r.description + '</div>' : '') +
-      (r.ort ? '<div style="font-size:.72rem;color:#9ca3af;margin-bottom:4px;">' + r.ort + '</div>' : '') +
-      '<div style="font-size:.72rem;color:#9ca3af;margin-bottom:6px;">' + r.reporter + ' · ' + r.ts + '</div>' +
+      (r.ort ? '<div style="font-size:.72rem;color:var(--text-muted);margin-bottom:4px;">' + r.ort + '</div>' : '') +
+      '<div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px;">' + r.reporter + ' · ' + r.ts + '</div>' +
       '<a class="lk-popup__link" href="/lage/' + lageId + '/meldungen">→ Meldungen</a>' +
       '</div>';
   }
@@ -684,7 +685,7 @@
   }
 
   function buildReportTooltip(r) {
-    var lines = ['<strong style="color:#fbbf24;">📥 Bürger-Meldung</strong>'];
+    var lines = ['<strong style="color:var(--yellow);">📥 Bürger-Meldung</strong>'];
     if (r.description) lines.push(r.description.length > 60 ? r.description.slice(0, 57) + '…' : r.description);
     if (r.ort) lines.push(r.ort);
     lines.push(r.reporter + ' · ' + r.ts);
@@ -902,7 +903,7 @@
 
   REPORTS.forEach(function(r) {
     var m = L.circleMarker([r.lat, r.lng], {
-      radius: 9, color: '#f59e0b', fillColor: '#fbbf24',
+      radius: 9, color: '#c9821f', fillColor: '#f2b02e',
       fillOpacity: 0.75, weight: 2, dashArray: '5 3',
     });
     m.bindPopup(buildReportPopup(r), { maxWidth: 240 });
@@ -1180,9 +1181,9 @@
 
   function vehicleColor(source, isStale, vtype, hasMaster) {
     if (colorMode === 'taktisch') return magnetColor(vtype, hasMaster);
-    if (source === 'manual') return '#f97316';
-    if (isStale) return '#6b7280';
-    return '#22c55e';
+    if (source === 'manual') return '#e67e22';
+    if (isStale) return '#7a87a8';
+    return '#18a957';
   }
 
   function buildVehiclePopup(v) {

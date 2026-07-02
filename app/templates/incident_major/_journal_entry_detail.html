@@ -2,7 +2,7 @@
 <div style="padding:16px 18px;">
   {# Header #}
   <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;">
-    <span style="flex-shrink:0;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:8px;
+    <span style="flex-shrink:0;font-size:.65rem;font-weight:700;padding:2px 9px;border-radius:999px;
            background:{{ cat_color.get(entry.category,'#6b7280') }}22;
            color:{{ cat_color.get(entry.category,'#9ca3af') }};
            border:1px solid {{ cat_color.get(entry.category,'#6b7280') }}44;
@@ -33,16 +33,16 @@
   {# Fließtext #}
   {% if entry.body_html %}
   <div class="journal-body" style="font-size:.85rem;line-height:1.6;
-       padding:10px 12px;background:rgba(255,255,255,.04);border-radius:6px;
-       border:1px solid rgba(255,255,255,.07);margin-bottom:12px;">
+       padding:10px 12px;background:var(--surface-high);border-radius:var(--radius-md, .5rem);
+       border:1px solid var(--border);margin-bottom:12px;">
     {{ entry.body_html | safe }}
   </div>
   {% endif %}
 
   {# Veranlassung #}
   {% if entry.measure %}
-  <div style="font-size:.78rem;color:#fbbf24;margin-bottom:12px;padding:6px 10px;
-              background:rgba(251,191,36,.08);border-radius:4px;border-left:3px solid #fbbf24;">
+  <div style="font-size:.78rem;color:var(--yellow);margin-bottom:12px;padding:7px 11px;
+              background:rgba(242,176,46,.1);border-radius:var(--radius-md, .5rem);border-left:3px solid var(--yellow);">
     ⚡ <strong>Veranlassung:</strong> {{ entry.measure }}
   </div>
   {% endif %}

@@ -56,7 +56,7 @@
   {% endif %}
   {% endif %}
   {% if is_conflict %}
-  <div style="font-size:.65rem;color:#f87171;font-weight:700;margin-top:3px;">⚠ Fahrzeug mehrfach eingeteilt</div>
+  <div style="font-size:.65rem;color:var(--red);font-weight:700;margin-top:3px;">⚠ Fahrzeug mehrfach eingeteilt</div>
   {% endif %}
   {% if can_edit %}
   <div class="einh-card__actions">
@@ -94,7 +94,7 @@
     <form method="post" action="/lage/{{ lage.id }}/einheiten/{{ e.id }}/loeschen" style="margin:0;"
           onsubmit="return confirm('{{ e.label }} entfernen?')">
       <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-      <button type="submit" class="btn btn--xs btn--ghost" style="color:#f87171;">✕</button>
+      <button type="submit" class="btn btn--xs btn--ghost" style="color:var(--red);">✕</button>
     </form>
   </div>
   {% endif %}
@@ -110,7 +110,7 @@
       <span>🟡 POOL / RESERVE</span>
       <span class="res-col__count">{{ kue.pool|length }}</span>
     </div>
-    <div class="res-col__leader" style="color:#fbbf24;font-size:.68rem;">
+    <div class="res-col__leader" style="color:var(--yellow);font-size:.68rem;">
       Noch keinem Abschnitt zugeteilt (SKKM Reserve)
     </div>
     <div class="res-col__body">
@@ -121,10 +121,10 @@
   </div>
 
   {# Ressourcen im Einsatz (kein Abschnitt) #}
-  <div class="res-col" style="border-color:#fbbf2455;">
-    <div class="res-col__head" style="color:#fbbf24;">
+  <div class="res-col" style="border-color:rgba(242,176,46,.35);">
+    <div class="res-col__head" style="color:var(--yellow);">
       <span>🟠 RESSOURCEN IM EINSATZ</span>
-      <span class="res-col__count" style="background:rgba(251,191,36,.2);color:#fbbf24;">{{ kue.im_einsatz_no_sector|length }}</span>
+      <span class="res-col__count" style="background:rgba(242,176,46,.2);color:var(--yellow);">{{ kue.im_einsatz_no_sector|length }}</span>
     </div>
     <div class="res-col__leader" style="font-size:.68rem;">
       Im Einsatz – noch keinem Abschnitt zugeteilt
@@ -152,7 +152,7 @@
     {% elif s.leader_label %}
     <div class="res-col__leader">AbsLtr: <strong>{{ s.leader_label }}</strong></div>
     {% else %}
-    <div class="res-col__leader" style="color:#f87171;font-size:.68rem;">Kein Abschnittsleiter</div>
+    <div class="res-col__leader" style="color:var(--red);font-size:.68rem;">Kein Abschnittsleiter</div>
     {% endif %}
     <div class="res-col__body">
       {% for e in sd.einheiten %}{{ einheit_card(e) }}{% else %}

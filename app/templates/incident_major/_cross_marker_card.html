@@ -30,10 +30,10 @@
     {# Status-Zeile #}
     <div style="display:flex;align-items:center;margin-bottom:4px;">
       {% if can_edit %}
-      <select style="font-size:.72rem;padding:2px 5px;border-radius:4px;
+      <select style="font-size:.72rem;padding:3px 7px;border-radius:var(--radius-md, .5rem);
                      border:1px solid {{ marker.status_color }}55;
                      background:{{ marker.status_color }}18;
-                     color:{{ marker.status_color }};font-weight:600;width:100%;"
+                     color:{{ marker.status_color }};font-weight:700;width:100%;"
               hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/status"
               hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
               hx-swap="none"
@@ -45,9 +45,9 @@
         {% endfor %}
       </select>
       {% else %}
-      <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:10px;
+      <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;
                    background:{{ marker.status_color }}1a;color:{{ marker.status_color }};
-                   font-size:.7rem;font-weight:600;border:1px solid {{ marker.status_color }}44;">
+                   font-size:.68rem;font-weight:700;border:1px solid {{ marker.status_color }}44;">
         <span style="width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0;"></span>
         {{ marker.status_label }}
       </span>

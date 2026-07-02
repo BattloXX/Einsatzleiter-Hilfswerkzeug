@@ -16,21 +16,21 @@
       <span class="planung-stat__val">{{ lage.sites | length }}</span>
       <span style="color:var(--text-muted);">Einsatzstellen</span>
     </div>
-    <div class="planung-stat" style="border-color:rgba(34,197,94,.3);">
-      <span class="planung-stat__val" style="color:#4ade80;">{{ total_vor_ort.n }}</span>
+    <div class="planung-stat" style="border-color:rgba(24,169,87,.3);">
+      <span class="planung-stat__val" style="color:var(--green);">{{ total_vor_ort.n }}</span>
       <span style="color:var(--text-muted);">Vor Ort</span>
     </div>
-    <div class="planung-stat" style="border-color:rgba(245,158,11,.3);">
-      <span class="planung-stat__val" style="color:#fbbf24;">{{ total_alarmed.n }}</span>
+    <div class="planung-stat" style="border-color:rgba(242,176,46,.3);">
+      <span class="planung-stat__val" style="color:var(--yellow);">{{ total_alarmed.n }}</span>
       <span style="color:var(--text-muted);">Disponiert</span>
     </div>
-    <div class="planung-stat" style="border-color:rgba(251,191,36,.3);">
-      <span class="planung-stat__val" style="color:#fbbf24;">{{ kue.reserve_count }}</span>
+    <div class="planung-stat" style="border-color:rgba(242,176,46,.3);">
+      <span class="planung-stat__val" style="color:var(--yellow);">{{ kue.reserve_count }}</span>
       <span style="color:var(--text-muted);">Pool / Reserve</span>
     </div>
     {% if kue.conflict_vids %}
-    <div class="planung-stat" style="border-color:rgba(248,113,113,.35);">
-      <span class="planung-stat__val" style="color:#f87171;">{{ kue.conflict_vids | length }}</span>
+    <div class="planung-stat" style="border-color:rgba(212,34,37,.35);">
+      <span class="planung-stat__val" style="color:var(--red);">{{ kue.conflict_vids | length }}</span>
       <span style="color:var(--text-muted);">Konflikte</span>
     </div>
     {% endif %}
@@ -41,10 +41,10 @@
     {% for site in sites_sorted %}
     {% set res = resources_by_site.get(site.id, {'vor_ort': [], 'alarmed': []}) %}
     {% set prio_val = site.priority.value if site.priority else 9 %}
-    {% if prio_val == 1 %}{% set prio_cls = 'red' %}{% set prio_color_hex = '#ef4444' %}
-    {% elif prio_val == 2 %}{% set prio_cls = 'orange' %}{% set prio_color_hex = '#f97316' %}
-    {% elif prio_val == 3 %}{% set prio_cls = 'yellow' %}{% set prio_color_hex = '#eab308' %}
-    {% else %}{% set prio_cls = 'gray' %}{% set prio_color_hex = 'rgba(107,114,128,.4)' %}
+    {% if prio_val == 1 %}{% set prio_cls = 'red' %}{% set prio_color_hex = 'var(--red)' %}
+    {% elif prio_val == 2 %}{% set prio_cls = 'orange' %}{% set prio_color_hex = 'var(--orange)' %}
+    {% elif prio_val == 3 %}{% set prio_cls = 'yellow' %}{% set prio_color_hex = 'var(--yellow)' %}
+    {% else %}{% set prio_cls = 'gray' %}{% set prio_color_hex = 'rgba(122,135,168,.4)' %}
     {% endif %}
     {% set total_res = (res.vor_ort | length) + (res.alarmed | length) %}
 
@@ -82,7 +82,7 @@
         {# Ressourcen-Zähler #}
         <div class="planung-card__count">
           <div class="planung-card__count-val"
-               style="color:{% if (res.vor_ort | length) > 0 %}#4ade80{% elif (res.alarmed | length) > 0 %}#fbbf24{% else %}var(--text-muted){% endif %};">
+               style="color:{% if (res.vor_ort | length) > 0 %}var(--green){% elif (res.alarmed | length) > 0 %}var(--yellow){% else %}var(--text-muted){% endif %};">
             {{ total_res }}
           </div>
           <div class="planung-card__count-lbl">Einh.</div>
@@ -94,7 +94,7 @@
         {% if res.vor_ort %}
         <div class="planung-res-group">
           <div class="planung-res-group__lbl">
-            <span style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;"></span>
             Vor Ort ({{ res.vor_ort | length }})
           </div>
           <div class="planung-res-chips">
@@ -111,7 +111,7 @@
         {% if res.alarmed %}
         <div class="planung-res-group">
           <div class="planung-res-group__lbl">
-            <span style="width:7px;height:7px;border-radius:50%;background:#fbbf24;flex-shrink:0;"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--yellow);flex-shrink:0;"></span>
             Disponiert ({{ res.alarmed | length }})
           </div>
           <div class="planung-res-chips">

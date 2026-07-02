@@ -59,11 +59,11 @@
       <span class="badge--xs badge--purple">Bürger</span>
       {% endif %}
       {% if site.priority %}
-      <span style="font-size:.7rem;font-weight:700;padding:1px 7px;border-radius:4px;
-        {% if prio_color[site.priority] == 'red' %}background:rgba(248,113,113,.15);color:#f87171;
-        {% elif prio_color[site.priority] == 'orange' %}background:rgba(251,146,60,.15);color:#fb923c;
-        {% elif prio_color[site.priority] == 'yellow' %}background:rgba(250,204,21,.12);color:#facc15;
-        {% else %}background:rgba(107,114,128,.15);color:var(--text-muted);{% endif %}">
+      <span style="font-size:.66rem;font-weight:700;padding:1px 8px;border-radius:999px;
+        {% if prio_color[site.priority] == 'red' %}background:rgba(212,34,37,.16);color:#f87171;
+        {% elif prio_color[site.priority] == 'orange' %}background:rgba(230,126,34,.16);color:var(--orange);
+        {% elif prio_color[site.priority] == 'yellow' %}background:rgba(242,176,46,.14);color:var(--yellow);
+        {% else %}background:rgba(122,135,168,.16);color:var(--text-muted);{% endif %}">
         {{ prio_label[site.priority] }}
       </span>
       {% endif %}

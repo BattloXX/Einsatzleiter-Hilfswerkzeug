@@ -69,8 +69,8 @@
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
     <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ marker.status_color }};flex-shrink:0;"></span>
     {% if can_edit %}
-    <select style="font-size:.78rem;padding:3px 6px;border-radius:4px;border:1px solid var(--border);
-                   background:var(--surface-elevated,#1e2130);color:{{ marker.status_color }};font-weight:600;"
+    <select style="font-size:.78rem;padding:4px 8px;border-radius:var(--radius-md, .5rem);border:1px solid var(--border);
+                   background:var(--surface-high);color:{{ marker.status_color }};font-weight:700;"
             hx-post="/lage/{{ lage.id }}/uebergreifend/{{ marker.id }}/status"
             hx-vals='{"_csrf":"{{ request.state.csrf_token }}"}'
             hx-swap="none"
@@ -152,8 +152,8 @@
   {% endif %}
 
   {% if marker.description %}
-  <div style="font-size:.82rem;line-height:1.5;margin-bottom:8px;padding:8px;
-              background:rgba(255,255,255,.04);border-radius:6px;">
+  <div style="font-size:.82rem;line-height:1.5;margin-bottom:8px;padding:9px 11px;
+              background:var(--surface-high);border-radius:var(--radius-md, .5rem);">
     {{ marker.description }}
   </div>
   {% endif %}
@@ -167,7 +167,7 @@
 {# ── Medien ─────────────────────────────────────────────────────────────────── #}
 {% if marker.media or can_edit %}
 <div style="padding:8px 14px;border-top:1px solid var(--border);">
-  <div style="font-size:.7rem;color:var(--text-muted);font-weight:600;margin-bottom:7px;">BILDER</div>
+  <div style="font-size:.66rem;color:var(--text-muted);font-weight:700;margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;">Bilder</div>
   {% if marker.media %}
   <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
     {% for m in marker.media %}
@@ -196,7 +196,7 @@
             hx-on::after-request="if(event.detail.successful){this.closest('[x-data]').remove()}"
             style="margin:0;position:absolute;top:1px;right:1px;">
         <button type="submit" class="btn btn--xs btn--ghost"
-                style="background:rgba(0,0,0,.7);color:#f87171;padding:0 3px;font-size:.6rem;line-height:1.4;">✕</button>
+                style="background:rgba(0,0,0,.7);color:var(--red);padding:0 3px;font-size:.6rem;line-height:1.4;">✕</button>
       </form>
       {% endif %}
     </div>
@@ -243,12 +243,12 @@
 
 {# ── Notizen/Log ────────────────────────────────────────────────────────────── #}
 <div style="padding:8px 14px;border-top:1px solid var(--border);">
-  <div style="font-size:.7rem;color:var(--text-muted);font-weight:600;margin-bottom:6px;">MELDUNGEN / NOTIZEN</div>
+  <div style="font-size:.66rem;color:var(--text-muted);font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;">Meldungen / Notizen</div>
   {% if marker.log_entries %}
   {% for entry in marker.log_entries[-8:] | reverse %}
-  <div style="display:flex;align-items:flex-start;gap:6px;padding:4px 0;
-              border-top:1px solid rgba(255,255,255,.04);">
-    <span style="flex-shrink:0;font-size:.65rem;color:var(--text-muted);font-family:monospace;padding-top:1px;white-space:nowrap;">
+  <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 9px;margin-bottom:4px;
+              background:var(--surface-high);border-radius:var(--radius-md, .5rem);">
+    <span style="flex-shrink:0;font-size:.65rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;padding-top:1px;white-space:nowrap;">
       {{ entry.ts | local_time }}
     </span>
     <span style="flex:1;font-size:.78rem;">{{ entry.text }}</span>
@@ -295,7 +295,7 @@
           htmx.trigger(document.body,'crossMarkerChanged');
         }"
         style="margin:0;">
-    <button type="submit" class="btn btn--ghost btn--sm" style="color:#f87171;border-color:rgba(239,68,68,.3);">Löschen</button>
+    <button type="submit" class="btn btn--ghost btn--sm" style="color:var(--red);border-color:rgba(212,34,37,.3);">Löschen</button>
   </form>
 </div>
 {% endif %}

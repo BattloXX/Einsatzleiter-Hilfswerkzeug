@@ -13,69 +13,70 @@
 
   /* ── Phasen-Board ────────────────────────────────────────────────────────── */
   .phase-board {
-    flex:1; display:flex; overflow-x:auto; gap:10px;
-    padding:12px; align-items:flex-start;
+    flex:1; display:flex; overflow-x:auto; gap:12px;
+    padding:14px; align-items:flex-start;
   }
   .phase-col {
-    flex:0 0 240px; display:flex; flex-direction:column;
-    background:var(--surface-elevated,#1e2130);
-    border-radius:8px; overflow:hidden; max-height:100%;
+    flex:0 0 250px; display:flex; flex-direction:column;
+    background:var(--surface-mid);
+    border:1px solid var(--border); border-top:3px solid var(--phase-accent, var(--border));
+    border-radius:var(--radius-lg, .75rem); overflow:hidden; max-height:100%;
   }
   .phase-col--abgebrochen { opacity:.65; }
   .phase-col__header {
     display:flex; align-items:center; justify-content:space-between;
-    padding:8px 10px; background:rgba(255,255,255,.04);
+    padding:9px 12px; background:rgba(255,255,255,.03);
     border-bottom:1px solid var(--border);
-    font-weight:600; font-size:.82rem; flex-shrink:0;
+    font-weight:700; font-size:.8rem; flex-shrink:0;
   }
   .phase-col__count {
-    font-size:.75rem; background:rgba(255,255,255,.1);
-    border-radius:10px; padding:1px 7px;
+    font-size:.66rem; font-weight:700; background:var(--surface-high); color:var(--text-muted);
+    border-radius:999px; padding:2px 9px; font-family:'JetBrains Mono', monospace;
   }
   .phase-col__body {
-    flex:1; overflow-y:auto; padding:6px;
+    flex:1; overflow-y:auto; padding:8px;
     min-height:80px;
   }
 
   /* ── Site-Karte ──────────────────────────────────────────────────────────── */
   .site-card {
-    background:var(--surface-high,#252a3a);
-    border:1px solid var(--border); border-radius:6px;
-    margin-bottom:6px; cursor:pointer;
-    transition:border-color .12s;
+    background:var(--surface-high);
+    border:1px solid var(--border); border-radius:var(--radius-md, .5rem);
+    margin-bottom:8px; cursor:pointer;
+    transition:border-color .12s, transform .12s, box-shadow .12s;
     overflow:hidden;
   }
-  .site-card:hover { border-color:rgba(255,255,255,.22); }
+  .site-card:hover { border-color:rgba(255,255,255,.22); transform:translateY(-1px); box-shadow:var(--shadow-card); }
   .site-card--ghost  { opacity:.35; }
   .site-card--chosen { box-shadow:0 4px 16px rgba(0,0,0,.4); }
   .site-card--drag   { box-shadow:0 8px 24px rgba(0,0,0,.5); }
   .site-card__prio-bar { height:4px; }
-  .prio-bar--red    { background:#ef4444; }
-  .prio-bar--orange { background:#f97316; }
-  .prio-bar--yellow { background:#eab308; }
-  .prio-bar--muted  { background:var(--text-muted,#6b7280); }
-  .site-card__body  { padding:8px 10px; }
-  .site-card__title { font-weight:600; font-size:.88rem; line-height:1.3; }
+  .prio-bar--red    { background:var(--red); }
+  .prio-bar--orange { background:var(--orange); }
+  .prio-bar--yellow { background:var(--yellow); }
+  .prio-bar--muted  { background:var(--text-muted); }
+  .site-card__body  { padding:9px 11px; }
+  .site-card__title { font-weight:700; font-size:.88rem; line-height:1.3; }
   .site-card__sub   { font-size:.76rem; color:var(--text-muted); margin-top:2px; }
   .site-card__addr  { font-size:.74rem; color:var(--text-muted); margin-top:3px; }
   .site-card__meta  {
     display:flex; align-items:center; gap:5px; flex-wrap:wrap;
-    margin-top:5px; font-size:.7rem; color:var(--text-muted);
+    margin-top:6px; font-size:.7rem; color:var(--text-muted);
   }
-  .badge--xs { font-size:.64rem; padding:1px 5px; border-radius:3px;
-    background:rgba(255,255,255,.08); }
-  .badge--blue   { background:rgba(59,130,246,.2); color:#93c5fd; }
-  .badge--purple { background:rgba(139,92,246,.2); color:#c4b5fd; }
+  .badge--xs { font-size:.62rem; font-weight:700; padding:1px 7px; border-radius:999px;
+    background:var(--surface-highest); }
+  .badge--blue   { background:rgba(24,119,242,.18); color:#93c5fd; }
+  .badge--purple { background:rgba(167,139,250,.18); color:#c4b5fd; }
 
   /* ── Priorität als linker Farbbalken ────────────────────────────────────── */
-  .site-card[data-prio="1"] { border-left: 3px solid #ef4444; }
-  .site-card[data-prio="2"] { border-left: 3px solid #f97316; }
-  .site-card[data-prio="3"] { border-left: 3px solid #eab308; }
-  .site-card[data-prio="4"] { border-left: 3px solid rgba(107,114,128,.35); }
+  .site-card[data-prio="1"] { border-left: 3px solid var(--red); }
+  .site-card[data-prio="2"] { border-left: 3px solid var(--orange); }
+  .site-card[data-prio="3"] { border-left: 3px solid var(--yellow); }
+  .site-card[data-prio="4"] { border-left: 3px solid rgba(122,135,168,.4); }
 
   /* ── HTMX-Refresh-Feedback ───────────────────────────────────────────────── */
   .site-card.htmx-request { opacity: 0.5; transition: opacity 0.15s; }
-  @keyframes card-refresh { from { box-shadow: 0 0 0 2px rgba(99,102,241,.55); } to { box-shadow: none; } }
+  @keyframes card-refresh { from { box-shadow: 0 0 0 2px rgba(24,119,242,.55); } to { box-shadow: none; } }
   .site-card--refreshed { animation: card-refresh 0.75s ease-out; }
 
   /* ── Überfälliger Lagemeldungs-Timer: Pulsieren ──────────────────────────── */
@@ -84,19 +85,19 @@
 
   /* ── Quick-Prio-Footer ───────────────────────────────────────────────────── */
   .site-card__footer {
-    border-top: 1px solid rgba(255,255,255,.06);
+    border-top: 1px solid var(--border);
     padding: 0;
     display: flex;
     gap: 1px;
-    background: rgba(255,255,255,.06);
+    background: var(--border);
   }
   .prio-quick-btn {
     width: 100%;
     font-size: .72rem;
     font-weight: 700;
-    padding: 5px 2px;
+    padding: 6px 2px;
     border-radius: 0;
-    background: var(--surface-high, #252a3a);
+    background: var(--surface-high);
     border: none;
     cursor: pointer;
     text-align: center;
@@ -104,14 +105,14 @@
     letter-spacing: .04em;
     color: var(--text-muted);
   }
-  .prio-quick-btn:hover { background: rgba(255,255,255,.09); }
+  .prio-quick-btn:hover { background: var(--surface-highest); }
   .prio-quick-btn--red    { color: #f87171; }
-  .prio-quick-btn--red.pq-active    { background: rgba(239,68,68,.18); }
-  .prio-quick-btn--orange { color: #fb923c; }
-  .prio-quick-btn--orange.pq-active { background: rgba(249,115,22,.18); }
-  .prio-quick-btn--yellow { color: #facc15; }
-  .prio-quick-btn--yellow.pq-active { background: rgba(234,179,8,.18); }
-  .prio-quick-btn--muted.pq-active  { background: rgba(107,114,128,.18); }
+  .prio-quick-btn--red.pq-active    { background: rgba(212,34,37,.18); }
+  .prio-quick-btn--orange { color: var(--orange); }
+  .prio-quick-btn--orange.pq-active { background: rgba(230,126,34,.18); }
+  .prio-quick-btn--yellow { color: var(--yellow); }
+  .prio-quick-btn--yellow.pq-active { background: rgba(242,176,46,.18); }
+  .prio-quick-btn--muted.pq-active  { background: rgba(122,135,168,.18); }
 
   /* ── Mobile Board ────────────────────────────────────────────────────────── */
   @media (max-width: 760px) {
@@ -130,11 +131,11 @@
   @media (max-width: 760px) {
     .lage-phase-select {
       display: block;
-      background: var(--surface-elevated, #1e2130);
+      background: var(--surface-high);
       color: var(--text);
       border: 1px solid var(--border);
-      border-radius: 5px;
-      padding: 3px 7px;
+      border-radius: var(--radius-md, .5rem);
+      padding: 5px 9px;
       font-size: .85rem;
       cursor: pointer;
       max-width: 160px;
@@ -148,27 +149,27 @@
   <input type="search" id="board-search" placeholder="Suchen…"
          oninput="applyBoardFilters()"
          autocomplete="off"
-         style="padding:3px 9px;font-size:.8rem;border-radius:4px;border:1px solid var(--border);
-                background:var(--surface-elevated,#1e2130);color:var(--text);width:150px;">
+         style="padding:5px 11px;font-size:.8rem;border-radius:var(--radius-md, .5rem);border:1px solid var(--border);
+                background:var(--surface-high);color:var(--text);width:150px;">
   {% if sectors %}
   <div style="position:relative;" id="sector-filter-wrap">
     <button type="button" id="sector-filter-btn" onclick="toggleSectorDropdown()"
-            style="font-size:.8rem;padding:3px 9px;border-radius:4px;border:1px solid var(--border);
-                   background:var(--surface-elevated,#1e2130);color:var(--text);cursor:pointer;
+            style="font-size:.8rem;padding:5px 11px;border-radius:var(--radius-md, .5rem);border:1px solid var(--border);
+                   background:var(--surface-high);color:var(--text);cursor:pointer;
                    white-space:nowrap;display:flex;align-items:center;gap:5px;">
       <span id="sector-filter-label">Alle Abschnitte</span>
       <span style="font-size:.6rem;opacity:.6;">▾</span>
     </button>
     <div id="sector-filter-dropdown"
          style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:300;
-                min-width:200px;background:var(--surface-elevated,#1e2130);
-                border:1px solid var(--border);border-radius:6px;
-                box-shadow:0 4px 16px rgba(0,0,0,.5);padding:4px 0;">
+                min-width:200px;background:var(--surface-mid);
+                border:1px solid var(--border);border-radius:var(--radius-lg, .75rem);
+                box-shadow:var(--shadow-modal, 0 4px 16px rgba(0,0,0,.5));padding:4px 0;">
       <label style="display:flex;align-items:center;gap:8px;padding:5px 12px;cursor:pointer;
                     font-size:.78rem;font-weight:600;border-bottom:1px solid var(--border);
                     margin-bottom:2px;">
         <input type="checkbox" id="sector-all-cb" onchange="sectorToggleAll(this.checked)"
-               style="accent-color:var(--primary,#6366f1);">
+               style="accent-color:var(--red);">
         Alle / Keine
       </label>
       {% for sec in sectors %}
@@ -260,11 +261,20 @@
   {% endif %}
 
   <!-- ── Phasen-Board ── -->
+  {% set phase_colors = {
+    'eingegangen': '#6b7280',
+    'erkundung':   '#a78bfa',
+    'bewertet':    '#60a5fa',
+    'disponiert':  '#34d399',
+    'in_arbeit':   '#fbbf24',
+    'erledigt':    '#4ade80'
+  } %}
   <div class="phase-board" id="lage-board" data-lage-id="{{ lage.id }}">
 
     {% for phase in phase_order %}
     {% set phase_sites = sites_by_phase[phase] %}
-    <div class="phase-col{% if loop.first %} lage-col-active{% endif %}">
+    <div class="phase-col{% if loop.first %} lage-col-active{% endif %}"
+         style="--phase-accent:{{ phase_colors.get(phase.value, '#6b7280') }};">
       <div class="phase-col__header">
         <span>{{ phase_labels[phase] }}</span>
         <span class="phase-col__count">{{ phase_sites|length }}</span>
@@ -292,8 +302,8 @@
     {% endif %}
 
     {% if mi_features.uebergreifend %}
-    <div class="phase-col" id="cross-marker-col">
-      <div class="phase-col__header" style="border-top-color:#6366f1;flex-wrap:wrap;gap:4px;">
+    <div class="phase-col" id="cross-marker-col" style="--phase-accent:var(--blue);">
+      <div class="phase-col__header" style="flex-wrap:wrap;gap:4px;">
         <span style="flex:1;">📍 Übergreifend</span>
         <span class="phase-col__count">{{ cross_markers|length }}</span>
         <button type="button" id="cm-hide-behoben-btn"
@@ -334,7 +344,7 @@
       <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
       <div class="modal__body">
         <div class="form-group">
-          <label class="form-label">Bezeichnung <span style="color:#ef4444">*</span></label>
+          <label class="form-label">Bezeichnung <span style="color:var(--red)">*</span></label>
           <input type="text" name="bezeichnung" class="form-input" required maxlength="160"
                  placeholder="z. B. Überschwemmung Hauptstraße"
                  autocomplete="off" autofocus>
@@ -382,7 +392,7 @@
           style="margin:0;">
       <div class="modal__body">
         <div class="form-group">
-          <label class="form-label">Bezeichnung <span style="color:#ef4444">*</span></label>
+          <label class="form-label">Bezeichnung <span style="color:var(--red)">*</span></label>
           <input type="text" name="title" class="form-input" required maxlength="160"
                  placeholder="z. B. Sammelplatz Nord" autocomplete="off">
         </div>
@@ -628,8 +638,8 @@ function togglePrioSort() {
   PRIO_SORT = !PRIO_SORT;
   var btn = document.getElementById('prio-sort-btn');
   if (btn) {
-    btn.style.background = PRIO_SORT ? 'rgba(251,191,36,.15)' : '';
-    btn.style.color       = PRIO_SORT ? '#fbbf24' : '';
+    btn.style.background = PRIO_SORT ? 'rgba(242,176,46,.15)' : '';
+    btn.style.color       = PRIO_SORT ? 'var(--yellow)' : '';
   }
   document.querySelectorAll('.phase-col__body').forEach(function(col) {
     var phase = col.dataset.phase;

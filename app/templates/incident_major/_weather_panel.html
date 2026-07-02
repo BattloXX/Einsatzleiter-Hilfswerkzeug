@@ -4,15 +4,15 @@
 
 {# ── Segmented Tab Control (nur wenn Pegel-Stationen konfiguriert) ────────── #}
 {% if _has_pegel %}
-<div style="display:inline-flex;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:8px;padding:3px;gap:2px;margin-bottom:10px;">
+<div style="display:inline-flex;background:var(--surface-mid);border:1px solid var(--border);border-radius:var(--radius-lg, .75rem);padding:3px;gap:2px;margin-bottom:10px;">
   <button type="button" @click="_setTab('wetter')"
-          :style="_t==='wetter' ? 'background:rgba(255,255,255,.14);color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,.4);' : 'background:transparent;color:var(--text-muted);'"
-          style="border:none;border-radius:6px;padding:4px 14px;font-size:.76rem;font-weight:600;cursor:pointer;transition:all .12s;line-height:1.3;white-space:nowrap;">
+          :style="_t==='wetter' ? 'background:var(--surface-high);color:var(--text);box-shadow:var(--shadow-card);' : 'background:transparent;color:var(--text-muted);'"
+          style="border:none;border-radius:var(--radius-md, .5rem);padding:5px 15px;font-size:.76rem;font-weight:700;cursor:pointer;transition:all .12s;line-height:1.3;white-space:nowrap;">
     &#x2601; Wetter
   </button>
   <button type="button" @click="_setTab('pegel')"
-          :style="_t==='pegel' ? 'background:rgba(255,255,255,.14);color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,.4);' : 'background:transparent;color:var(--text-muted);'"
-          style="border:none;border-radius:6px;padding:4px 14px;font-size:.76rem;font-weight:600;cursor:pointer;transition:all .12s;line-height:1.3;white-space:nowrap;">
+          :style="_t==='pegel' ? 'background:var(--surface-high);color:var(--text);box-shadow:var(--shadow-card);' : 'background:transparent;color:var(--text-muted);'"
+          style="border:none;border-radius:var(--radius-md, .5rem);padding:5px 15px;font-size:.76rem;font-weight:700;cursor:pointer;transition:all .12s;line-height:1.3;white-space:nowrap;">
     &#x1F30A; Pegel
   </button>
 </div>
@@ -60,7 +60,7 @@
   {% if forecast and forecast.horizons %}
   <span style="color:var(--border);user-select:none;">&#x2502;</span>
   {% for h in forecast.horizons %}
-  <span style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:.71rem;white-space:nowrap;">
+  <span style="background:var(--surface-high);border:1px solid var(--border);border-radius:var(--radius-md, .5rem);padding:2px 8px;font-size:.71rem;white-space:nowrap;">
     <span style="color:var(--text-muted);">+{{ h.hours }}h</span>{% if h.temperature_c is not none %} {{ '%.0f'|format(h.temperature_c) }}&deg;C{% endif %}{% if h.precipitation_acc_mm is not none %} &middot; &#x1F327;{{ '%.1f'|format(h.precipitation_acc_mm) }}mm{% endif %}{% if h.wind_speed_ms is not none %} &middot; &#x1F4A8;{{ '%.0f'|format(h.wind_speed_ms) }}m/s{% endif %}
   </span>
   {% endfor %}
@@ -72,7 +72,7 @@
 {% if warn_views %}
 <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px;">
   {% for w in warn_views %}
-  <div style="border-left:3px solid {{ w.color }};padding:2px 8px;background:{{ w.color }}11;border-radius:0 3px 3px 0;">
+  <div style="border-left:3px solid {{ w.color }};padding:3px 9px;background:{{ w.color }}11;border-radius:0 var(--radius-md, .5rem) var(--radius-md, .5rem) 0;">
     <span style="font-size:.74rem;font-weight:600;color:{{ w.color }};">&#x26A0; Stufe {{ w.level }} &ndash; {{ w.event_type }}</span>
     <span style="font-size:.67rem;color:var(--text-muted);margin-left:5px;">{{ w.zeitraum }}</span>
     {% if w.text %}<span style="font-size:.64rem;color:var(--text-muted);margin-left:4px;">{{ w.text[:70] }}{% if w.text|length > 70 %}&hellip;{% endif %}</span>{% endif %}
@@ -81,7 +81,7 @@
 </div>
 {% else %}
 <div style="margin-bottom:4px;">
-  <span style="background:rgba(34,197,94,.10);color:#4ade80;border:1px solid rgba(34,197,94,.2);padding:2px 7px;border-radius:3px;font-size:.74rem;">&#x2713; keine aktive Warnung</span>
+  <span style="background:rgba(24,169,87,.14);color:var(--green);border:1px solid rgba(24,169,87,.3);padding:2px 8px;border-radius:999px;font-size:.74rem;font-weight:600;">&#x2713; keine aktive Warnung</span>
 </div>
 {% endif %}
 
@@ -96,11 +96,11 @@
 
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:6px;margin-bottom:4px;">
   {% for av in abfluss_views %}
-  <div style="background:rgba(255,255,255,.04);border-left:3px solid {{ av.stufe_farbe }};border-radius:0 4px 4px 0;padding:7px 10px;">
+  <div style="background:var(--surface-high);border-left:3px solid {{ av.stufe_farbe }};border-radius:0 var(--radius-md, .5rem) var(--radius-md, .5rem) 0;padding:8px 11px;">
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-      <a href="https://vowis.vorarlberg.at/stationsInfo/_Abfluss/ofwStation.aspx?hzbnr={{ av.hzbnr }}" target="_blank" rel="noopener" style="font-size:.80rem;font-weight:600;color:var(--text-primary);text-decoration:none;">{{ av.name }} &#x2197;</a>
-      <span style="font-size:.69rem;font-weight:700;color:{{ av.stufe_farbe }};background:{{ av.stufe_farbe }}22;padding:1px 8px;border-radius:10px;white-space:nowrap;border:1px solid {{ av.stufe_farbe }}44;">{{ av.stufe_label }}</span>
+      <a href="https://vowis.vorarlberg.at/stationsInfo/_Abfluss/ofwStation.aspx?hzbnr={{ av.hzbnr }}" target="_blank" rel="noopener" style="font-size:.80rem;font-weight:700;color:var(--text);text-decoration:none;">{{ av.name }} &#x2197;</a>
+      <span style="font-size:.69rem;font-weight:700;color:{{ av.stufe_farbe }};background:{{ av.stufe_farbe }}22;padding:1px 9px;border-radius:999px;white-space:nowrap;border:1px solid {{ av.stufe_farbe }}44;">{{ av.stufe_label }}</span>
     </div>
 
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
