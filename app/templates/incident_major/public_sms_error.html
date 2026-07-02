@@ -2,45 +2,52 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>SMS konnte nicht gesendet werden</title>
 <style>
+  :root {
+    --bg:#0b1326; --surface:#131b2e; --surface-2:#171f33; --border:#2e3347;
+    --text:#dae2fd; --text-muted:#7a87a8;
+    --red:#d42225; --red-light:#e8403f;
+    --radius-md:.5rem; --radius-lg:.75rem; --radius-full:9999px;
+    --shadow-card:0 1px 2px rgba(0,0,0,.4);
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #f3f4f6; color: #111827; min-height: 100vh;
+    background: var(--bg); color: var(--text); min-height: 100vh;
     padding: 16px; display: flex; align-items: center; justify-content: center;
   }
   .card {
     max-width: 440px; width: 100%;
-    background: #fff; border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.1);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
     padding: 28px 22px;
   }
   .header { text-align: center; margin-bottom: 18px; }
   .header__icon { font-size: 2.2rem; }
-  .header__title { font-size: 1.1rem; font-weight: 700; margin-top: 8px; color: #b91c1c; }
-  .info { font-size: .88rem; color: #374151; line-height: 1.6; margin-bottom: 18px; }
+  .header__title { font-size: 1.1rem; font-weight: 800; margin-top: 10px; color: var(--red-light); }
+  .info { font-size: .88rem; color: var(--text); line-height: 1.6; margin-bottom: 18px; }
   .btn-back {
-    display: block; width: 100%; padding: 11px;
-    border: 1px solid #d1d5db; border-radius: 8px;
-    background: #f9fafb; color: #374151; font-size: .92rem;
-    font-weight: 600; text-align: center; text-decoration: none;
-    cursor: pointer; margin-bottom: 12px;
+    display: block; width: 100%; padding: 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--surface-2); color: var(--text); font-size: .92rem;
+    font-weight: 700; text-align: center; text-decoration: none;
+    cursor: pointer; margin-bottom: 14px;
   }
-  .btn-back:hover { background: #f3f4f6; }
+  .btn-back:active { transform: scale(.98); }
   .emergency {
-    background: #fef2f2; border: 2px solid #ef4444;
-    border-radius: 8px; padding: 12px 14px; text-align: center;
+    background: rgba(216,48,48,.1); border: 2px solid var(--red);
+    border-radius: var(--radius-lg); padding: 14px; text-align: center;
   }
-  .emergency__title { font-size: .85rem; font-weight: 700; color: #b91c1c; margin-bottom: 8px; }
+  .emergency__title { font-size: .82rem; font-weight: 800; color: var(--red-light); margin-bottom: 10px; }
   .emergency__btn {
-    display: inline-block; background: #b91c1c; color: #fff;
-    font-size: 1.2rem; font-weight: 900; padding: 8px 22px;
-    border-radius: 8px; text-decoration: none; letter-spacing: .04em;
+    display: inline-block; background: var(--red); color: #fff;
+    font-size: 1.25rem; font-weight: 900; padding: 9px 24px;
+    border-radius: var(--radius-full); text-decoration: none; letter-spacing: .04em;
   }
-  .emergency__hint { font-size: .75rem; color: #991b1b; margin-top: 6px; }
-  .footer { text-align: center; font-size: .72rem; color: #9ca3af; margin-top: 18px; }
+  .emergency__hint { font-size: .74rem; color: var(--text-muted); margin-top: 8px; }
+  .footer { text-align: center; font-size: .72rem; color: var(--text-muted); margin-top: 18px; }
 </style>
 </head>
 <body>
