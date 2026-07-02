@@ -163,11 +163,11 @@
     <div class="grid-2">
       <div>
         <label>Straße / Adresse</label>
-        <input type="text" name="strasse" maxlength="160" placeholder="z. B. Hauptstraße 12">
+        <input type="text" name="strasse" id="strasse-input" maxlength="160" placeholder="z. B. Hauptstraße 12">
       </div>
       <div>
         <label>Ort</label>
-        <input type="text" name="ort" maxlength="120" placeholder="z. B. Wolfurt">
+        <input type="text" name="ort" id="ort-input" maxlength="120" placeholder="z. B. Wolfurt">
       </div>
     </div>
 
@@ -231,7 +231,7 @@ function captureGPS(btn, silent) {
     status.textContent = '✓ Standort erfasst (' + pos.coords.latitude.toFixed(4) + ', ' + pos.coords.longitude.toFixed(4) + ')';
     status.style.color = '#18a957';
     if (btn) btn.disabled = false;
-    setReportMarker(pos.coords.latitude, pos.coords.longitude);
+    setReportMarker(pos.coords.latitude, pos.coords.longitude, true);
   }, function() {
     if (!silent) status.textContent = 'Standort nicht verfügbar';
     if (btn) btn.disabled = false;
@@ -239,6 +239,8 @@ function captureGPS(btn, silent) {
 }
 
 var reportMap = null, reportMarker = null;
+var ORG_CENTER = {{ ([org_lat, org_lng] if org_lat is not none and org_lng is not none else [47.6965, 13.3457])|tojson }};
+var ORG_ZOOM = {{ 13 if org_lat is not none and org_lng is not none else 7 }};
 
 function initReportMap() {
   var mapEl = document.getElementById('report-map');
@@ -249,33 +251,81 @@ function initReportMap() {
     iconRetinaUrl: '/static/img/leaflet/marker-icon-2x.png',
     shadowUrl: '/static/img/leaflet/marker-shadow.png',
   });
-  reportMap = L.map('report-map', { zoomControl: true }).setView([47.6965, 13.3457], 7);
+  reportMap = L.map('report-map', { zoomControl: true }).setView(ORG_CENTER, ORG_ZOOM);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap', subdomains: 'abc', maxZoom: 19,
   }).addTo(reportMap);
-  reportMap.on('click', function(e) { setReportMarker(e.latlng.lat, e.latlng.lng); });
+  reportMap.on('click', function(e) { setReportMarker(e.latlng.lat, e.latlng.lng, true); });
   setTimeout(function() { reportMap.invalidateSize(); }, 200);
+
+  var strasseEl = document.getElementById('strasse-input');
+  var ortEl = document.getElementById('ort-input');
+  [strasseEl, ortEl].forEach(function(el) {
+    el.addEventListener('input', scheduleAddressGeocode);
+    el.addEventListener('blur', scheduleAddressGeocode);
+  });
 }
 
-function setReportMarker(lat, lng) {
+function setReportMarker(lat, lng, updateAddress) {
   var latlng = [lat, lng];
   document.getElementById('gps-lat').value = lat.toFixed(6);
   document.getElementById('gps-lng').value = lng.toFixed(6);
-  if (!reportMap) return;
-  if (reportMarker) {
-    reportMarker.setLatLng(latlng);
-  } else {
-    reportMarker = L.marker(latlng, { draggable: true }).addTo(reportMap);
-    reportMarker.on('dragend', function() {
-      var p = reportMarker.getLatLng();
-      document.getElementById('gps-lat').value = p.lat.toFixed(6);
-      document.getElementById('gps-lng').value = p.lng.toFixed(6);
-      var status = document.getElementById('gps-status');
-      status.textContent = '✓ Position gewählt (' + p.lat.toFixed(4) + ', ' + p.lng.toFixed(4) + ')';
-      status.style.color = '#18a957';
-    });
+  if (reportMap) {
+    if (reportMarker) {
+      reportMarker.setLatLng(latlng);
+    } else {
+      reportMarker = L.marker(latlng, { draggable: true }).addTo(reportMap);
+      reportMarker.on('dragend', function() {
+        var p = reportMarker.getLatLng();
+        setReportMarker(p.lat, p.lng, true);
+      });
+    }
+    reportMap.setView(latlng, 16);
   }
-  reportMap.setView(latlng, 16);
+  if (updateAddress) {
+    reverseGeocodeFill(lat, lng);
+  }
+}
+
+function reverseGeocodeFill(lat, lng) {
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng, {
+    headers: { 'Accept-Language': 'de' },
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(j) {
+      if (!j || !j.address) return;
+      var a = j.address;
+      var strasse = (a.road || '') + (a.house_number ? (' ' + a.house_number) : '');
+      var ort = a.town || a.village || a.city || a.municipality || a.suburb || '';
+      var strasseEl = document.getElementById('strasse-input');
+      var ortEl = document.getElementById('ort-input');
+      if (strasse && strasseEl) strasseEl.value = strasse;
+      if (ort && ortEl) ortEl.value = ort;
+    })
+    .catch(function() {});
+}
+
+var _addressGeocodeTimer = null;
+function scheduleAddressGeocode() {
+  clearTimeout(_addressGeocodeTimer);
+  _addressGeocodeTimer = setTimeout(geocodeAddressFields, 700);
+}
+
+function geocodeAddressFields() {
+  if (!reportMap) return;
+  var strasse = (document.getElementById('strasse-input').value || '').trim();
+  var ort = (document.getElementById('ort-input').value || '').trim();
+  if (!strasse && !ort) return;
+  var q = [strasse, ort].filter(Boolean).join(', ');
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=at&q=' + encodeURIComponent(q), {
+    headers: { 'Accept-Language': 'de' },
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(arr) {
+      if (!arr || !arr.length) return;
+      setReportMarker(parseFloat(arr[0].lat), parseFloat(arr[0].lon), false);
+    })
+    .catch(function() {});
 }
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -2685,6 +2685,8 @@ async def buerger_portal(
         "token": token,
         "org_name": org.name if org else "Feuerwehr",
         "org_logo": org_logo,
+        "org_lat": org.fallback_lat if org else None,
+        "org_lng": org.fallback_lng if org else None,
         "sms_available": sms_available,
     })
 
