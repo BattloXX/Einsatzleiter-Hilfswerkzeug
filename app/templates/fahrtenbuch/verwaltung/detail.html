@@ -1,143 +1,245 @@
 {% extends "base.html" %}
 {% block title %}Fahrt #{{ fahrt.id }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.fd-page{max-width:1100px;margin:0 auto;padding:1rem 1rem 3rem;}
+
+.fd-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;}
+.fd-header__left{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
+.fd-header__title{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+.fd-header__title h1{font-size:1.5rem;font-weight:700;margin:0;}
+.fd-header__sub{font-size:.82rem;color:var(--text-muted);margin:.2rem 0 0;}
+.fd-status{display:inline-flex;align-items:center;padding:2px 12px;border-radius:999px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:'JetBrains Mono',monospace;}
+.fd-status--aktiv{background:var(--red);color:#fff;}
+.fd-status--gray{background:var(--surface-high);color:var(--text-muted);}
+.fd-vehicle-chip{display:flex;align-items:center;gap:.6rem;padding:.6rem .9rem;background:var(--surface-mid);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);}
+.fd-vehicle-chip__label{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);}
+.fd-vehicle-chip__value{font-size:1rem;font-weight:700;color:var(--red-light);}
+
+.fd-grid{display:grid;grid-template-columns:1fr;gap:var(--gutter);}
+.fd-grid__main{display:flex;flex-direction:column;gap:var(--gutter);}
+.fd-grid__side{display:flex;flex-direction:column;gap:var(--gutter);}
+@media (min-width:900px){
+  .fd-grid{grid-template-columns:2fr 1fr;align-items:start;}
+}
+
+.fd-card{--fd-accent:var(--outline);background:var(--surface-mid);border:1px solid var(--border);border-left:4px solid var(--fd-accent);border-radius:var(--radius-lg);padding:1.1rem 1.2rem;box-shadow:var(--shadow-card);}
+.fd-card--personal{--fd-accent:var(--org-task);}
+.fd-card--schaden{--fd-accent:var(--danger);}
+.fd-card__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;}
+.fd-card__title{font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0;}
+.fd-row{display:flex;justify-content:space-between;align-items:baseline;gap:.75rem;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.06);}
+.fd-row:last-child{border-bottom:none;}
+.fd-row__label{font-size:.82rem;color:var(--text-muted);}
+.fd-row__value{font-size:.95rem;font-weight:600;text-align:right;}
+.fd-metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;}
+.fd-metric__label{font-size:.78rem;color:var(--text-muted);margin-bottom:.2rem;}
+.fd-metric__value{font-size:1.3rem;font-weight:700;}
+.fd-metric__value--accent{color:var(--red-light);}
+
+.fd-sidecard{background:var(--surface-mid);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.1rem;box-shadow:var(--shadow-card);}
+.fd-sidecard__title{font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0 0 .75rem;}
+.fd-pill{display:inline-flex;padding:2px 10px;border-radius:999px;font-size:.7rem;font-weight:700;}
+.fd-pill--green{background:rgba(24,169,87,.18);color:var(--green);}
+.fd-pill--red{background:rgba(216,48,48,.18);color:var(--red-light);}
+.fd-pill--gray{background:var(--surface-high);color:var(--text-muted);}
+
+.fd-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;border-top:2px solid rgba(228,64,63,.15);padding-top:1.25rem;margin-top:.5rem;}
+.fd-actions__group{display:flex;gap:.75rem;flex-wrap:wrap;}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:720px;margin:0 auto;padding:1rem;">
-  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap;">
-    <a href="/verwaltung/fahrten" class="btn btn--ghost btn--sm">&#8592; Liste</a>
-    <h1 style="font-size:1.3rem;font-weight:700;margin:0;">
-      Fahrt #{{ fahrt.id }}
-      <span class="badge badge--{% if fahrt.status.value == 'aktiv' %}green{% else %}gray{% endif %}" style="font-size:.8rem;vertical-align:middle;">
-        {{ fahrt.status.value }}
-      </span>
-    </h1>
+<div class="fd-page">
+
+  <div class="fd-header">
+    <div class="fd-header__left">
+      <a href="/verwaltung/fahrten" class="btn btn--ghost btn--sm">&#8592; Liste</a>
+      <div>
+        <div class="fd-header__title">
+          <h1>Fahrt #{{ fahrt.id }}</h1>
+          <span class="fd-status {% if fahrt.status.value == 'aktiv' %}fd-status--aktiv{% else %}fd-status--gray{% endif %}">{{ fahrt.status.value }}</span>
+        </div>
+        <p class="fd-header__sub">Erfasst via {{ fahrt.erfasst_via.value }}{% if fahrt.token_label %} ({{ fahrt.token_label }}){% endif %}</p>
+      </div>
+    </div>
+    {% if fahrt.fahrzeug %}
+    <div class="fd-vehicle-chip">
+      <span style="font-size:1.5rem;">&#x1F692;</span>
+      <div>
+        <div class="fd-vehicle-chip__label">Fahrzeug</div>
+        <div class="fd-vehicle-chip__value">{{ fahrt.fahrzeug.code }}{% if fahrt.fahrzeug.kennzeichen %} ({{ fahrt.fahrzeug.kennzeichen }}){% endif %}</div>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   {% if request.query_params.get('storniert') %}
-  <div class="alert alert--warn" style="margin-bottom:1rem;">Fahrt wurde storniert.</div>
+  <div class="alert alert--warn">Fahrt wurde storniert.</div>
   {% endif %}
   {% if request.query_params.get('korrigiert') %}
-  <div class="alert alert--success" style="margin-bottom:1rem;">Korrektur gespeichert.</div>
+  <div class="alert alert--success">Korrektur gespeichert.</div>
   {% endif %}
-
-  {# Revisionskette #}
   {% if original %}
-  <div style="padding:.6rem .9rem;background:rgba(245,158,11,.1);border-radius:.4rem;margin-bottom:1rem;font-size:.85rem;">
-    Korrektur von <a href="/verwaltung/fahrten/{{ original.id }}">#{{ original.id }}</a>
-    ({{ original.zeitpunkt|local_datetime }})
+  <div class="alert alert--warn">
+    Korrektur von <a href="/verwaltung/fahrten/{{ original.id }}">#{{ original.id }}</a> ({{ original.zeitpunkt|local_datetime }})
   </div>
   {% endif %}
   {% if ersatz %}
-  <div style="padding:.6rem .9rem;background:rgba(245,158,11,.1);border-radius:.4rem;margin-bottom:1rem;font-size:.85rem;">
-    Ersetzt durch <a href="/verwaltung/fahrten/{{ ersatz.id }}">#{{ ersatz.id }}</a>
-  </div>
+  <div class="alert alert--warn">Ersetzt durch <a href="/verwaltung/fahrten/{{ ersatz.id }}">#{{ ersatz.id }}</a></div>
   {% endif %}
 
-  {# Hauptdaten #}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem 1.5rem;margin-bottom:1.5rem;">
-    <div><span class="label">Zeitpunkt</span><div>{{ fahrt.zeitpunkt|local_datetime }}</div></div>
-    <div><span class="label">Fahrzeug</span><div>{{ fahrt.fahrzeug.code if fahrt.fahrzeug else '—' }}{% if fahrt.fahrzeug and fahrt.fahrzeug.kennzeichen %} ({{ fahrt.fahrzeug.kennzeichen }}){% endif %}</div></div>
-    <div><span class="label">Maschinist</span><div>{{ fahrt.maschinist_name or '—' }}</div></div>
-    {% if fahrt.maschinist2_name %}
-    <div><span class="label">2. Maschinist</span><div>{{ fahrt.maschinist2_name }}</div></div>
-    {% endif %}
-    {% if fahrt.km_stand_neu is not none %}
-    <div><span class="label">km-Stand</span><div>{{ fahrt.km_stand_neu }} km{% if fahrt.km_delta is not none %} <small>(+{{ fahrt.km_delta }} km)</small>{% endif %}</div></div>
-    {% endif %}
-    {% if fahrt.betriebsstunden_neu is not none %}
-    <div><span class="label">Betriebsstunden</span><div>{{ fahrt.betriebsstunden_neu }} h{% if fahrt.betriebsstunden_delta is not none %} <small>(+{{ fahrt.betriebsstunden_delta }})</small>{% endif %}</div></div>
-    {% endif %}
-    {% if fahrt.seilwinde_bh_neu is not none %}
-    <div><span class="label">Seilwinde BH</span><div>{{ fahrt.seilwinde_bh_neu }} h</div></div>
-    {% endif %}
-    {% if fahrt.seilwinde_zuege is not none %}
-    <div><span class="label">Seilwinde Züge</span><div>{{ fahrt.seilwinde_zuege }}</div></div>
-    {% endif %}
-    {% if fahrt.seilwinde_wartung is not none %}
-    <div><span class="label">Seilwinden-Wartung</span><div>{{ "Ja" if fahrt.seilwinde_wartung else "Nein" }}</div></div>
-    {% endif %}
-    <div><span class="label">Zielort</span><div>{{ fahrt.zielort.name if fahrt.zielort else fahrt.zielort_freitext or '—' }}</div></div>
-    <div><span class="label">Zweck</span><div>{{ fahrt.zweck.name if fahrt.zweck else '—' }}</div></div>
-    <div><span class="label">Fahrttyp</span><div>
-      <span class="badge badge--{% if fahrt.fahrttyp.value == 'einsatz' %}red{% elif fahrt.fahrttyp.value == 'uebung' %}blue{% else %}gray{% endif %}">
-        {{ fahrt.fahrttyp.value|capitalize }}
-      </span>
-    </div></div>
-    {% if fahrt.ausbildner_name %}
-    <div><span class="label">Ausbildner</span><div>{{ fahrt.ausbildner_name }}</div></div>
-    {% endif %}
-    {% if fahrt.gruppenkommandant_name %}
-    <div><span class="label">Gruppenkommandant</span><div>{{ fahrt.gruppenkommandant_name }}</div></div>
-    {% endif %}
-    {% if fahrt.incident_id %}
-    <div><span class="label">Einsatz-Nr.</span><div>#{{ fahrt.incident_id }}</div></div>
-    {% endif %}
-    <div><span class="label">Statistikrelevant</span><div>{% if fahrt.nicht_statistikrelevant %}<span class="badge badge--gray">nein</span>{% else %}Ja{% endif %}</div></div>
-    <div><span class="label">Erfasst via</span><div>{{ fahrt.erfasst_via.value }}{% if fahrt.token_label %} ({{ fahrt.token_label }}){% endif %}</div></div>
-  </div>
+  <div class="fd-grid">
+    <div class="fd-grid__main">
 
-  {% if fahrt.schaden_vorhanden %}
-  <div style="border:1px solid var(--red-light);border-radius:.5rem;padding:1rem;margin-bottom:1.5rem;">
-    <div style="font-weight:700;color:var(--red-light);margin-bottom:.5rem;">&#9888; Schaden gemeldet</div>
-    <p>Betriebsfähig: <strong>{% if fahrt.schaden_betriebsfaehig %}Ja{% else %}Nein{% endif %}</strong></p>
-    {% if fahrt.schaden_beschreibung %}<p>{{ fahrt.schaden_beschreibung }}</p>{% endif %}
+      {# Zeitpunkt & Ort #}
+      <div class="fd-card">
+        <div class="fd-card__head"><h3 class="fd-card__title">Zeitpunkt &amp; Ort</h3></div>
+        <div class="fd-row"><span class="fd-row__label">Zeitpunkt</span><span class="fd-row__value">{{ fahrt.zeitpunkt|local_datetime }}</span></div>
+        <div class="fd-row"><span class="fd-row__label">Zielort</span><span class="fd-row__value">{{ fahrt.zielort.name if fahrt.zielort else fahrt.zielort_freitext or '—' }}</span></div>
+        {% if fahrt.incident_id %}
+        <div class="fd-row"><span class="fd-row__label">Einsatz-Nr.</span><span class="fd-row__value">#{{ fahrt.incident_id }}</span></div>
+        {% endif %}
+      </div>
 
-    {# Benachrichtigungsprotokoll #}
-    {% if fahrt.benachrichtigungen %}
-    <table class="table" style="font-size:.8rem;margin-top:.75rem;">
-      <thead><tr><th>Kanal</th><th>Empfänger</th><th>Status</th><th>Gesendet</th></tr></thead>
-      <tbody>
-        {% for b in fahrt.benachrichtigungen %}
-        <tr>
-          <td>{{ b.kanal }}</td>
-          <td style="word-break:break-all;">{{ b.empfaenger[:60] }}{% if b.empfaenger|length > 60 %}…{% endif %}</td>
-          <td><span class="badge badge--{% if b.status == 'gesendet' %}green{% else %}red{% endif %}">{{ b.status }}</span></td>
-          <td>{{ (b.gesendet_am|local).strftime('%d.%m. %H:%M') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-    {% if fahrt.status.value == 'aktiv' %}
-    <form method="post" action="/verwaltung/fahrten/{{ fahrt.id }}/schaden-retry" style="margin-top:.75rem;">
-      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-      <button type="submit" class="btn btn--ghost btn--sm">Erneut senden</button>
-    </form>
-    {% endif %}
-  </div>
-  {% endif %}
+      {# Personal #}
+      <div class="fd-card fd-card--personal">
+        <div class="fd-card__head"><h3 class="fd-card__title">Personal</h3></div>
+        <div class="fd-row"><span class="fd-row__label">Maschinist</span><span class="fd-row__value">{{ fahrt.maschinist_name or '—' }}</span></div>
+        {% if fahrt.maschinist2_name %}
+        <div class="fd-row"><span class="fd-row__label">2. Maschinist</span><span class="fd-row__value">{{ fahrt.maschinist2_name }}</span></div>
+        {% endif %}
+        {% if fahrt.ausbildner_name %}
+        <div class="fd-row"><span class="fd-row__label">Ausbildner</span><span class="fd-row__value">{{ fahrt.ausbildner_name }}</span></div>
+        {% endif %}
+        {% if fahrt.gruppenkommandant_name %}
+        <div class="fd-row"><span class="fd-row__label">Gruppenkommandant</span><span class="fd-row__value">{{ fahrt.gruppenkommandant_name }}</span></div>
+        {% endif %}
+      </div>
 
-  {% if fahrt.bemerkung %}
-  <div style="margin-bottom:1.5rem;">
-    <div class="label">Bemerkung</div>
-    <div>{{ fahrt.bemerkung }}</div>
-  </div>
-  {% endif %}
+      {# Fahrzeugmetrik & Zweck #}
+      <div class="fd-card">
+        <div class="fd-card__head"><h3 class="fd-card__title">Fahrzeugmetrik &amp; Zweck</h3></div>
+        <div class="fd-metric-grid">
+          {% if fahrt.km_stand_neu is not none %}
+          <div>
+            <div class="fd-metric__label">km-Stand</div>
+            <div class="fd-metric__value">{{ fahrt.km_stand_neu }} <span style="font-size:.8rem;color:var(--text-muted);">km</span></div>
+            {% if fahrt.km_delta is not none %}<div class="fd-metric__value--accent" style="font-size:.85rem;">+ {{ fahrt.km_delta }} km</div>{% endif %}
+          </div>
+          {% endif %}
+          {% if fahrt.betriebsstunden_neu is not none %}
+          <div>
+            <div class="fd-metric__label">Betriebsstunden</div>
+            <div class="fd-metric__value">{{ fahrt.betriebsstunden_neu }} <span style="font-size:.8rem;color:var(--text-muted);">h</span></div>
+            {% if fahrt.betriebsstunden_delta is not none %}<div class="fd-metric__value--accent" style="font-size:.85rem;">+ {{ fahrt.betriebsstunden_delta }} h</div>{% endif %}
+          </div>
+          {% endif %}
+          {% if fahrt.seilwinde_bh_neu is not none %}
+          <div>
+            <div class="fd-metric__label">Seilwinde BH</div>
+            <div class="fd-metric__value">{{ fahrt.seilwinde_bh_neu }} <span style="font-size:.8rem;color:var(--text-muted);">h</span></div>
+          </div>
+          {% endif %}
+          {% if fahrt.seilwinde_zuege is not none %}
+          <div>
+            <div class="fd-metric__label">Seilwinde Züge</div>
+            <div class="fd-metric__value">{{ fahrt.seilwinde_zuege }}</div>
+          </div>
+          {% endif %}
+          <div>
+            <div class="fd-metric__label">Zweck</div>
+            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;">
+              <span class="fd-status {% if fahrt.fahrttyp.value == 'einsatz' %}fd-status--aktiv{% else %}fd-status--gray{% endif %}">{{ fahrt.fahrttyp.value|capitalize }}</span>
+            </div>
+            <div style="font-size:.85rem;margin-top:.3rem;">{{ fahrt.zweck.name if fahrt.zweck else '—' }}</div>
+          </div>
+        </div>
+        {% if fahrt.seilwinde_wartung is not none %}
+        <div class="fd-row" style="margin-top:.5rem;"><span class="fd-row__label">Seilwinden-Wartung</span><span class="fd-row__value">{{ "Ja" if fahrt.seilwinde_wartung else "Nein" }}</span></div>
+        {% endif %}
+      </div>
 
-  {% if fahrt.storno_grund %}
-  <div style="margin-bottom:1.5rem;">
-    <div class="label">Storno-Grund</div>
-    <div>{{ fahrt.storno_grund }}</div>
+      {% if fahrt.schaden_vorhanden %}
+      <div class="fd-card fd-card--schaden">
+        <div class="fd-card__head"><h3 class="fd-card__title" style="color:var(--red-light);">&#9888; Schaden gemeldet</h3></div>
+        <div class="fd-row"><span class="fd-row__label">Betriebsfähig</span><span class="fd-row__value">{% if fahrt.schaden_betriebsfaehig %}Ja{% else %}Nein{% endif %}</span></div>
+        {% if fahrt.schaden_beschreibung %}<p style="margin:.75rem 0 0;font-size:.88rem;">{{ fahrt.schaden_beschreibung }}</p>{% endif %}
+
+        {% if fahrt.benachrichtigungen %}
+        <div style="overflow-x:auto;margin-top:.9rem;">
+          <table class="table" style="font-size:.78rem;">
+            <thead><tr><th>Kanal</th><th>Empfänger</th><th>Status</th><th>Gesendet</th></tr></thead>
+            <tbody>
+              {% for b in fahrt.benachrichtigungen %}
+              <tr>
+                <td>{{ b.kanal }}</td>
+                <td style="word-break:break-all;">{{ b.empfaenger[:60] }}{% if b.empfaenger|length > 60 %}…{% endif %}</td>
+                <td><span class="fd-pill {% if b.status == 'gesendet' %}fd-pill--green{% else %}fd-pill--red{% endif %}">{{ b.status }}</span></td>
+                <td>{{ (b.gesendet_am|local).strftime('%d.%m. %H:%M') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        {% if fahrt.status.value == 'aktiv' %}
+        <form method="post" action="/verwaltung/fahrten/{{ fahrt.id }}/schaden-retry" style="margin-top:.75rem;">
+          <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+          <button type="submit" class="btn btn--ghost btn--sm">Erneut senden</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if fahrt.bemerkung %}
+      <div class="fd-card">
+        <div class="fd-card__head"><h3 class="fd-card__title">Bemerkung</h3></div>
+        <p style="margin:0;font-size:.9rem;">{{ fahrt.bemerkung }}</p>
+      </div>
+      {% endif %}
+
+      {% if fahrt.storno_grund %}
+      <div class="fd-card">
+        <div class="fd-card__head"><h3 class="fd-card__title">Storno-Grund</h3></div>
+        <p style="margin:0;font-size:.9rem;">{{ fahrt.storno_grund }}</p>
+      </div>
+      {% endif %}
+
+    </div><!-- /fd-grid__main -->
+
+    <div class="fd-grid__side">
+      <div class="fd-sidecard">
+        <p class="fd-sidecard__title">Systemstatus</p>
+        <div class="fd-row"><span class="fd-row__label">Statistikrelevant</span>
+          <span>{% if fahrt.nicht_statistikrelevant %}<span class="fd-pill fd-pill--gray">Nein</span>{% else %}<span class="fd-pill fd-pill--green">Ja</span>{% endif %}</span>
+        </div>
+        <div class="fd-row"><span class="fd-row__label">Fahrzeugmängel</span>
+          <span>{% if fahrt.schaden_vorhanden %}<span class="fd-pill fd-pill--red">Schaden</span>{% else %}<span class="fd-pill fd-pill--green">Keine</span>{% endif %}</span>
+        </div>
+      </div>
+    </div><!-- /fd-grid__side -->
   </div>
-  {% endif %}
 
   {# Aktionen #}
-  {% if fahrt.status.value == 'aktiv' %}
-  <div style="display:flex;gap:.75rem;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:1rem;">
-    {% if can_edit %}
-    <a href="/verwaltung/fahrten/{{ fahrt.id }}/korrektur" class="btn btn--ghost btn--sm">Korrigieren</a>
-
-    <form method="post" action="/verwaltung/fahrten/{{ fahrt.id }}/statistikflag">
-      <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
-      <button type="submit" class="btn btn--ghost btn--sm">
-        Statistik {{ 'aktivieren' if fahrt.nicht_statistikrelevant else 'deaktivieren' }}
-      </button>
-    </form>
+  {% if fahrt.status.value == 'aktiv' and can_edit %}
+  <div class="fd-actions">
+    <div class="fd-actions__group">
+      <a href="/verwaltung/fahrten/{{ fahrt.id }}/korrektur" class="btn btn--ghost btn--sm">&#9998; Korrigieren</a>
+      <form method="post" action="/verwaltung/fahrten/{{ fahrt.id }}/statistikflag">
+        <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
+        <button type="submit" class="btn btn--ghost btn--sm">
+          Statistik {{ 'aktivieren' if fahrt.nicht_statistikrelevant else 'deaktivieren' }}
+        </button>
+      </form>
+    </div>
     <div x-data="{open:false}" style="position:relative;">
-      <button type="button" class="btn btn--ghost btn--sm" style="color:var(--red-light);" @click="open=!open">
+      <button type="button" class="btn btn--ghost btn--sm" style="color:var(--red-light);border-color:rgba(216,48,48,.3);" @click="open=!open">
         Stornieren
       </button>
       <div x-show="open" x-cloak @click.outside="open=false"
-           style="position:absolute;bottom:calc(100% + 4px);left:0;z-index:100;
+           style="position:absolute;bottom:calc(100% + 4px);right:0;z-index:100;
                   background:var(--surface-mid);border:1px solid var(--border);
                   border-radius:.5rem;padding:1rem;min-width:280px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
         <form method="post" action="/verwaltung/fahrten/{{ fahrt.id }}/storno">
@@ -150,7 +252,6 @@
         </form>
       </div>
     </div>
-    {% endif %}
   </div>
   {% endif %}
 </div>

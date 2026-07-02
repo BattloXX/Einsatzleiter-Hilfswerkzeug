@@ -1,9 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Fahrtenbuch – Verwaltung{% endblock %}
+
+{% block head_extra %}
+<style>
+.fb-page{max-width:1280px;margin:0 auto;padding:1rem;}
+.fb-header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:.75rem;}
+.fb-header h1{font-size:1.6rem;font-weight:700;margin:0;}
+
+.fb-filter{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;align-items:end;padding:1rem;background:var(--surface-low);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);margin-bottom:1rem;}
+.fb-filter .form-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.3rem;}
+.fb-filter__actions{display:flex;gap:.5rem;}
+
+.fb-count{font-size:.78rem;color:var(--text-muted);margin-bottom:.75rem;font-family:'JetBrains Mono',monospace;}
+
+.fb-card{background:var(--surface-low);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-card);}
+.fb-table{width:100%;border-collapse:collapse;}
+.fb-table th{background:var(--surface-mid);color:var(--text-muted);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;text-align:left;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+.fb-table td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:.85rem;}
+.fb-table tbody tr:last-child td{border-bottom:none;}
+.fb-table tbody tr:hover td{background:rgba(255,255,255,.03);}
+.fb-table tr.fb-row--alert td{background:rgba(216,48,48,.05);}
+.fb-table tr.fb-row--inactive td{opacity:.55;}
+
+.fb-badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-weight:700;font-size:.66rem;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.03em;border:1px solid transparent;white-space:nowrap;}
+.fb-badge--red{background:rgba(216,48,48,.18);color:var(--red-light);border-color:rgba(216,48,48,.3);}
+.fb-badge--blue{background:rgba(58,123,213,.18);color:#93c5fd;border-color:rgba(58,123,213,.3);}
+.fb-badge--gray{background:var(--surface-high);color:var(--text-muted);border-color:var(--border);}
+.fb-warn-icon{color:var(--red-light);font-size:1rem;}
+
+.fb-mobile-list{display:none;flex-direction:column;gap:.6rem;}
+.fb-mcard{--fb-accent:var(--red);background:var(--surface-low);border:1px solid var(--border);border-left:4px solid var(--fb-accent);border-radius:var(--radius-md);padding:.85rem;box-shadow:var(--shadow-card);}
+.fb-mcard__top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.65rem;}
+.fb-mcard__vehicle{font-weight:700;font-size:.95rem;}
+.fb-mcard__time{font-size:.72rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
+.fb-mcard__grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem .8rem;}
+.fb-mcard__label{font-size:.62rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.04em;margin-bottom:2px;}
+.fb-mcard__value{font-size:.82rem;}
+.fb-mcard__footer{display:flex;justify-content:flex-end;margin-top:.65rem;}
+
+@media (max-width:760px){
+  .fb-table-wrap{display:none;}
+  .fb-mobile-list{display:flex;}
+  .fb-filter{grid-template-columns:1fr 1fr;}
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:1200px;margin:0 auto;padding:1rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem;">
-    <h1 style="font-size:1.4rem;font-weight:700;margin:0;">Fahrtenbuch</h1>
+<div class="fb-page">
+  <div class="fb-header">
+    <h1>Fahrtenbuch Archiv</h1>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
       <a href="/fahrtenbuch/neu" class="btn btn--primary btn--sm">+ Fahrt erfassen</a>
       <a href="/verwaltung/fahrten/export.xlsx?{{ request.query_string.decode() }}" class="btn btn--ghost btn--sm">Excel-Export</a>
@@ -12,17 +58,17 @@
   {% include "fahrtenbuch/_tabs.html" %}
 
   {# Filter #}
-  <form method="get" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;align-items:flex-end;">
+  <form method="get" class="fb-filter">
     <div>
-      <label class="form-label" style="font-size:.8rem;">Von</label>
+      <label class="form-label">Von</label>
       <input type="date" name="von" value="{{ filter.von }}" class="form-control form-control--sm">
     </div>
     <div>
-      <label class="form-label" style="font-size:.8rem;">Bis</label>
+      <label class="form-label">Bis</label>
       <input type="date" name="bis" value="{{ filter.bis }}" class="form-control form-control--sm">
     </div>
     <div>
-      <label class="form-label" style="font-size:.8rem;">Fahrzeug</label>
+      <label class="form-label">Fahrzeug</label>
       <select name="fahrzeug_id" class="form-control form-control--sm">
         <option value="0">Alle</option>
         {% for fz in fahrzeuge %}
@@ -31,7 +77,7 @@
       </select>
     </div>
     <div>
-      <label class="form-label" style="font-size:.8rem;">Typ</label>
+      <label class="form-label">Typ</label>
       <select name="fahrttyp" class="form-control form-control--sm">
         <option value="">Alle</option>
         <option value="einsatz" {% if filter.fahrttyp == 'einsatz' %}selected{% endif %}>Einsatz</option>
@@ -40,7 +86,7 @@
       </select>
     </div>
     <div>
-      <label class="form-label" style="font-size:.8rem;">Status</label>
+      <label class="form-label">Status</label>
       <select name="status" class="form-control form-control--sm">
         <option value="aktiv" {% if filter.status == 'aktiv' %}selected{% endif %}>Aktiv</option>
         <option value="storniert" {% if filter.status == 'storniert' %}selected{% endif %}>Storniert</option>
@@ -48,61 +94,57 @@
         <option value="alle" {% if filter.status == 'alle' %}selected{% endif %}>Alle</option>
       </select>
     </div>
-    <button type="submit" class="btn btn--ghost btn--sm">Filter</button>
-    <a href="/verwaltung/fahrten" class="btn btn--ghost btn--sm">Reset</a>
+    <div class="fb-filter__actions">
+      <button type="submit" class="btn btn--primary btn--sm" style="flex:1;">Filter</button>
+      <a href="/verwaltung/fahrten" class="btn btn--ghost btn--sm">Reset</a>
+    </div>
   </form>
 
-  <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.75rem;">
-    {{ gesamt }} Eintrag{% if gesamt != 1 %}e{% endif %}
-    {% if gesamt > pro_seite %} (Seite {{ seite }}){% endif %}
+  <p class="fb-count">
+    {{ gesamt }} Eintrag{% if gesamt != 1 %}e{% endif %} gefunden
+    {% if gesamt > pro_seite %} · Seite {{ seite }}{% endif %}
   </p>
 
-  {# Desktop-Tabelle / Mobile-Karten #}
-  <div class="table-responsive">
-    <table class="table">
+  {# Desktop-Tabelle #}
+  <div class="fb-card fb-table-wrap" style="overflow-x:auto;">
+    <table class="fb-table">
       <thead>
         <tr>
           <th>Datum/Zeit</th>
           <th>Fahrzeug</th>
           <th>Maschinist</th>
-          <th>km</th>
+          <th>km (Diff)</th>
           <th>Typ</th>
           <th>Zweck</th>
-          <th>Status</th>
-          <th></th>
+          <th>Warn</th>
+          <th style="text-align:right;">Aktion</th>
         </tr>
       </thead>
       <tbody>
         {% for f in fahrten %}
-        <tr style="{% if f.status.value != 'aktiv' %}opacity:.6;{% endif %}">
-          <td>{{ f.zeitpunkt|local_datetime }}</td>
-          <td>{{ f.fahrzeug.code if f.fahrzeug else '—' }}</td>
-          <td>{{ f.maschinist_name or '—' }}</td>
+        <tr class="{% if f.status.value != 'aktiv' %}fb-row--inactive{% elif f.schaden_vorhanden %}fb-row--alert{% endif %}">
+          <td style="font-family:'JetBrains Mono',monospace;">{{ f.zeitpunkt|local_datetime }}</td>
           <td>
-            {% if f.km_stand_neu is not none %}
-              {{ f.km_stand_neu }} km
-              {% if f.km_delta is not none %}<small style="color:var(--text-muted);"> (+{{ f.km_delta }})</small>{% endif %}
-            {% else %}—{% endif %}
-          </td>
-          <td>
-            <span class="badge badge--{% if f.fahrttyp.value == 'einsatz' %}red{% elif f.fahrttyp.value == 'uebung' %}blue{% else %}gray{% endif %}">
-              {{ f.fahrttyp.value|capitalize }}
+            <span class="fb-badge {% if f.fahrttyp.value == 'einsatz' %}fb-badge--red{% elif f.fahrttyp.value == 'uebung' %}fb-badge--blue{% else %}fb-badge--gray{% endif %}">
+              {{ f.fahrzeug.code if f.fahrzeug else '—' }}
             </span>
           </td>
-          <td>{{ f.zweck.name if f.zweck else '—' }}</td>
-          <td>
-            {% if f.status.value != 'aktiv' %}
-            <span class="badge badge--gray">{{ f.status.value }}</span>
-            {% endif %}
-            {% if f.nicht_statistikrelevant %}
-            <span class="badge badge--gray" title="nicht statistikrelevant">n.s.</span>
-            {% endif %}
-            {% if f.schaden_vorhanden %}
-            <span class="badge badge--red" title="Schaden">&#9888;</span>
-            {% endif %}
+          <td>{{ f.maschinist_name or '—' }}</td>
+          <td style="font-family:'JetBrains Mono',monospace;">
+            {% if f.km_stand_neu is not none %}
+              {{ f.km_stand_neu }} km
+              {% if f.km_delta is not none %}<span style="color:var(--red-light);opacity:.7;font-size:.75rem;"> (+{{ f.km_delta }})</span>{% endif %}
+            {% else %}—{% endif %}
           </td>
+          <td>{{ f.fahrttyp.value|capitalize }}</td>
+          <td style="color:var(--text-muted);">{{ f.zweck.name if f.zweck else '—' }}</td>
           <td>
-            <a href="/verwaltung/fahrten/{{ f.id }}" class="btn btn--ghost btn--xs">Detail</a>
+            {% if f.schaden_vorhanden %}<span class="fb-warn-icon" title="Schaden">&#9888;</span>{% endif %}
+            {% if f.status.value != 'aktiv' %}<span class="fb-badge fb-badge--gray">{{ f.status.value }}</span>{% endif %}
+            {% if f.nicht_statistikrelevant %}<span class="fb-badge fb-badge--gray" title="nicht statistikrelevant">n.s.</span>{% endif %}
+          </td>
+          <td style="text-align:right;">
+            <a href="/verwaltung/fahrten/{{ f.id }}" style="color:var(--red-light);font-weight:700;font-size:.78rem;text-decoration:none;">Detail</a>
           </td>
         </tr>
         {% else %}
@@ -110,6 +152,46 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  {# Mobile-Karten #}
+  <div class="fb-mobile-list">
+    {% for f in fahrten %}
+    <div class="fb-mcard" style="--fb-accent:{% if f.fahrttyp.value == 'einsatz' %}var(--red){% elif f.fahrttyp.value == 'uebung' %}var(--org-task){% else %}var(--text-muted){% endif %};{% if f.status.value != 'aktiv' %}opacity:.6;{% endif %}">
+      <div class="fb-mcard__top">
+        <span class="fb-mcard__vehicle">{{ f.fahrzeug.code if f.fahrzeug else '—' }}</span>
+        <span class="fb-mcard__time">{{ f.zeitpunkt|local_datetime }}</span>
+      </div>
+      <div class="fb-mcard__grid">
+        <div>
+          <div class="fb-mcard__label">Maschinist</div>
+          <div class="fb-mcard__value">{{ f.maschinist_name or '—' }}</div>
+        </div>
+        <div>
+          <div class="fb-mcard__label">km (Diff)</div>
+          <div class="fb-mcard__value">
+            {% if f.km_stand_neu is not none %}{{ f.km_stand_neu }} km{% if f.km_delta is not none %} <span style="color:var(--red-light);">(+{{ f.km_delta }})</span>{% endif %}{% else %}—{% endif %}
+          </div>
+        </div>
+        <div>
+          <div class="fb-mcard__label">Typ / Zweck</div>
+          <div class="fb-mcard__value">{{ f.fahrttyp.value|capitalize }} / {{ f.zweck.name if f.zweck else '—' }}</div>
+        </div>
+        <div>
+          <div class="fb-mcard__label">Status</div>
+          <div class="fb-mcard__value">
+            {% if f.schaden_vorhanden %}<span class="fb-warn-icon">&#9888;</span>{% endif %}
+            {% if f.status.value != 'aktiv' %}<span class="fb-badge fb-badge--gray">{{ f.status.value }}</span>{% else %}<span class="fb-badge fb-badge--gray" style="color:var(--green);border-color:rgba(24,169,87,.3);background:rgba(24,169,87,.15);">aktiv</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="fb-mcard__footer">
+        <a href="/verwaltung/fahrten/{{ f.id }}" class="btn btn--ghost btn--sm">Detail</a>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center;color:var(--text-muted);padding:2rem;">Keine Fahrten gefunden</div>
+    {% endfor %}
   </div>
 
   {# Paginierung #}

@@ -3,15 +3,30 @@
 
 {% block head_extra %}
 <script src="/static/js/chart.umd.min.js"></script>
+<style>
+.fbs-page{max-width:1200px;margin:0 auto;padding:1rem;}
+.fbs-page h1{font-size:1.6rem;font-weight:700;margin:0 0 .75rem;}
+.fbs-filter{background:var(--surface-low);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:1rem;margin-bottom:1.25rem;}
+.fbs-filter__quick{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem;}
+.fbs-filter .form-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.3rem;}
+.fbs-count{font-size:.78rem;color:var(--text-muted);margin-bottom:1rem;font-family:'JetBrains Mono',monospace;}
+.fbs-card{background:var(--surface-low);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden;margin-bottom:1.25rem;}
+.fbs-card__pad{padding:1.1rem;}
+.fbs-table{width:100%;border-collapse:collapse;}
+.fbs-table th{background:var(--surface-mid);color:var(--text-muted);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;text-align:left;font-family:'JetBrains Mono',monospace;}
+.fbs-table td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:.85rem;}
+.fbs-table tbody tr:last-child td{border-bottom:none;}
+.fbs-table tbody tr:hover td{background:rgba(255,255,255,.03);}
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container" style="max-width:1200px;margin:0 auto;padding:1rem;">
-<h1 style="font-size:1.4rem;font-weight:700;margin:0 0 .75rem;">Fahrtenbuch</h1>
+<div class="fbs-page">
+<h1>Fahrtenbuch Statistik</h1>
 {% include "fahrtenbuch/_tabs.html" %}
 
-<form method="get" class="card" style="padding:1rem;margin-bottom:1.25rem;">
-  <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.625rem;">
+<form method="get" class="fbs-filter">
+  <div class="fbs-filter__quick">
     <button type="button" class="btn btn--ghost btn--sm" onclick="setZeitraum('dieses_jahr')">Dieses Jahr</button>
     <button type="button" class="btn btn--ghost btn--sm" onclick="setZeitraum('letztes_jahr')">Letztes Jahr</button>
     <button type="button" class="btn btn--ghost btn--sm" onclick="setZeitraum('dieser_monat')">Dieser Monat</button>
@@ -19,15 +34,15 @@
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end;">
     <div class="form-group" style="margin:0;">
-      <label class="form-label" style="font-size:.8rem;">Von</label>
+      <label class="form-label">Von</label>
       <input type="date" name="von" value="{{ filter.von }}" class="form-control form-control--sm">
     </div>
     <div class="form-group" style="margin:0;">
-      <label class="form-label" style="font-size:.8rem;">Bis</label>
+      <label class="form-label">Bis</label>
       <input type="date" name="bis" value="{{ filter.bis }}" class="form-control form-control--sm">
     </div>
     <div class="form-group" style="margin:0;">
-      <label class="form-label" style="font-size:.8rem;">Fahrzeug</label>
+      <label class="form-label">Fahrzeug</label>
       <select name="fahrzeug_id" class="form-control form-control--sm">
         <option value="0">Alle</option>
         {% for fz in fahrzeuge %}
@@ -36,7 +51,7 @@
       </select>
     </div>
     <div class="form-group" style="margin:0;">
-      <label class="form-label" style="font-size:.8rem;">Typ</label>
+      <label class="form-label">Typ</label>
       <select name="fahrttyp" class="form-control form-control--sm">
         <option value="">Alle</option>
         <option value="einsatz" {% if filter.fahrttyp == 'einsatz' %}selected{% endif %}>Einsatz</option>
@@ -45,7 +60,7 @@
       </select>
     </div>
     <div class="form-group" style="margin:0;">
-      <label class="form-label" style="font-size:.8rem;">Gruppierung</label>
+      <label class="form-label">Gruppierung</label>
       <select name="gruppierung" class="form-control form-control--sm">
         <option value="fahrzeug" {% if gruppierung == 'fahrzeug' %}selected{% endif %}>Je Fahrzeug</option>
         <option value="maschinist" {% if gruppierung == 'maschinist' %}selected{% endif %}>Je Maschinist</option>
@@ -61,27 +76,25 @@
   </div>
 </form>
 
-<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem;">
-  <strong>{{ gesamt_fahrten }}</strong> Fahrten in der Auswahl (statistikrelevant, aktiv)
-</p>
+<p class="fbs-count"><strong style="color:var(--text);">{{ gesamt_fahrten }}</strong> Fahrten in der Auswahl (statistikrelevant, aktiv)</p>
 
 {% if gruppen %}
-<div class="card" style="padding:1rem;margin-bottom:1.25rem;">
-  <div style="position:relative;height:320px;">
+<div class="fbs-card">
+  <div class="fbs-card__pad" style="position:relative;height:320px;">
     <canvas id="fbChart"></canvas>
   </div>
 </div>
 {% endif %}
 
-<div class="card">
-  <table class="table">
+<div class="fbs-card">
+  <table class="fbs-table">
     <thead>
       <tr>
         <th>{% if gruppierung == 'fahrzeug' %}Fahrzeug{% elif gruppierung == 'maschinist' %}Maschinist{% elif gruppierung == 'ausbildner' %}Ausbildner{% elif gruppierung == 'gruppenkommandant' %}Gruppenkommandant{% elif gruppierung == 'korbmaschinist' %}Korbmaschinist (2. Maschinist){% else %}{{ gruppierung|capitalize }}{% endif %}</th>
         <th style="text-align:right;">Einsatz</th>
         <th style="text-align:right;">Übung</th>
         <th style="text-align:right;">Sonstige</th>
-        <th style="text-align:right;"><strong>Gesamt</strong></th>
+        <th style="text-align:right;">Gesamt</th>
         <th style="text-align:right;">km</th>
         <th style="text-align:right;">BH (h)</th>
       </tr>
@@ -89,13 +102,13 @@
     <tbody>
       {% for g in gruppen %}
       <tr>
-        <td>{{ g.label }}</td>
+        <td style="font-weight:600;">{{ g.label }}</td>
         <td style="text-align:right;">{{ g.einsatz }}</td>
         <td style="text-align:right;">{{ g.uebung }}</td>
         <td style="text-align:right;">{{ g.sonstige }}</td>
-        <td style="text-align:right;"><strong>{{ g.einsatz + g.uebung + g.sonstige }}</strong></td>
-        <td style="text-align:right;">{{ g.km_sum }}</td>
-        <td style="text-align:right;">{{ g.bh_sum }}</td>
+        <td style="text-align:right;font-weight:700;color:var(--red-light);">{{ g.einsatz + g.uebung + g.sonstige }}</td>
+        <td style="text-align:right;font-family:'JetBrains Mono',monospace;">{{ g.km_sum }}</td>
+        <td style="text-align:right;font-family:'JetBrains Mono',monospace;">{{ g.bh_sum }}</td>
       </tr>
       {% else %}
       <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Keine Daten für den gewählten Zeitraum</td></tr>

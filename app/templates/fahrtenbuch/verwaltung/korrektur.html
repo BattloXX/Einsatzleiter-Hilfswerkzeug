@@ -1,115 +1,176 @@
 {% extends "base.html" %}
 {% block title %}Fahrt korrigieren #{{ fahrt.id }}{% endblock %}
+
+{% block head_extra %}
+<style>
+/* Gleiche Kartensprache wie fahrtenbuch/neu.html ("Fahrt erfassen"), damit
+   Erfassen und Korrigieren visuell identisch wirken. */
+.fab-page{max-width:680px;margin:0 auto;padding:1.25rem 1rem 6rem;}
+
+.fab-header{margin-bottom:var(--space-lg);}
+.fab-header__top{display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.fab-header__title{font-size:1.3rem;font-weight:700;margin:0;line-height:1.2;}
+
+.fab-card{--fab-accent:var(--red);background:var(--surface-mid);border:1px solid var(--border);border-left:4px solid var(--fab-accent);border-radius:var(--radius-lg);padding:1.1rem 1rem;box-shadow:var(--shadow-card);}
+.fab-card--ziel{--fab-accent:var(--org-task);}
+.fab-card--zeit{--fab-accent:var(--outline);}
+.fab-card__head{display:flex;align-items:center;gap:.55rem;margin-bottom:1rem;}
+.fab-card__icon{font-size:1.25rem;line-height:1;}
+.fab-card__title{font-size:1rem;font-weight:700;margin:0;}
+.fab-card__body{display:flex;flex-direction:column;gap:1.1rem;}
+
+.fab-card .form-control{padding:.8rem .85rem;font-size:1rem;min-height:48px;}
+.fab-card textarea.form-control{min-height:unset;}
+.fab-card select.form-control{cursor:pointer;}
+
+.fab-grid{display:flex;flex-direction:column;gap:var(--gutter);}
+
+.fab-actions{position:sticky;bottom:0;left:0;right:0;padding:1rem 0 max(.5rem, env(safe-area-inset-bottom));margin:.25rem -1rem 0;background:linear-gradient(to top, var(--bg) 60%, transparent);}
+.fab-actions .btn{width:100%;}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:680px;margin:0 auto;padding:1rem;">
-  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;">
-    <a href="/verwaltung/fahrten/{{ fahrt.id }}" class="btn btn--ghost btn--sm">&#8592; Zurück</a>
-    <h1 style="font-size:1.3rem;font-weight:700;margin:0;">Fahrt #{{ fahrt.id }} korrigieren</h1>
+<div class="fab-page">
+
+  <div class="fab-header">
+    <div class="fab-header__top">
+      <h1 class="fab-header__title">Fahrt #{{ fahrt.id }} korrigieren</h1>
+      <a href="/verwaltung/fahrten/{{ fahrt.id }}" class="btn btn--ghost btn--sm" style="flex-shrink:0;">&#8592; Zurück</a>
+    </div>
   </div>
 
-  <div style="padding:.6rem .9rem;background:rgba(245,158,11,.1);border-radius:.4rem;margin-bottom:1.25rem;font-size:.85rem;">
+  <div class="alert alert--warn">
     Die ursprüngliche Fahrt wird als „ersetzt" markiert und eine neue Version erstellt.
   </div>
 
-  <form method="post" style="display:flex;flex-direction:column;gap:1rem;">
+  <form method="post" class="fab-grid">
     <input type="hidden" name="_csrf" value="{{ request.state.csrf_token }}">
 
-    <div class="form-group">
-      <label class="form-label">Fahrzeug *</label>
-      <select name="fahrzeug_id" class="form-control" required>
-        {% for fz in fahrzeuge %}
-        <option value="{{ fz.id }}" {% if fz.id == fahrt.fahrzeug_id %}selected{% endif %}>
-          {{ fz.code }}{% if fz.kennzeichen %} ({{ fz.kennzeichen }}){% endif %}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
+    {# 1. Fahrzeug & Maschinist #}
+    <div class="fab-card">
+      <div class="fab-card__head">
+        <span class="fab-card__icon">&#x1F692;</span>
+        <h2 class="fab-card__title">Fahrzeug &amp; Maschinist</h2>
+      </div>
+      <div class="fab-card__body">
+        <div class="form-group">
+          <label class="form-label">Fahrzeug *</label>
+          <select name="fahrzeug_id" class="form-control" required>
+            {% for fz in fahrzeuge %}
+            <option value="{{ fz.id }}" {% if fz.id == fahrt.fahrzeug_id %}selected{% endif %}>
+              {{ fz.code }}{% if fz.kennzeichen %} ({{ fz.kennzeichen }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
 
-    <div class="form-group" x-data="maschinistAutocomplete('maschinist', '{{ fahrt.maschinist_name }}', '{{ fahrt.maschinist_member_id or '' }}')">
-      <label class="form-label">Maschinist *</label>
-      <input type="hidden" name="maschinist_member_id" :value="memberId">
-      <div style="position:relative;">
-        <input type="text" name="maschinist_name" id="maschinist_name"
-               class="form-control"
-               placeholder="Name tippen…" required autocomplete="new-password"
-               x-model="query"
-               hx-get="/fahrtenbuch/hx/maschinist"
-               hx-target="#maschinist-suggestions"
-               hx-trigger="input changed delay:200ms"
-               hx-include="[name='maschinist_name']"
-               @focus="open=true" @blur="setTimeout(()=>open=false,150)" @input="open=true">
-        <div id="maschinist-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
+        <div class="form-group" x-data="maschinistAutocomplete('maschinist', '{{ fahrt.maschinist_name }}', '{{ fahrt.maschinist_member_id or '' }}')">
+          <label class="form-label">Maschinist *</label>
+          <input type="hidden" name="maschinist_member_id" :value="memberId">
+          <div style="position:relative;">
+            <input type="text" name="maschinist_name" id="maschinist_name"
+                   class="form-control"
+                   placeholder="Name tippen…" required autocomplete="new-password"
+                   x-model="query"
+                   hx-get="/fahrtenbuch/hx/maschinist"
+                   hx-target="#maschinist-suggestions"
+                   hx-trigger="input changed delay:200ms"
+                   hx-include="[name='maschinist_name']"
+                   @focus="open=true" @blur="setTimeout(()=>open=false,150)" @input="open=true">
+            <div id="maschinist-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
+          </div>
+        </div>
+
+        {% if fahrt.fahrzeug and fahrt.fahrzeug.zweiter_maschinist_pflicht %}
+        <div class="form-group" x-data="maschinistAutocomplete('maschinist2', '{{ fahrt.maschinist2_name or '' }}', '{{ fahrt.maschinist2_member_id or '' }}')">
+          <label class="form-label">2. Maschinist (Korbmaschinist) *</label>
+          <input type="hidden" name="maschinist2_member_id" :value="memberId">
+          <div style="position:relative;">
+            <input type="text" name="maschinist2_name" id="maschinist2_name"
+                   class="form-control"
+                   placeholder="Name tippen…" required autocomplete="new-password"
+                   x-model="query"
+                   hx-get="/fahrtenbuch/hx/maschinist"
+                   hx-target="#maschinist2-suggestions"
+                   hx-trigger="input changed delay:200ms"
+                   hx-include="[name='maschinist2_name']"
+                   @focus="open=true" @blur="setTimeout(()=>open=false,150)" @input="open=true">
+            <div id="maschinist2-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if fahrt.fahrzeug and fahrt.fahrzeug.erfasst_km %}
+        <div class="form-group">
+          <label class="form-label">km-Stand *</label>
+          <input type="number" name="km_stand_neu" class="form-control" inputmode="numeric"
+                 value="{{ fahrt.km_stand_neu or '' }}">
+        </div>
+        {% endif %}
+
+        {% if fahrt.fahrzeug and fahrt.fahrzeug.erfasst_betriebsstunden %}
+        <div class="form-group">
+          <label class="form-label">Betriebsstunden</label>
+          <input type="number" name="betriebsstunden_neu" class="form-control" step="0.1"
+                 value="{{ fahrt.betriebsstunden_neu or '' }}">
+        </div>
+        {% endif %}
       </div>
     </div>
 
-    {% if fahrt.fahrzeug and fahrt.fahrzeug.zweiter_maschinist_pflicht %}
-    <div class="form-group" x-data="maschinistAutocomplete('maschinist2', '{{ fahrt.maschinist2_name or '' }}', '{{ fahrt.maschinist2_member_id or '' }}')">
-      <label class="form-label">2. Maschinist (Korbmaschinist) *</label>
-      <input type="hidden" name="maschinist2_member_id" :value="memberId">
-      <div style="position:relative;">
-        <input type="text" name="maschinist2_name" id="maschinist2_name"
-               class="form-control"
-               placeholder="Name tippen…" required autocomplete="new-password"
-               x-model="query"
-               hx-get="/fahrtenbuch/hx/maschinist"
-               hx-target="#maschinist2-suggestions"
-               hx-trigger="input changed delay:200ms"
-               hx-include="[name='maschinist2_name']"
-               @focus="open=true" @blur="setTimeout(()=>open=false,150)" @input="open=true">
-        <div id="maschinist2-suggestions" x-show="open" style="position:absolute;z-index:50;width:100%;background:var(--surface-mid);border:1px solid var(--border);border-radius:.4rem;"></div>
+    {# 2. Ziel & Zweck #}
+    <div class="fab-card fab-card--ziel">
+      <div class="fab-card__head">
+        <span class="fab-card__icon">&#x1F4CD;</span>
+        <h2 class="fab-card__title">Ziel &amp; Zweck</h2>
+      </div>
+      <div class="fab-card__body">
+        <div class="form-group">
+          <label class="form-label">Zielort</label>
+          <select name="zielort_id" class="form-control">
+            <option value="">— wählen —</option>
+            {% for zo in zielorte %}
+            <option value="{{ zo.id }}" {% if fahrt.zielort_id == zo.id %}selected{% endif %}>{{ zo.name }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="zielort_freitext" class="form-control" style="margin-top:.5rem;"
+                 value="{{ fahrt.zielort_freitext or '' }}" placeholder="Freitext">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Zweck *</label>
+          <select name="zweck_id" class="form-control" required>
+            {% for z in zwecke %}
+            <option value="{{ z.id }}" {% if fahrt.zweck_id == z.id %}selected{% endif %}>{{ z.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
     </div>
-    {% endif %}
 
-    {% if fahrt.fahrzeug and fahrt.fahrzeug.erfasst_km %}
-    <div class="form-group">
-      <label class="form-label">km-Stand *</label>
-      <input type="number" name="km_stand_neu" class="form-control" inputmode="numeric"
-             value="{{ fahrt.km_stand_neu or '' }}">
-    </div>
-    {% endif %}
-
-    {% if fahrt.fahrzeug and fahrt.fahrzeug.erfasst_betriebsstunden %}
-    <div class="form-group">
-      <label class="form-label">Betriebsstunden</label>
-      <input type="number" name="betriebsstunden_neu" class="form-control" step="0.1"
-             value="{{ fahrt.betriebsstunden_neu or '' }}">
-    </div>
-    {% endif %}
-
-    <div class="form-group">
-      <label class="form-label">Zielort</label>
-      <select name="zielort_id" class="form-control">
-        <option value="">— wählen —</option>
-        {% for zo in zielorte %}
-        <option value="{{ zo.id }}" {% if fahrt.zielort_id == zo.id %}selected{% endif %}>{{ zo.name }}</option>
-        {% endfor %}
-      </select>
-      <input type="text" name="zielort_freitext" class="form-control" style="margin-top:.5rem;"
-             value="{{ fahrt.zielort_freitext or '' }}" placeholder="Freitext">
+    {# 3. Zeitpunkt & Bemerkung #}
+    <div class="fab-card fab-card--zeit">
+      <div class="fab-card__head">
+        <span class="fab-card__icon">&#x1F550;</span>
+        <h2 class="fab-card__title">Zeitpunkt &amp; Bemerkung</h2>
+      </div>
+      <div class="fab-card__body">
+        <div class="form-group">
+          <label class="form-label">Zeitpunkt</label>
+          <input type="datetime-local" name="zeitpunkt" class="form-control"
+                 value="{{ (fahrt.zeitpunkt|local).strftime('%Y-%m-%dT%H:%M') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bemerkung</label>
+          <textarea name="bemerkung" class="form-control" rows="2">{{ fahrt.bemerkung or '' }}</textarea>
+        </div>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Zweck *</label>
-      <select name="zweck_id" class="form-control" required>
-        {% for z in zwecke %}
-        <option value="{{ z.id }}" {% if fahrt.zweck_id == z.id %}selected{% endif %}>{{ z.name }}</option>
-        {% endfor %}
-      </select>
+    <div class="fab-actions">
+      <button type="submit" class="btn btn--primary btn--lg">Korrektur speichern</button>
     </div>
-
-    <div class="form-group">
-      <label class="form-label">Zeitpunkt</label>
-      <input type="datetime-local" name="zeitpunkt" class="form-control"
-             value="{{ (fahrt.zeitpunkt|local).strftime('%Y-%m-%dT%H:%M') }}">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Bemerkung</label>
-      <textarea name="bemerkung" class="form-control" rows="2">{{ fahrt.bemerkung or '' }}</textarea>
-    </div>
-
-    <button type="submit" class="btn btn--primary">Korrektur speichern</button>
   </form>
 </div>
 
