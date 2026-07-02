@@ -97,13 +97,21 @@ async def termin_liste(
     _: CurrentOrgId = None,
 ):
     user = _require_login(request)
-    q = db.query(Termin)
-    if typ in ("uebung", "veranstaltung"):
-        q = q.filter(Termin.typ == typ)
-    termine = q.order_by(Termin.beginn.desc()).all()
+    termine = []
+    incidents = []
+    if typ == "einsatz":
+        from app.models.incident import Incident
+        from app.routers.ui_archive import _scoped_incidents_query
+        incidents = _scoped_incidents_query(db, user).order_by(Incident.started_at.desc()).limit(200).all()
+    else:
+        q = db.query(Termin)
+        if typ in ("uebung", "veranstaltung"):
+            q = q.filter(Termin.typ == typ)
+        termine = q.order_by(Termin.beginn.desc()).all()
     return templates.TemplateResponse(request, "termin/liste.html", {
         "user": user,
         "termine": termine,
+        "incidents": incidents,
         "filter_typ": typ or "",
         "can_edit": _can_edit(user),
     })

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Termine – {{ brand }}{% endblock %}
+{% block title %}Teilnahme – {{ brand }}{% endblock %}
 
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:16px;">
@@ -7,10 +7,10 @@
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
     <div>
-      <h1 style="font-size:1.35rem;font-weight:700;margin:0;">Termine</h1>
-      <p style="color:var(--text-muted);font-size:.85rem;margin:2px 0 0;">Übungen und Veranstaltungen</p>
+      <h1 style="font-size:1.35rem;font-weight:700;margin:0;">Teilnahme</h1>
+      <p style="color:var(--text-muted);font-size:.85rem;margin:2px 0 0;">Teilnehmerlisten für Übungen, Veranstaltungen und Einsätze</p>
     </div>
-    {% if can_edit %}
+    {% if can_edit and filter_typ != 'einsatz' %}
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <a href="/termine/neu?typ=uebung" class="btn btn--primary btn--sm">+ Übung</a>
       <a href="/termine/neu?typ=veranstaltung" class="btn btn--secondary btn--sm">+ Veranstaltung</a>
@@ -23,10 +23,49 @@
     <a href="/termine" class="btn btn--sm {% if not filter_typ %}btn--primary{% else %}btn--ghost{% endif %}">Alle</a>
     <a href="/termine?typ=uebung" class="btn btn--sm {% if filter_typ == 'uebung' %}btn--primary{% else %}btn--ghost{% endif %}">Übungen</a>
     <a href="/termine?typ=veranstaltung" class="btn btn--sm {% if filter_typ == 'veranstaltung' %}btn--primary{% else %}btn--ghost{% endif %}">Veranstaltungen</a>
+    <a href="/termine?typ=einsatz" class="btn btn--sm {% if filter_typ == 'einsatz' %}btn--primary{% else %}btn--ghost{% endif %}">Einsätze</a>
   </div>
 
-  <!-- Liste -->
-  {% if termine %}
+  {% if filter_typ == 'einsatz' %}
+  <!-- Einsatz-Liste: Mannschaft je Einsatz erfassen -->
+  {% if incidents %}
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    {% for inc in incidents %}
+    <a href="/einsatz/{{ inc.id }}/mannschaft"
+       style="display:block;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+              padding:14px 16px;text-decoration:none;color:inherit;transition:border-color .15s;"
+       onmouseover="this.style.borderColor='var(--primary,#d42225)'"
+       onmouseout="this.style.borderColor='var(--border)'">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:.95rem;margin-bottom:4px;">
+            <span class="alarm-badge alarm-badge--sm alarm-badge--{{ inc.alarm_type_code[:1]|lower }}">{{ inc.alarm_type_code }}</span>
+            Einsatz #{{ inc.nummer or inc.id }}
+          </div>
+          <div style="font-size:.8rem;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">
+            <span>{{ inc.started_at|local_datetime }}</span>
+            {% if inc.address_street %}<span>📍 {{ inc.address_street }} {{ inc.address_no or '' }}{% if inc.address_city %}, {{ inc.address_city }}{% endif %}</span>{% endif %}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+          {% if inc.is_exercise %}<span class="badge badge--exercise">ÜBUNG</span>
+          {% elif inc.status == 'active' %}<span class="badge badge--active">Aktiv</span>
+          {% else %}<span class="badge badge--closed">Abgeschlossen</span>{% endif %}
+          <span style="font-size:.75rem;color:var(--text-muted);background:var(--surface-high);
+                       padding:2px 8px;border-radius:4px;">👥 Mannschaft</span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:48px 16px;color:var(--text-muted);">
+    <div style="font-size:2.5rem;margin-bottom:12px;">🚨</div>
+    <div>Keine Einsätze vorhanden.</div>
+  </div>
+  {% endif %}
+
+  {% elif termine %}
   <div style="display:flex;flex-direction:column;gap:10px;">
     {% for t in termine %}
     <a href="/termine/{{ t.id }}"

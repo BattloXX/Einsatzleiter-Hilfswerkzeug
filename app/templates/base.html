@@ -67,7 +67,7 @@
           {% if is_fahrtenbuch %}
           <a href="/verwaltung/fahrten" class="{% if '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path %}active{% endif %}">🚒 Fahrtenbuch</a>
           {% endif %}
-          <a href="/termine" class="{% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">📅 Termine</a>
+          <a href="/termine" class="{% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">📋 Teilnahme</a>
           {% if is_as_pruefung %}
           <a href="/atemschutz-pruefung" class="{% if request.url.path.startswith('/atemschutz-pruefung') %}active{% endif %}">🫁 Atemschutz-Geräteprüfung</a>
           {% endif %}
@@ -180,7 +180,7 @@
       {% if is_fahrtenbuch %}
       <a href="/verwaltung/fahrten" class="mobile-menu__link {% if '/verwaltung/fahrten' in request.url.path or '/fahrtenbuch' in request.url.path %}active{% endif %}">🚒 Fahrtenbuch</a>
       {% endif %}
-      <a href="/termine" class="mobile-menu__link {% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">📅 Termine</a>
+      <a href="/termine" class="mobile-menu__link {% if request.url.path.startswith('/termine') or request.url.path.startswith('/teilnahme') %}active{% endif %}">📋 Teilnahme</a>
       {% if is_as_pruefung %}
       <a href="/atemschutz-pruefung" class="mobile-menu__link {% if request.url.path.startswith('/atemschutz-pruefung') %}active{% endif %}">🫁 Atemschutz-Geräteprüfung</a>
       {% endif %}
